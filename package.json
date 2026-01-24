@@ -1,0 +1,33 @@
+{
+  "name": "nopamine",
+  "version": "1.0.0",
+  "private": "true",
+  "description": "nopamine is a tool for detecting and analyzing \"stupid tax\", designed to help users identify and avoid unnecessary expenses.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "directories": {
+    "doc": "doc"
+  },
+  "scripts": {
+    "dev:web": "npm --workspace apps/web run dev",
+    "dev:mobile": "npm --workspace apps/mobile start",
+    "dev:api": "npm --workspace apps/api run dev",
+
+    "build:web": "npm --workspace apps/web run build",
+    "build:api": "npm --workspace apps/api run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bobaba99/nopamine.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/bobaba99/nopamine/issues"
+  },
+  "homepage": "https://github.com/bobaba99/nopamine#readme"
+}
