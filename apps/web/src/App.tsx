@@ -1,34 +1,388 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useMemo, useState } from 'react'
+import type { Session } from '@supabase/supabase-js'
+import {
+  BrowserRouter,
+  Navigate,
+  NavLink,
+  Outlet,
+  Route,
+  Routes,
+  useNavigate,
+} from 'react-router-dom'
+import { supabase } from './api/supabaseClient'
+import Home from './pages/Home'
+import Swipe from './pages/Swipe'
+import Profile from './pages/Profile'
+import './styles/App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+type AuthMode = 'sign_in' | 'sign_up'
+
+type StatusMessage = {
+  type: 'error' | 'success' | 'info'
+  message: string
+}
+
+const hasSupabaseConfig =
+  Boolean(import.meta.env.VITE_SUPABASE_URL) &&
+  Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY)
+
+const syncUserRecord = async (activeSession: Session) => {
+  const email = activeSession.user.email
+  if (!email) {
+    return
+  }
+
+  const { error } = await supabase.from('users').upsert(
+    {
+      id: activeSession.user.id,
+      email,
+      last_active: new Date().toISOString(),
+    },
+    { onConflict: 'id' },
+  )
+
+  if (error) {
+    console.error('Failed to sync user record', error)
+  }
+}
+
+function RequireAuth({ session }: { session: Session | null }) {
+  if (!session) {
+    return <Navigate to="/auth" replace />
+  }
+
+  return <Outlet />
+}
+
+function PublicOnly({ children }: { session: Session | null; children: JSX.Element }) {
+  return children
+}
+
+function AppShell({ session, onSignOut, loading }: {
+  session: Session
+  onSignOut: () => void
+  loading: boolean
+}) {
+  return (
+    <div className="app-shell">
+      <div className="shell-header">
+        <div>
+          <p className="shell-label">Signed in</p>
+          <p className="shell-value">{session.user.email}</p>
+        </div>
+        <button className="ghost" type="button" onClick={onSignOut} disabled={loading}>
+          Sign out
+        </button>
+      </div>
+      <nav className="nav">
+        <NavLink to="/" end className="nav-link">
+          Home
+        </NavLink>
+        <NavLink to="/swipe" className="nav-link">
+          Swipe
+        </NavLink>
+        <NavLink to="/profile" className="nav-link">
+          Profile
+        </NavLink>
+      </nav>
+      <div className="route-surface">
+        <Outlet />
+      </div>
+    </div>
+  )
+}
+
+function AuthRoute({
+  session,
+  authMode,
+  headline,
+  status,
+  loading,
+  email,
+  password,
+  onAuth,
+  onEmailChange,
+  onPasswordChange,
+  onToggleMode,
+}: {
+  session: Session | null
+  authMode: AuthMode
+  headline: string
+  status: StatusMessage | null
+  loading: boolean
+  email: string
+  password: string
+  onAuth: (event: React.FormEvent<HTMLFormElement>) => void
+  onEmailChange: (value: string) => void
+  onPasswordChange: (value: string) => void
+  onToggleMode: () => void
+}) {
+  const navigate = useNavigate()
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
+    <section className="auth-layout">
+      <section className="hero">
+        <span className="badge">Regret-based purchase reflection</span>
+        <h1>{headline}</h1>
         <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
+          Nopamine turns regret into a signal. Import purchases, swipe your
+          feelings, and slow down the next impulse buy with a 24-hour hold.
         </p>
+        <div className="pill-row">
+          <span>Swipe regret vs satisfied</span>
+          <span>Personal patterns, not budgeting</span>
+          <span>Designed for fast honesty</span>
+        </div>
+      </section>
+
+      <section className="auth-card">
+        <div className="card-header">
+          <h2>{session ? 'You are signed in' : 'Sign in to continue'}</h2>
+          <p>
+            {session
+              ? 'Continue to your profile to see your latest data.'
+              : 'Use the same email you will connect for receipt ingestion.'}
+          </p>
+        </div>
+
+        {!hasSupabaseConfig && (
+          <div className="status error">
+            Missing Supabase config. Add VITE_SUPABASE_URL and
+            VITE_SUPABASE_ANON_KEY to your Vite environment.
+          </div>
+        )}
+
+        {status && (
+          <div className={`status ${status.type}`}>{status.message}</div>
+        )}
+
+        {session ? (
+          <div className="signed-in">
+            <div>
+              <span className="label">Signed in as </span>
+              <span className="value">{session.user.email}</span>
+            </div>
+            <button
+              className="primary"
+              type="button"
+              onClick={() => navigate('/profile')}
+            >
+              Continue
+            </button>
+          </div>
+        ) : (
+          <form className="auth-form" onSubmit={onAuth}>
+            <label>
+              Email
+              <input
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => onEmailChange(event.target.value)}
+                placeholder="you@domain.com"
+                required
+              />
+            </label>
+            <label>
+              Password
+              <input
+                type="password"
+                autoComplete={
+                  authMode === 'sign_in' ? 'current-password' : 'new-password'
+                }
+                value={password}
+                onChange={(event) => onPasswordChange(event.target.value)}
+                placeholder="••••••••"
+                minLength={6}
+                required
+              />
+            </label>
+            <button className="primary" type="submit" disabled={loading}>
+              {loading
+                ? 'Working...'
+                : authMode === 'sign_in'
+                  ? 'Sign in'
+                  : 'Create account'}
+            </button>
+            <button className="link" type="button" onClick={onToggleMode}>
+              {authMode === 'sign_in'
+                ? 'Need an account? Sign up'
+                : 'Already have an account? Sign in'}
+            </button>
+          </form>
+        )}
+      </section>
+    </section>
+  )
+}
+
+function App() {
+  const [session, setSession] = useState<Session | null>(null)
+  const [authMode, setAuthMode] = useState<AuthMode>('sign_in')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [status, setStatus] = useState<StatusMessage | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session)
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    if (!session) {
+      return
+    }
+
+    void syncUserRecord(session)
+  }, [session])
+
+  const headline = useMemo(() => {
+    if (session) {
+      return 'Your regret mirror is ready.'
+    }
+
+    return authMode === 'sign_in'
+      ? 'Welcome back. Keep your future self honest.'
+      : 'Create your regret mirror. No judgement, just clarity.'
+  }, [authMode, session])
+
+  const handleAuth = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setStatus(null)
+
+    if (!hasSupabaseConfig) {
+      setStatus({
+        type: 'error',
+        message:
+          'Supabase environment variables are missing. Add them before trying to sign in.',
+      })
+      return
+    }
+
+    setLoading(true)
+
+    const action =
+      authMode === 'sign_in'
+        ? supabase.auth.signInWithPassword({ email, password })
+        : supabase.auth.signUp({ email, password })
+
+    const { data, error } = await action
+
+    if (error) {
+      setStatus({ type: 'error', message: error.message })
+      setLoading(false)
+      return
+    }
+
+    if (authMode === 'sign_up' && !data.session) {
+      setStatus({
+        type: 'success',
+        message:
+          'Check your inbox to confirm your account, then sign in with your password.',
+      })
+    } else {
+      setStatus({
+        type: 'success',
+        message: authMode === 'sign_in' ? 'Signed in.' : 'Account created.',
+      })
+    }
+
+    setLoading(false)
+  }
+
+  const handleSignOut = async () => {
+    setLoading(true)
+    setStatus(null)
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+      setStatus({ type: 'error', message: error.message })
+    } else {
+      setStatus({ type: 'info', message: 'Signed out.' })
+    }
+
+    setLoading(false)
+  }
+
+  return (
+    <BrowserRouter>
+      <div className="page">
+        <header className="topbar">
+          <div className="brand">Nopamine</div>
+          <div className="top-actions">
+            {session ? (
+              <button
+                className="ghost"
+                type="button"
+                onClick={handleSignOut}
+                disabled={loading}
+              >
+                Sign out
+              </button>
+            ) : (
+              <span className="hint">Start with email + password</span>
+            )}
+          </div>
+        </header>
+
+        <main className="content">
+          <Routes>
+            <Route path="/" element={<Navigate to="/auth" replace />} />
+            <Route
+              path="/auth"
+              element={
+                <PublicOnly session={session}>
+                  <AuthRoute
+                    session={session}
+                    authMode={authMode}
+                    headline={headline}
+                    status={status}
+                    loading={loading}
+                    email={email}
+                    password={password}
+                    onAuth={handleAuth}
+                    onEmailChange={setEmail}
+                    onPasswordChange={setPassword}
+                    onToggleMode={() =>
+                      setAuthMode(authMode === 'sign_in' ? 'sign_up' : 'sign_in')
+                    }
+                  />
+                </PublicOnly>
+              }
+            />
+
+            <Route element={<RequireAuth session={session} />}>
+              <Route
+                element={
+                  session ? (
+                    <AppShell session={session} onSignOut={handleSignOut} loading={loading} />
+                  ) : null
+                }
+              >
+                <Route index element={<Home session={session} />} />
+                <Route path="swipe" element={<Swipe session={session} />} />
+                <Route path="profile" element={<Profile session={session} />} />
+              </Route>
+            </Route>
+
+            <Route
+              path="*"
+              element={<Navigate to={session ? '/' : '/auth'} replace />}
+            />
+          </Routes>
+        </main>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    </BrowserRouter>
   )
 }
 
