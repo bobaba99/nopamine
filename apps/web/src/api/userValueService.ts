@@ -1,37 +1,5 @@
 import { supabase } from './supabaseClient'
-import type { UserRow, UserValueRow } from './types'
-
-export async function getUserProfile(userId: string): Promise<UserRow | null> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('id, email, created_at, last_active, onboarding_completed')
-    .eq('id', userId)
-    .maybeSingle()
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  return data as UserRow | null
-}
-
-export async function createUserProfile(
-  userId: string,
-  email: string
-): Promise<{ error: string | null; isConflict: boolean }> {
-  const { error } = await supabase.from('users').insert({
-    id: userId,
-    email,
-    last_active: new Date().toISOString(),
-  })
-
-  if (error) {
-    const isConflict = error.code === '23505'
-    return { error: error.message, isConflict }
-  }
-
-  return { error: null, isConflict: false }
-}
+import type { UserValueRow } from './types'
 
 export async function getUserValues(userId: string): Promise<UserValueRow[]> {
   const { data, error } = await supabase
@@ -49,7 +17,7 @@ export async function getUserValues(userId: string): Promise<UserValueRow[]> {
 
 export async function createUserValue(
   valueType: string,
-  preferenceScore: number
+  preferenceScore: number,
 ): Promise<{ error: string | null }> {
   const { error } = await supabase.rpc('add_user_value', {
     p_value_type: valueType,
@@ -62,7 +30,7 @@ export async function createUserValue(
 export async function updateUserValue(
   userId: string,
   valueId: string,
-  preferenceScore: number
+  preferenceScore: number,
 ): Promise<{ error: string | null }> {
   const { error } = await supabase
     .from('user_values')
@@ -75,7 +43,7 @@ export async function updateUserValue(
 
 export async function deleteUserValue(
   userId: string,
-  valueId: string
+  valueId: string,
 ): Promise<{ error: string | null }> {
   const { error } = await supabase
     .from('user_values')

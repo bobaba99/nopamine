@@ -17,8 +17,10 @@ export async function getSwipeStats(userId: string): Promise<Stats> {
   if (!swipesError && swipes) {
     const total = swipes.length
     const regrets = swipes.filter((s) => s.outcome === 'regret').length
+    const satisfied = swipes.filter((s) => s.outcome === 'satisfied').length
+    const rated = regrets + satisfied
     stats.swipesCompleted = total
-    stats.regretRate = total > 0 ? Math.round((regrets / total) * 100) : 0
+    stats.regretRate = rated > 0 ? Math.round((regrets / rated) * 100) : 0
   }
 
   // Load active holds (verdicts with hold_release_at in the future)

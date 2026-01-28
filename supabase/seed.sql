@@ -13,12 +13,83 @@ alter table swipes disable row level security;
 -- Fixed test user UUID (create a user in Supabase Auth with this ID, or use for direct DB testing)
 do $$
 declare
-  test_user_id uuid := 'fb2601bd-5c78-48b2-bd32-c93382075ef6';
+  test_user_id uuid;
+  target_email text := 'gavingengzihao@gmail.com';
 begin
-  -- Ensure the test user exists in public.users to satisfy foreign key constraints
-  insert into public.users (id, email, onboarding_completed)
-  values (test_user_id, 'test@example.com', true)
-  on conflict (id) do update set onboarding_completed = true;
+  -- Match by email: prefer auth.users, then public.users, otherwise create a new id
+  select id into test_user_id from auth.users where email = target_email;
+  if test_user_id is null then
+    select id into test_user_id from public.users where email = target_email;
+  end if;
+  if test_user_id is null then
+    test_user_id := gen_random_uuid();
+    insert into public.users (
+      id,
+      email,
+      onboarding_completed,
+      profile_summary,
+      weekly_fun_budget,
+      onboarding_answers
+    )
+    values (
+      test_user_id,
+      target_email,
+      true,
+      'Focused on financial stability and durability, cautious about impulse buys.',
+      120.00,
+      jsonb_build_object(
+        'coreValues', jsonb_build_array('Financial stability', 'Minimalism / low clutter'),
+        'regretPatterns', jsonb_build_array('I bought impulsively'),
+        'satisfactionPatterns', jsonb_build_array('Lasts a long time'),
+        'decisionStyle', 'I plan carefully and delay',
+        'financialSensitivity', 'Very cautious',
+      'spendingStressScore', 4,
+      'emotionalRelationship', jsonb_build_object(
+        'stability', 4,
+        'excitement', 2,
+        'control', 4,
+        'reward', 3
+      ),
+        'identityStability', 'Somewhat important'
+      )
+    );
+  else
+    insert into public.users (
+      id,
+      email,
+      onboarding_completed,
+      profile_summary,
+      weekly_fun_budget,
+      onboarding_answers
+    )
+    values (
+      test_user_id,
+      target_email,
+      true,
+      'Focused on financial stability and durability, cautious about impulse buys.',
+      120.00,
+      jsonb_build_object(
+        'coreValues', jsonb_build_array('Financial stability', 'Minimalism / low clutter'),
+        'regretPatterns', jsonb_build_array('I bought impulsively'),
+        'satisfactionPatterns', jsonb_build_array('Lasts a long time'),
+        'decisionStyle', 'I plan carefully and delay',
+        'financialSensitivity', 'Very cautious',
+        'spendingStressScore', 0.7,
+        'emotionalRelationship', jsonb_build_object(
+          'stability', 0.7,
+          'excitement', 0.3,
+          'control', 0.6,
+          'reward', 0.4
+        ),
+        'identityStability', 'Somewhat important'
+      )
+    )
+    on conflict (id) do update set
+      onboarding_completed = true,
+      profile_summary = excluded.profile_summary,
+      weekly_fun_budget = excluded.weekly_fun_budget,
+      onboarding_answers = excluded.onboarding_answers;
+  end if;
 
   -- Insert 20 past purchases with variety
   -- vendor_tier: 0: luxury, 1: premium, 2: mid-tier, 3: generic
@@ -66,12 +137,13 @@ begin
     t.timing,
     case 
       when t.timing = 'immediate' then purchase_date
-      when t.timing = 'week' then purchase_date + interval '7 days'
+      when t.timing = 'week3' then purchase_date + interval '3 weeks'
       when t.timing = 'month3' then purchase_date + interval '3 months'
-      when t.timing = 'month6' then purchase_date + interval '6 months'
     end as scheduled_for
   from purchases
-  cross join (select unnest(enum_range(null::swipe_timing)) as timing) t
+  cross join (
+    select unnest(array['immediate','week3','month3']::swipe_timing[]) as timing
+  ) t
   where user_id = test_user_id
   on conflict do nothing;
 

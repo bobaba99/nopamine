@@ -10,7 +10,7 @@ import {
   useNavigate,
 } from 'react-router-dom'
 import { supabase } from './api/supabaseClient'
-import Home from './pages/Home'
+import Dashboard from './pages/Dashboard'
 import Swipe from './pages/Swipe'
 import Profile from './pages/Profile'
 import './styles/App.css'
@@ -65,26 +65,6 @@ function AppShell({ session, onSignOut, loading }: {
 }) {
   return (
     <div className="app-shell">
-      <div className="shell-header">
-        <div>
-          <p className="shell-label">Signed in</p>
-          <p className="shell-value">{session.user.email}</p>
-        </div>
-        <button className="ghost" type="button" onClick={onSignOut} disabled={loading}>
-          Sign out
-        </button>
-      </div>
-      <nav className="nav">
-        <NavLink to="/" end className="nav-link">
-          Home
-        </NavLink>
-        <NavLink to="/swipe" className="nav-link">
-          Swipe
-        </NavLink>
-        <NavLink to="/profile" className="nav-link">
-          Profile
-        </NavLink>
-      </nav>
       <div className="route-surface">
         <Outlet />
       </div>
@@ -319,16 +299,33 @@ function App() {
       <div className="page">
         <header className="topbar">
           <div className="brand">Nopamine</div>
+          {session && (
+            <nav className="nav topbar-nav">
+              <NavLink to="/" end className="nav-link">
+                Dashboard
+              </NavLink>
+              <NavLink to="/swipe" className="nav-link">
+                Swipe
+              </NavLink>
+              <NavLink to="/profile" className="nav-link">
+                Profile
+              </NavLink>
+            </nav>
+          )}
           <div className="top-actions">
             {session ? (
-              <button
-                className="ghost"
-                type="button"
-                onClick={handleSignOut}
-                disabled={loading}
-              >
-                Sign out
-              </button>
+              <div className="session-chip">
+                <span className="session-label">Signed in</span>
+                <span className="session-email">{session.user.email}</span>
+                <button
+                  className="ghost"
+                  type="button"
+                  onClick={handleSignOut}
+                  disabled={loading}
+                >
+                  Sign out
+                </button>
+              </div>
             ) : (
               <span className="hint">Start with email + password</span>
             )}
@@ -369,7 +366,7 @@ function App() {
                   ) : null
                 }
               >
-                <Route index element={<Home session={session} />} />
+                <Route index element={<Dashboard session={session} />} />
                 <Route path="swipe" element={<Swipe session={session} />} />
                 <Route path="profile" element={<Profile session={session} />} />
               </Route>

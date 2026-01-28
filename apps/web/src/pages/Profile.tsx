@@ -1,14 +1,25 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Session } from '@supabase/supabase-js'
-import type { UserRow, UserValueRow, VerdictRow, PurchaseRow, UserDecision } from '../api/types'
+import type {
+  OnboardingAnswers,
+  PurchaseRow,
+  UserDecision,
+  UserRow,
+  UserValueRow,
+  VerdictRow,
+} from '../api/types'
 import {
   getUserProfile,
   createUserProfile,
+  updateUserProfile,
+} from '../api/userProfileService'
+import {
   getUserValues,
   createUserValue,
   updateUserValue,
   deleteUserValue,
-} from '../api/userService'
+} from '../api/userValueService'
 import { getVerdictHistory, updateVerdictDecision, deleteVerdict } from '../api/verdictService'
 import {
   getPurchaseHistory,
@@ -17,6 +28,7 @@ import {
   deletePurchase,
 } from '../api/purchaseService'
 import VerdictDetailModal from '../components/VerdictDetailModal'
+import ListFilters, { type FilterState, INITIAL_FILTERS } from '../components/ListFilters'
 
 type ProfileProps = {
   session: Session | null
@@ -50,6 +62,89 @@ const valueOptions = [
   },
 ] as const
 
+const coreValueOptions = [
+  'Financial stability',
+  'Minimalism / low clutter',
+  'Emotional wellbeing',
+  'Self-improvement',
+  'Ethical consumption',
+  'Aesthetic enjoyment',
+  'Convenience',
+  'Status / image',
+  'Experiences over objects',
+]
+
+const regretPatternOptions = [
+  'I bought impulsively',
+  "It didn't get used",
+  "It didn't match who I am",
+  'It was too expensive for what it gave',
+  'It was driven by stress, boredom, or FOMO',
+  'It duplicated something I already had',
+]
+
+const satisfactionPatternOptions = [
+  'Improves my daily routine',
+  'Lasts a long time',
+  'Supports my growth or habits',
+  'Makes life calmer or easier',
+  'Reflects my identity',
+  'Saves time or energy',
+]
+
+const decisionStyleOptions = [
+  'I plan carefully and delay',
+  'I think briefly, then decide',
+  'I often buy emotionally and justify later',
+  'It depends heavily on mood',
+]
+
+const financialSensitivityOptions = [
+  'Very cautious',
+  'Balanced',
+  'Flexible',
+  'Indifferent',
+]
+
+const identityStabilityOptions = [
+  'Not important',
+  'Somewhat important',
+  'Very important',
+]
+
+const DEFAULT_ONBOARDING: OnboardingAnswers = {
+  coreValues: [],
+  regretPatterns: [],
+  satisfactionPatterns: [],
+  decisionStyle: '',
+  financialSensitivity: '',
+  spendingStressScore: 3,
+  emotionalRelationship: {
+    stability: 3,
+    excitement: 3,
+    control: 3,
+    reward: 3,
+  },
+  identityStability: '',
+}
+
+const normalizeOnboardingAnswers = (
+  answers: OnboardingAnswers | null | undefined,
+): OnboardingAnswers => {
+  if (!answers) return DEFAULT_ONBOARDING
+  return {
+    ...DEFAULT_ONBOARDING,
+    ...answers,
+    coreValues: answers.coreValues ?? [],
+    regretPatterns: answers.regretPatterns ?? [],
+    satisfactionPatterns: answers.satisfactionPatterns ?? [],
+    emotionalRelationship: {
+      ...DEFAULT_ONBOARDING.emotionalRelationship,
+      ...answers.emotionalRelationship,
+    },
+  }
+}
+
 export default function Profile({ session }: ProfileProps) {
   const [userRow, setUserRow] = useState<UserRow | null>(null)
   const [userValues, setUserValues] = useState<UserValueRow[]>([])
@@ -64,9 +159,58 @@ export default function Profile({ session }: ProfileProps) {
   const [purchaseDate, setPurchaseDate] = useState('')
   const [purchaseSaving, setPurchaseSaving] = useState(false)
   const [purchaseEditingId, setPurchaseEditingId] = useState<string | null>(null)
+  const [purchaseModalOpen, setPurchaseModalOpen] = useState(false)
+  const [purchaseModalMode, setPurchaseModalMode] = useState<'add' | 'edit'>('add')
   const [verdictSavingId, setVerdictSavingId] = useState<string | null>(null)
   const [selectedVerdict, setSelectedVerdict] = useState<VerdictRow | null>(null)
   const [editingValues, setEditingValues] = useState(false)
+  const [profileSummary, setProfileSummary] = useState('')
+  const [weeklyFunBudget, setWeeklyFunBudget] = useState('')
+  const [profileDraftSummary, setProfileDraftSummary] = useState('')
+  const [profileDraftBudget, setProfileDraftBudget] = useState('')
+  const [onboardingAnswers, setOnboardingAnswers] =
+    useState<OnboardingAnswers>(DEFAULT_ONBOARDING)
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileModalOpen, setProfileModalOpen] = useState(false)
+  const [verdictSearch, setVerdictSearch] = useState('')
+  const [verdictFilters, setVerdictFilters] = useState<FilterState>(INITIAL_FILTERS)
+  const [purchaseSearch, setPurchaseSearch] = useState('')
+  const [purchaseFilters, setPurchaseFilters] = useState<FilterState>(INITIAL_FILTERS)
+  const [verdictFiltersOpen, setVerdictFiltersOpen] = useState(false)
+  const [purchaseFiltersOpen, setPurchaseFiltersOpen] = useState(false)
+
+  const matchesSearch = (text: string, query: string) =>
+    text.toLowerCase().includes(query.toLowerCase())
+
+  const matchesFilters = (
+    item: { candidate_price?: number | null; price?: number; candidate_vendor?: string | null; vendor?: string | null; candidate_category?: string | null; category?: string | null; created_at?: string | null; purchase_date?: string; predicted_outcome?: string | null; user_decision?: string | null; source?: string | null },
+    filters: FilterState,
+  ) => {
+    const price = item.candidate_price ?? item.price ?? null
+    const vendor = item.candidate_vendor ?? item.vendor ?? ''
+    const category = item.candidate_category ?? item.category ?? ''
+    const date = item.created_at ?? item.purchase_date ?? ''
+
+    if (filters.vendor && !matchesSearch(vendor ?? '', filters.vendor)) return false
+    if (filters.category && category?.toLowerCase() !== filters.category.toLowerCase()) return false
+    if (filters.priceMin && (price === null || price < Number(filters.priceMin))) return false
+    if (filters.priceMax && (price === null || price > Number(filters.priceMax))) return false
+    if (filters.date && date && !date.startsWith(filters.date)) return false
+    if (filters.recommendation && item.predicted_outcome !== filters.recommendation) return false
+    if (filters.decision && item.user_decision !== filters.decision) return false
+    if (filters.source && item.source !== filters.source) return false
+    return true
+  }
+
+  const filteredVerdicts = verdicts.filter((v) => {
+    if (verdictSearch && !matchesSearch(v.candidate_title, verdictSearch)) return false
+    return matchesFilters(v, verdictFilters)
+  })
+
+  const filteredPurchases = purchases.filter((p) => {
+    if (purchaseSearch && !matchesSearch(p.title, purchaseSearch)) return false
+    return matchesFilters(p, purchaseFilters)
+  })
 
   const loadProfile = async () => {
     if (!session) return
@@ -110,6 +254,19 @@ export default function Profile({ session }: ProfileProps) {
       }
 
       setUserRow(data)
+      const summaryValue = data.profile_summary ?? ''
+      const budgetValue =
+        data.weekly_fun_budget !== null && data.weekly_fun_budget !== undefined
+          ? String(data.weekly_fun_budget)
+          : ''
+
+      setProfileSummary(summaryValue)
+      setWeeklyFunBudget(
+        budgetValue,
+      )
+      setProfileDraftSummary(summaryValue)
+      setProfileDraftBudget(budgetValue)
+      setOnboardingAnswers(normalizeOnboardingAnswers(data.onboarding_answers ?? null))
       setStatus('')
     } catch (err) {
       console.error('Profile load error', err)
@@ -168,6 +325,8 @@ export default function Profile({ session }: ProfileProps) {
     setPurchaseCategory('')
     setPurchaseDate('')
     setPurchaseEditingId(null)
+    setPurchaseModalOpen(false)
+    setPurchaseModalMode('add')
   }
 
   const getValueForType = (valueType: string): UserValueRow | undefined => {
@@ -212,6 +371,66 @@ export default function Profile({ session }: ProfileProps) {
 
     await loadUserValues()
     setSavingValueType(null)
+  }
+
+  const toggleSelection = (items: string[], value: string) => {
+    if (items.includes(value)) {
+      return items.filter((item) => item !== value)
+    }
+    return [...items, value]
+  }
+
+  const handleProfileSave = async () => {
+    if (!session) return
+
+    const budgetValue =
+      profileDraftBudget.trim() === '' ? null : Number(profileDraftBudget)
+    if (budgetValue !== null && (Number.isNaN(budgetValue) || budgetValue < 0)) {
+      setStatus('Weekly fun budget must be a positive number.')
+      return
+    }
+
+    setProfileSaving(true)
+    setStatus('')
+
+    const { error } = await updateUserProfile(session.user.id, {
+      profileSummary:
+        profileDraftSummary.trim() === '' ? null : profileDraftSummary.trim(),
+      weeklyFunBudget: budgetValue,
+    })
+
+    if (error) {
+      setStatus(error)
+      setProfileSaving(false)
+      return { error }
+    }
+
+    await loadProfile()
+    setProfileModalOpen(false)
+    setProfileSaving(false)
+    return { error: null }
+  }
+
+  const handleOnboardingSave = async () => {
+    if (!session) return
+
+    setProfileSaving(true)
+    setStatus('')
+
+    const { error } = await updateUserProfile(session.user.id, {
+      onboardingAnswers,
+    })
+
+    if (error) {
+      setStatus(error)
+      setProfileSaving(false)
+      return { error }
+    }
+
+    await loadProfile()
+    setProfileModalOpen(false)
+    setProfileSaving(false)
+    return { error: null }
   }
 
   const handlePurchaseSubmit = async (
@@ -270,6 +489,8 @@ export default function Profile({ session }: ProfileProps) {
     setPurchaseVendor(purchase.vendor ?? '')
     setPurchaseCategory(purchase.category ?? '')
     setPurchaseDate(purchase.purchase_date)
+    setPurchaseModalMode('edit')
+    setPurchaseModalOpen(true)
   }
 
   const handlePurchaseDelete = async (purchaseId: string) => {
@@ -332,18 +553,88 @@ export default function Profile({ session }: ProfileProps) {
   return (
     <section className="route-content">
       <h1>Profile</h1>
-      <p>Everything linked to your Supabase account.</p>
 
       {status && <div className="status error">{status}</div>}
 
       <div className="profile-grid">
         <div>
           <span className="label">Auth user</span>
+          <br></br>
           <span className="value">{session?.user.email}</span>
         </div>
       </div>
 
       <div className="values-section">
+        <div className="section-header">
+          <h2>Decision profile</h2>
+          <div className="header-actions">
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => setProfileModalOpen(true)}
+            >
+              Edit Decision Profile
+            </button>
+          </div>
+        </div>
+        <p className="values-description">
+          Capture who you are and what you care about. This summary guides your verdicts.
+        </p>
+        <p className="profile-hint">
+          Example: I'm a cashier and undergraduate student, I'm thinking about saving for
+          my next semester's tuition.
+        </p>
+        <div className="profile-summary">
+          <div>
+            <span className="label">Personal summary</span>
+            <br></br>
+            <span className="value">{profileSummary || 'Not set'}</span>
+          </div>
+          <div>
+            <span className="label">Weekly fun budget</span>
+            <br></br>
+            <span className="value">
+              {weeklyFunBudget ? `$${Number(weeklyFunBudget).toFixed(2)}` : 'Not set'}
+            </span>
+          </div>
+        </div>
+        <div className="profile-answer-grid">
+          <div className="profile-answer">
+            <span className="label">Core values</span>
+            <span className="value">
+              {onboardingAnswers.coreValues.length > 0
+                ? onboardingAnswers.coreValues.join(', ')
+                : 'Not set'}
+            </span>
+          </div>
+          <div className="profile-answer">
+            <span className="label">Regret triggers</span>
+            <span className="value">
+              {onboardingAnswers.regretPatterns.length > 0
+                ? onboardingAnswers.regretPatterns.join(', ')
+                : 'Not set'}
+            </span>
+          </div>
+          <div className="profile-answer">
+            <span className="label">Satisfaction pattern</span>
+            <span className="value">
+              {onboardingAnswers.satisfactionPatterns.length > 0
+                ? onboardingAnswers.satisfactionPatterns.join(', ')
+                : 'Not set'}
+            </span>
+          </div>
+          <div className="profile-answer">
+            <span className="label">Decision style</span>
+            <span className="value">
+              {onboardingAnswers.decisionStyle || 'Not set'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Previous simple 5-facet value setting */}
+
+      {/* <div className="values-section">
         <div className="section-header">
           <h2>Values</h2>
           <button
@@ -414,221 +705,597 @@ export default function Profile({ session }: ProfileProps) {
             )
           })}
         </div>
-      </div>
+      </div> */}
 
-      <div className="values-section">
-        <h2>Verdict history</h2>
-        {verdicts.length === 0 ? (
-          <div className="empty-card">No verdicts logged yet.</div>
-        ) : (
-          <div className="verdict-list">
-            {verdicts.map((verdict) => {
-              const isSaving = verdictSavingId === verdict.id
-              return (
-                <div key={verdict.id} className="verdict-card">
-                  <div
-                    className="verdict-card-clickable"
-                    onClick={() => setSelectedVerdict(verdict)}
-                    onKeyDown={(e) => e.key === 'Enter' && setSelectedVerdict(verdict)}
-                    role="button"
-                    tabIndex={0}
-                  >
+      <div className="dashboard-grid">
+        <div className="verdict-result">
+          <div className="section-header">
+            <h2>Verdict history</h2>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => setVerdictFiltersOpen((o) => !o)}
+            >
+              {verdictFiltersOpen ? 'Hide filters' : 'Filter / Search'}
+            </button>
+          </div>
+          <div className={`collapsible ${verdictFiltersOpen ? 'open' : ''}`}>
+            <ListFilters
+              search={verdictSearch}
+              onSearchChange={setVerdictSearch}
+              filters={verdictFilters}
+              onFilterChange={setVerdictFilters}
+              type="verdict"
+            />
+          </div>
+          {filteredVerdicts.length === 0 ? (
+            <div className="empty-card">
+              {verdicts.length === 0 ? 'No verdicts logged yet.' : 'No verdicts match your filters.'}
+            </div>
+          ) : (
+            <div className="verdict-list">
+              {filteredVerdicts.map((verdict) => {
+                const isSaving = verdictSavingId === verdict.id
+                return (
+                  <div key={verdict.id} className="verdict-card">
+                    <div
+                      className="verdict-card-clickable"
+                      onClick={() => setSelectedVerdict(verdict)}
+                      onKeyDown={(e) => e.key === 'Enter' && setSelectedVerdict(verdict)}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div>
+                        <span className="stat-label">Item </span>
+                        <span className="stat-value">{verdict.candidate_title}</span>
+                      </div>
+                      <div className="verdict-meta">
+                        <span>
+                          Price:{' '}
+                          {verdict.candidate_price === null
+                            ? '—'
+                            : `$${verdict.candidate_price.toFixed(2)}`}
+                        </span>
+                        <span>Vendor: {verdict.candidate_vendor ?? '—'}</span>
+                        <span>Category: {verdict.candidate_category ?? '—'}</span>
+                        <span>Recommendation: {verdict.predicted_outcome ?? '—'}</span>
+                        <span>
+                          Date:{' '}
+                          {verdict.created_at
+                            ? new Date(verdict.created_at).toLocaleDateString()
+                            : '—'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="verdict-actions">
+                      <div className="decision-buttons">
+                        <button
+                          type="button"
+                          className={`decision-btn bought ${verdict.user_decision === 'bought' ? 'active' : ''}`}
+                          onClick={() => handleVerdictDecision(verdict.id, 'bought')}
+                          disabled={isSaving}
+                        >
+                          Bought
+                        </button>
+                        <button
+                          type="button"
+                          className={`decision-btn hold ${verdict.user_decision === 'hold' ? 'active' : ''}`}
+                          onClick={() => handleVerdictDecision(verdict.id, 'hold')}
+                          disabled={isSaving}
+                        >
+                          Hold 24h
+                        </button>
+                        <button
+                          type="button"
+                          className={`decision-btn skip ${verdict.user_decision === 'skip' ? 'active' : ''}`}
+                          onClick={() => handleVerdictDecision(verdict.id, 'skip')}
+                          disabled={isSaving}
+                        >
+                          Skip
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        className="link danger"
+                        onClick={() => handleVerdictDelete(verdict.id)}
+                        disabled={isSaving}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="verdict-result">
+          <div className="section-header">
+            <h2>Purchase history</h2>
+            <div className="header-actions">
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => setPurchaseFiltersOpen((o) => !o)}
+              >
+                {purchaseFiltersOpen ? 'Hide filters' : 'Filter / Search'}
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  resetPurchaseForm()
+                  setPurchaseModalMode('add')
+                  setPurchaseModalOpen(true)
+                }}
+              >
+                Add
+              </button>
+            </div>
+          </div>
+          <div className={`collapsible ${purchaseFiltersOpen ? 'open' : ''}`}>
+            <ListFilters
+              search={purchaseSearch}
+              onSearchChange={setPurchaseSearch}
+              filters={purchaseFilters}
+              onFilterChange={setPurchaseFilters}
+              type="purchase"
+            />
+          </div>
+          {filteredPurchases.length === 0 ? (
+            <div className="empty-card">
+              {purchases.length === 0 ? 'No purchases logged yet.' : 'No purchases match your filters.'}
+            </div>
+          ) : (
+            <div className="verdict-list">
+              {filteredPurchases.map((purchase) => (
+                <div key={purchase.id} className="verdict-card">
+                  <div className="verdict-card-content">
                     <div>
                       <span className="stat-label">Item </span>
-                      <span className="stat-value">{verdict.candidate_title}</span>
+                      <span className="stat-value">{purchase.title}</span>
                     </div>
                     <div className="verdict-meta">
-                      <span>Recommendation: {verdict.predicted_outcome ?? '—'}</span>
                       <span>
-                        Price:{' '}
-                        {verdict.candidate_price === null
-                          ? '—'
-                          : `$${verdict.candidate_price.toFixed(2)}`}
+                        Price: ${Number(purchase.price).toFixed(2)}
                       </span>
+                      <span>Vendor: {purchase.vendor ?? '—'}</span>
+                      <span>Category: {purchase.category ?? '—'}</span>
+                      <span>Source: {purchase.source ?? '—'}</span>
                       <span>
-                        Created:{' '}
-                        {verdict.created_at
-                          ? new Date(verdict.created_at).toLocaleString()
+                        Date:{' '}
+                        {purchase.purchase_date
+                          ? new Date(purchase.purchase_date).toLocaleDateString()
                           : '—'}
                       </span>
-                      {verdict.user_decision && (
-                        <span className="user-decision">
-                          Your decision: <strong>{verdict.user_decision}</strong>
-                          {verdict.user_decision === 'hold' && verdict.user_hold_until && (
-                            <> (until {new Date(verdict.user_hold_until).toLocaleString()})</>
-                          )}
-                        </span>
-                      )}
                     </div>
                   </div>
                   <div className="verdict-actions">
-                    <div className="decision-buttons">
-                      <button
-                        type="button"
-                        className={`decision-btn bought ${verdict.user_decision === 'bought' ? 'active' : ''}`}
-                        onClick={() => handleVerdictDecision(verdict.id, 'bought')}
-                        disabled={isSaving}
-                      >
-                        Bought
-                      </button>
-                      <button
-                        type="button"
-                        className={`decision-btn hold ${verdict.user_decision === 'hold' ? 'active' : ''}`}
-                        onClick={() => handleVerdictDecision(verdict.id, 'hold')}
-                        disabled={isSaving}
-                      >
-                        Hold 24h
-                      </button>
-                      <button
-                        type="button"
-                        className={`decision-btn skip ${verdict.user_decision === 'skip' ? 'active' : ''}`}
-                        onClick={() => handleVerdictDecision(verdict.id, 'skip')}
-                        disabled={isSaving}
-                      >
-                        Skip
-                      </button>
-                    </div>
                     <button
+                      className="link"
                       type="button"
+                      onClick={() => handlePurchaseEdit(purchase)}
+                    >
+                      Edit
+                    </button>
+                    <button
                       className="link danger"
-                      onClick={() => handleVerdictDelete(verdict.id)}
-                      disabled={isSaving}
+                      type="button"
+                      onClick={() => handlePurchaseDelete(purchase.id)}
+                      disabled={purchaseSaving}
                     >
                       Delete
                     </button>
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="values-section">
-        <h2>Purchase history</h2>
-        <form className="purchase-form" onSubmit={handlePurchaseSubmit}>
-          <label>
-            Item title
-            <input
-              type="text"
-              value={purchaseTitle}
-              onChange={(event) => setPurchaseTitle(event.target.value)}
-              placeholder="Noise cancelling headphones"
-              required
-            />
-          </label>
-          <label>
-            Price
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={purchasePrice}
-              onChange={(event) => setPurchasePrice(event.target.value)}
-              placeholder="129.00"
-              required
-            />
-          </label>
-          <label>
-            Vendor
-            <input
-              type="text"
-              value={purchaseVendor}
-              onChange={(event) => setPurchaseVendor(event.target.value)}
-              placeholder="Amazon"
-            />
-          </label>
-          <label>
-            Category
-            <input
-              type="text"
-              value={purchaseCategory}
-              onChange={(event) => setPurchaseCategory(event.target.value)}
-              placeholder="Electronics"
-            />
-          </label>
-          <label>
-            Purchase date
-            <input
-              type="date"
-              value={purchaseDate}
-              onChange={(event) => setPurchaseDate(event.target.value)}
-              required
-            />
-          </label>
-          <div className="values-actions">
-            <button className="primary" type="submit" disabled={purchaseSaving}>
-              {purchaseSaving
-                ? 'Saving...'
-                : purchaseEditingId
-                  ? 'Update purchase'
-                  : 'Add purchase'}
-            </button>
-            {purchaseEditingId && (
-              <button
-                className="ghost"
-                type="button"
-                onClick={resetPurchaseForm}
-                disabled={purchaseSaving}
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        </form>
-        {purchases.length === 0 ? (
-          <div className="empty-card">No purchases logged yet.</div>
-        ) : (
-          <div className="verdict-list">
-            {purchases.map((purchase) => (
-              <div key={purchase.id} className="verdict-card">
-                <div>
-                  <span className="stat-label">Item</span>
-                  <span className="stat-value">{purchase.title}</span>
-                </div>
-                <div className="verdict-meta">
-                  <span>
-                    Price: ${Number(purchase.price).toFixed(2)}
-                  </span>
-                  <span>Vendor: {purchase.vendor ?? '—'}</span>
-                  <span>Category: {purchase.category ?? '—'}</span>
-                  <span>Source: {purchase.source ?? '—'}</span>
-                  <span>
-                    Purchase date:{' '}
-                    {purchase.purchase_date
-                      ? new Date(purchase.purchase_date).toLocaleDateString()
-                      : '—'}
-                  </span>
-                </div>
-                <div className="value-actions">
-                  <button
-                    className="link"
-                    type="button"
-                    onClick={() => handlePurchaseEdit(purchase)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="link danger"
-                    type="button"
-                    onClick={() => handlePurchaseDelete(purchase.id)}
-                    disabled={purchaseSaving}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {selectedVerdict && (
+      {selectedVerdict && createPortal(
         <VerdictDetailModal
           verdict={selectedVerdict}
           isOpen={selectedVerdict !== null}
           onClose={() => setSelectedVerdict(null)}
-        />
+        />,
+        document.body
+      )}
+
+      {purchaseModalOpen && createPortal(
+        <div
+          className="modal-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setPurchaseModalOpen(false)
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setPurchaseModalOpen(false)
+            }
+          }}
+          role="dialog"
+          aria-modal="true"
+          tabIndex={-1}
+        >
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>{purchaseModalMode === 'edit' ? 'Edit purchase' : 'Add purchase'}</h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setPurchaseModalOpen(false)}
+                aria-label="Close modal"
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <form className="purchase-form" onSubmit={handlePurchaseSubmit}>
+                <label>
+                  Item title
+                  <input
+                    type="text"
+                    value={purchaseTitle}
+                    onChange={(event) => setPurchaseTitle(event.target.value)}
+                    placeholder="Noise cancelling headphones"
+                    required
+                  />
+                </label>
+                <label>
+                  Price
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={purchasePrice}
+                    onChange={(event) => setPurchasePrice(event.target.value)}
+                    placeholder="129.00"
+                    required
+                  />
+                </label>
+                <label>
+                  Vendor
+                  <input
+                    type="text"
+                    value={purchaseVendor}
+                    onChange={(event) => setPurchaseVendor(event.target.value)}
+                    placeholder="Amazon"
+                  />
+                </label>
+                <label>
+                  Category
+                  <input
+                    type="text"
+                    value={purchaseCategory}
+                    onChange={(event) => setPurchaseCategory(event.target.value)}
+                    placeholder="Electronics"
+                  />
+                </label>
+                <label>
+                  Purchase date
+                  <input
+                    type="date"
+                    value={purchaseDate}
+                    onChange={(event) => setPurchaseDate(event.target.value)}
+                    required
+                  />
+                </label>
+                <div className="values-actions">
+                  <button className="primary" type="submit" disabled={purchaseSaving}>
+                    {purchaseSaving
+                      ? 'Saving...'
+                      : purchaseModalMode === 'edit'
+                        ? 'Update purchase'
+                        : 'Add purchase'}
+                  </button>
+                  <button
+                    className="ghost"
+                    type="button"
+                    onClick={resetPurchaseForm}
+                    disabled={purchaseSaving}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {profileModalOpen && createPortal(
+        <div
+          className="modal-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setProfileModalOpen(false)
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setProfileModalOpen(false)
+            }
+          }}
+          role="dialog"
+          aria-modal="true"
+          tabIndex={-1}
+        >
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Profile details</h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setProfileModalOpen(false)}
+                aria-label="Close modal"
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="quiz-section">
+                <h3>Personal summary</h3>
+                <p>Describe who you are and what you are optimizing for.</p>
+                <label className="modal-field">
+                  <textarea
+                    value={profileDraftSummary}
+                    onChange={(event) => setProfileDraftSummary(event.target.value)}
+                    placeholder="The user prioritises financial stability and minimalism, often regrets impulse tech purchases, is most satisfied with durable functional items, and has a moderately deliberate decision style."
+                    rows={4}
+                  />
+                </label>
+              </div>
+
+              <div className="quiz-section">
+                <h3>Weekly fun budget</h3>
+                <p>Set a weekly ceiling for fun and entertainment purchases.</p>
+                <label className="modal-field">
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={profileDraftBudget}
+                    onChange={(event) => setProfileDraftBudget(event.target.value)}
+                    placeholder="120.00"
+                  />
+                </label>
+              </div>
+
+              <div className="quiz-section">
+                <h3>1. Core Values</h3>
+                <p>Which of these matter most to you when buying something?</p>
+                <div className="quiz-options">
+                  {coreValueOptions.map((option) => {
+                    const selected = onboardingAnswers.coreValues.includes(option)
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        className={`quiz-chip ${selected ? 'selected' : ''}`}
+                        onClick={() =>
+                          setOnboardingAnswers((prev) => ({
+                            ...prev,
+                            coreValues: toggleSelection(prev.coreValues, option),
+                          }))
+                        }
+                      >
+                        {option}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="quiz-section">
+                <h3>2. Typical Regret Pattern</h3>
+                <p>When you regret a purchase, it is usually because…</p>
+                <div className="quiz-options">
+                  {regretPatternOptions.map((option) => {
+                    const selected = onboardingAnswers.regretPatterns.includes(option)
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        className={`quiz-chip ${selected ? 'selected' : ''}`}
+                        onClick={() =>
+                          setOnboardingAnswers((prev) => ({
+                            ...prev,
+                            regretPatterns: toggleSelection(prev.regretPatterns, option),
+                          }))
+                        }
+                      >
+                        {option}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="quiz-section">
+                <h3>3. Typical Satisfaction Pattern</h3>
+                <p>When a purchase feels truly worth it, it usually…</p>
+                <div className="quiz-options">
+                  {satisfactionPatternOptions.map((option) => {
+                    const selected = onboardingAnswers.satisfactionPatterns.includes(option)
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        className={`quiz-chip ${selected ? 'selected' : ''}`}
+                        onClick={() =>
+                          setOnboardingAnswers((prev) => ({
+                            ...prev,
+                            satisfactionPatterns: selected
+                              ? prev.satisfactionPatterns.filter((item) => item !== option)
+                              : [...prev.satisfactionPatterns, option],
+                          }))
+                        }
+                      >
+                        {option}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="quiz-section">
+                <h3>4. Decision Style</h3>
+                <p>Which best describes how you usually decide?</p>
+                <div className="quiz-options">
+                  {decisionStyleOptions.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      className={`quiz-chip ${onboardingAnswers.decisionStyle === option ? 'selected' : ''
+                        }`}
+                      onClick={() =>
+                        setOnboardingAnswers((prev) => ({
+                          ...prev,
+                          decisionStyle: option,
+                        }))
+                      }
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="quiz-section">
+                <h3>5. Financial Sensitivity</h3>
+                <p>When spending money, I mostly feel…</p>
+                <div className="quiz-options">
+                  {financialSensitivityOptions.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      className={`quiz-chip ${onboardingAnswers.financialSensitivity === option ? 'selected' : ''
+                        }`}
+                      onClick={() =>
+                        setOnboardingAnswers((prev) => ({
+                          ...prev,
+                          financialSensitivity: option,
+                        }))
+                      }
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+                <div className="quiz-range">
+                  <label>
+                    Spending money causes me stress
+                    <input
+                      type="range"
+                      min="1"
+                      max="5"
+                      step="1"
+                      value={onboardingAnswers.spendingStressScore}
+                      onChange={(event) =>
+                        setOnboardingAnswers((prev) => ({
+                          ...prev,
+                          spendingStressScore: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                  <span className="range-value">
+                    {onboardingAnswers.spendingStressScore}
+                  </span>
+                </div>
+              </div>
+
+              <div className="quiz-section">
+                <h3>6. Emotional Relationship to Buying</h3>
+                <p>Rate each 1–5</p>
+                {(['stability', 'excitement', 'control', 'reward'] as const).map((key) => (
+                  <div key={key} className="quiz-range">
+                    <label>
+                      {key === 'stability' && 'They help me feel more stable'}
+                      {key === 'excitement' && 'They help me feel excited'}
+                      {key === 'control' && 'They help me feel in control'}
+                      {key === 'reward' && 'They help me feel rewarded'}
+                      <input
+                        type="range"
+                        min="1"
+                        max="5"
+                        step="1"
+                        value={onboardingAnswers.emotionalRelationship[key]}
+                        onChange={(event) =>
+                          setOnboardingAnswers((prev) => ({
+                            ...prev,
+                            emotionalRelationship: {
+                              ...prev.emotionalRelationship,
+                              [key]: Number(event.target.value),
+                            },
+                          }))
+                        }
+                      />
+                    </label>
+                    <span className="range-value">
+                      {onboardingAnswers.emotionalRelationship[key]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="quiz-section">
+                <h3>7. Identity Stability</h3>
+                <p>
+                  How important is it that your purchases reflect who you believe you are?
+                </p>
+                <div className="quiz-options">
+                  {identityStabilityOptions.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      className={`quiz-chip ${onboardingAnswers.identityStability === option ? 'selected' : ''
+                        }`}
+                      onClick={() =>
+                        setOnboardingAnswers((prev) => ({
+                          ...prev,
+                          identityStability: option,
+                        }))
+                      }
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="values-actions">
+                <button
+                  className="primary"
+                  type="button"
+                  onClick={async () => {
+                    const profileResult = await handleProfileSave()
+                    if (profileResult?.error) {
+                      return
+                    }
+                    await handleOnboardingSave()
+                  }}
+                  disabled={profileSaving}
+                >
+                  {profileSaving ? 'Saving...' : 'Save profile'}
+                </button>
+                <button
+                  className="ghost"
+                  type="button"
+                  onClick={() => setProfileModalOpen(false)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </section>
   )

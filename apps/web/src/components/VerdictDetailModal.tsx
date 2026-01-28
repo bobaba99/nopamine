@@ -7,6 +7,33 @@ type VerdictDetailModalProps = {
 }
 
 type ReasoningData = {
+  valueConflict?: {
+    score: number
+    explanation: string
+  }
+  patternRepetition?: {
+    score: number
+    explanation: string
+  }
+  emotionalImpulse?: {
+    score: number
+    explanation: string
+  }
+  financialStrain?: {
+    score: number
+    explanation: string
+  }
+  longTermUtility?: {
+    score: number
+    explanation: string
+  }
+  emotionalSupport?: {
+    score: number
+    explanation: string
+  }
+  decisionScore?: number
+  rationale?: string
+  importantPurchase?: boolean
   valueConflictScore?: {
     score: number
     explanation: string
@@ -15,7 +42,6 @@ type ReasoningData = {
     score: number
     explanation: string
   }
-  rationale?: string
 }
 
 export default function VerdictDetailModal({
@@ -26,6 +52,7 @@ export default function VerdictDetailModal({
   if (!isOpen) return null
 
   const reasoning = verdict.reasoning as ReasoningData | null
+  const isImportant = reasoning?.importantPurchase === true
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
@@ -105,6 +132,13 @@ export default function VerdictDetailModal({
                 </span>
               </div>
             )}
+
+            {isImportant && (
+              <div className="detail-item">
+                <span className="detail-label">Important</span>
+                <span className="detail-value important-badge">Important</span>
+              </div>
+            )}
           </div>
 
           {verdict.justification && (
@@ -118,31 +152,88 @@ export default function VerdictDetailModal({
             <div className="detail-section">
               <h3>AI Analysis</h3>
 
-              {reasoning.valueConflictScore && (
+              {(reasoning.valueConflict ?? reasoning.valueConflictScore) && (
                 <div className="analysis-item">
                   <div className="analysis-header">
                     <span className="analysis-label">Value Conflict Score</span>
                     <span className="analysis-score">
-                      {reasoning.valueConflictScore.score}/5
+                      {(reasoning.valueConflict ?? reasoning.valueConflictScore)?.score}
                     </span>
                   </div>
                   <p className="analysis-explanation">
-                    {reasoning.valueConflictScore.explanation}
+                    {(reasoning.valueConflict ?? reasoning.valueConflictScore)?.explanation}
                   </p>
                 </div>
               )}
 
-              {reasoning.patternRepetitionRisk && (
+              {(reasoning.patternRepetition ?? reasoning.patternRepetitionRisk) && (
                 <div className="analysis-item">
                   <div className="analysis-header">
                     <span className="analysis-label">Pattern Repetition Risk</span>
                     <span className="analysis-score">
-                      {reasoning.patternRepetitionRisk.score}/5
+                      {(reasoning.patternRepetition ?? reasoning.patternRepetitionRisk)?.score}
                     </span>
                   </div>
                   <p className="analysis-explanation">
-                    {reasoning.patternRepetitionRisk.explanation}
+                    {(reasoning.patternRepetition ?? reasoning.patternRepetitionRisk)?.explanation}
                   </p>
+                </div>
+              )}
+
+              {reasoning.emotionalImpulse && (
+                <div className="analysis-item">
+                  <div className="analysis-header">
+                    <span className="analysis-label">Emotional Impulse</span>
+                    <span className="analysis-score">{reasoning.emotionalImpulse.score}</span>
+                  </div>
+                  <p className="analysis-explanation">
+                    {reasoning.emotionalImpulse.explanation}
+                  </p>
+                </div>
+              )}
+
+              {reasoning.financialStrain && (
+                <div className="analysis-item">
+                  <div className="analysis-header">
+                    <span className="analysis-label">Financial Strain</span>
+                    <span className="analysis-score">{reasoning.financialStrain.score}</span>
+                  </div>
+                  <p className="analysis-explanation">
+                    {reasoning.financialStrain.explanation}
+                  </p>
+                </div>
+              )}
+
+              {reasoning.longTermUtility && (
+                <div className="analysis-item">
+                  <div className="analysis-header">
+                    <span className="analysis-label">Long-Term Utility</span>
+                    <span className="analysis-score">{reasoning.longTermUtility.score}</span>
+                  </div>
+                  <p className="analysis-explanation">
+                    {reasoning.longTermUtility.explanation}
+                  </p>
+                </div>
+              )}
+
+              {reasoning.emotionalSupport && (
+                <div className="analysis-item">
+                  <div className="analysis-header">
+                    <span className="analysis-label">Emotional Support</span>
+                    <span className="analysis-score">{reasoning.emotionalSupport.score}</span>
+                  </div>
+                  <p className="analysis-explanation">
+                    {reasoning.emotionalSupport.explanation}
+                  </p>
+                </div>
+              )}
+
+              {typeof reasoning.decisionScore === 'number' && (
+                <div className="analysis-item">
+                  <div className="analysis-header">
+                    <span className="analysis-label">Decision Score</span>
+                    <span className="analysis-score">{reasoning.decisionScore.toFixed(2)}</span>
+                  </div>
                 </div>
               )}
 

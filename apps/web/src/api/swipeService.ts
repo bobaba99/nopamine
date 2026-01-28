@@ -1,18 +1,27 @@
 import { supabase } from './supabaseClient'
 import type { SwipeOutcome, SwipeQueueItem, SwipeTiming } from './types'
 
-export async function getUnratedPurchases(userId: string): Promise<SwipeQueueItem[]> {
+export async function getUnratedPurchases(
+  userId: string,
+  options?: { includeFuture?: boolean },
+): Promise<SwipeQueueItem[]> {
   const today = new Date().toISOString().split('T')[0]
+  const includeFuture = options?.includeFuture ?? false
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('swipe_schedules')
     .select(
       'id, timing, scheduled_for, purchase:purchase_id (id, title, price, vendor, category, purchase_date)',
     )
     .eq('user_id', userId)
     .is('completed_at', null)
-    .lte('scheduled_for', today)
     .order('scheduled_for', { ascending: true })
+
+  if (!includeFuture) {
+    query = query.lte('scheduled_for', today)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     throw new Error(error.message)

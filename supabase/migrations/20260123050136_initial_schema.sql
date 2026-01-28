@@ -3,8 +3,8 @@ create extension if not exists "pgcrypto";
 
 -- Enums
 create type purchase_source as enum ('email', 'ocr', 'manual');
-create type swipe_outcome as enum ('satisfied', 'regret');
-create type swipe_timing as enum ('immediate', 'week', 'month3', 'month6');
+create type swipe_outcome as enum ('satisfied', 'regret', 'not_sure');
+create type swipe_timing as enum ('immediate', 'day3', 'week3', 'month3');
 create type user_value_type as enum (
   'durability',
   'efficiency',
@@ -21,7 +21,10 @@ create table users (
   email varchar(255) unique not null,
   created_at timestamp default now(),
   last_active timestamp,
-  onboarding_completed boolean default false
+  onboarding_completed boolean default false,
+  profile_summary text,
+  onboarding_answers jsonb,
+  weekly_fun_budget decimal(10,2) check (weekly_fun_budget >= 0)
 );
 
 create table user_values (
@@ -67,7 +70,7 @@ create table swipes (
   purchase_id uuid references purchases(id) on delete cascade,
   schedule_id uuid references swipe_schedules(id) on delete cascade,
   timing swipe_timing not null,
-  outcome varchar(20) check (outcome in ('satisfied', 'regret')) not null,
+  outcome varchar(20) check (outcome in ('satisfied', 'regret', 'not_sure')) not null,
   created_at timestamp default now(),
   unique(user_id, purchase_id, timing),
   unique(schedule_id)
@@ -499,10 +502,9 @@ begin
 
   insert into swipe_schedules (user_id, purchase_id, timing, scheduled_for)
   values
-    (auth.uid(), new_row.id, 'immediate'::swipe_timing, new_row.purchase_date),
-    (auth.uid(), new_row.id, 'week'::swipe_timing, new_row.purchase_date + interval '7 days'),
-    (auth.uid(), new_row.id, 'month3'::swipe_timing, new_row.purchase_date + interval '3 months'),
-    (auth.uid(), new_row.id, 'month6'::swipe_timing, new_row.purchase_date + interval '6 months')
+    (auth.uid(), new_row.id, 'day3'::swipe_timing, new_row.purchase_date + interval '3 days'),
+    (auth.uid(), new_row.id, 'week3'::swipe_timing, new_row.purchase_date + interval '3 weeks'),
+    (auth.uid(), new_row.id, 'month3'::swipe_timing, new_row.purchase_date + interval '3 months')
   on conflict (user_id, purchase_id, timing) do update
     set scheduled_for = excluded.scheduled_for
     where swipe_schedules.completed_at is null;

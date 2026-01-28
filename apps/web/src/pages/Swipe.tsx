@@ -7,7 +7,7 @@ type SwipeProps = {
   session: Session | null
 }
 
-type SwipeDirection = 'left' | 'right' | null
+type SwipeDirection = 'left' | 'right' | 'unsure' | null
 
 type LastSwipe = {
   scheduleId: string
@@ -16,21 +16,30 @@ type LastSwipe = {
   outcome: SwipeOutcome
 }
 
+type SwipeFilterMode = 'all' | SwipeTiming
+
 const UNDO_TIMEOUT_MS = 3000
 
 const formatTimingLabel = (timing: SwipeTiming) => {
   switch (timing) {
     case 'immediate':
       return 'Immediate'
-    case 'week':
-      return '1 week'
+    case 'day3':
+      return '3 days'
+    case 'week3':
+      return '3 weeks'
     case 'month3':
       return '3 months'
-    case 'month6':
-      return '6 months'
     default:
       return timing
   }
+}
+
+const formatOutcomeLabel = (outcome: SwipeOutcome) => {
+  if (outcome === 'not_sure') {
+    return 'not sure'
+  }
+  return outcome
 }
 
 export default function Swipe({ session }: SwipeProps) {
@@ -42,7 +51,7 @@ export default function Swipe({ session }: SwipeProps) {
   const [status, setStatus] = useState<string>('')
   const [lastSwipe, setLastSwipe] = useState<LastSwipe | null>(null)
   const [undoing, setUndoing] = useState(false)
-  const [viewMode, setViewMode] = useState<'all' | 'immediate' | 'later'>('all')
+  const [viewMode, setViewMode] = useState<SwipeFilterMode>('all')
   const undoTimerRef = useRef<number | null>(null)
 
   const clearUndoTimer = useCallback(() => {
@@ -65,7 +74,7 @@ export default function Swipe({ session }: SwipeProps) {
     clearLastSwipe()
 
     try {
-      const data = await getUnratedPurchases(session.user.id)
+      const data = await getUnratedPurchases(session.user.id, { includeFuture: true })
       setPurchases(data)
       setCurrentIndex(0)
     } catch (err) {
@@ -79,14 +88,81 @@ export default function Swipe({ session }: SwipeProps) {
     void loadUnratedPurchases()
   }, [loadUnratedPurchases])
 
-  const visiblePurchases = purchases.filter((item) => {
-    if (viewMode === 'immediate') return item.timing === 'immediate'
-    if (viewMode === 'later') return item.timing !== 'immediate'
-    return true
-  })
-  const currentItem = visiblePurchases[currentIndex] ?? null
+  const today = new Date().toISOString().split('T')[0]
+  const matchesFilter = (item: SwipeQueueItem) =>
+    viewMode === 'all' ? true : item.timing === viewMode
+
+  const duePurchases = purchases.filter((item) => item.scheduled_for <= today)
+  const upcomingPurchases = purchases
+    .filter((item) => item.scheduled_for > today)
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(a.scheduled_for).getTime() -
+        new Date(b.scheduled_for).getTime(),
+    )
+  const upcomingFiltered = upcomingPurchases.filter(matchesFilter)
+  const currentItem = duePurchases[currentIndex] ?? null
   const currentPurchase = currentItem?.purchase ?? null
-  const remaining = visiblePurchases.length - currentIndex
+  const remaining = duePurchases.length - currentIndex
+
+  const handleFilterChange = (mode: SwipeFilterMode) => {
+    setViewMode(mode)
+  }
+
+  const renderFilter = () => (
+    <div className="swipe-filter">
+      {[
+        { value: 'all', label: 'All' },
+        { value: 'immediate', label: 'Immediate' },
+        { value: 'day3', label: '3 days' },
+        { value: 'week3', label: '3 weeks' },
+        { value: 'month3', label: '3 months' },
+      ].map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          className={`filter-chip ${viewMode === option.value ? 'active' : ''}`}
+          onClick={() => handleFilterChange(option.value as SwipeFilterMode)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
+
+  const renderUpcomingSection = () => {
+    return (
+      <div className="upcoming-section">
+        <div className="upcoming-header">
+          <div>
+            <h1>Upcoming schedules</h1>
+            <p>These purchases are scheduled but not due to swipe yet.</p>
+          </div>
+          {renderFilter()}
+        </div>
+        {upcomingFiltered.length === 0 ? (
+          <div className="empty-card">
+            {viewMode === 'all'
+              ? 'No upcoming schedules yet.'
+              : 'No upcoming schedules match this filter.'}
+          </div>
+        ) : (
+          <div className="upcoming-grid">
+            {upcomingFiltered.slice(0, 6).map((item) => (
+              <div key={item.schedule_id} className="upcoming-card glass-panel">
+                <span className="upcoming-title">{item.purchase.title}</span>
+                <span className="upcoming-meta">
+                  {formatTimingLabel(item.timing)} •{' '}
+                  {new Date(item.scheduled_for).toLocaleDateString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const handleUndo = useCallback(async () => {
     if (!session || !lastSwipe || undoing) return
@@ -123,7 +199,13 @@ export default function Swipe({ session }: SwipeProps) {
       clearLastSwipe()
 
       setSwiping(true)
-      setSwipeDirection(outcome === 'satisfied' ? 'right' : 'left')
+      setSwipeDirection(
+        outcome === 'satisfied'
+          ? 'right'
+          : outcome === 'regret'
+            ? 'left'
+            : 'unsure',
+      )
       setStatus('')
 
       const { error } = await createSwipe(
@@ -142,6 +224,8 @@ export default function Swipe({ session }: SwipeProps) {
       }
 
       // Brief delay for animation, then update state
+      const animationDelay = outcome === 'not_sure' ? 2000 : 300
+
       setTimeout(() => {
         // Set undo state FIRST, before changing index
         setLastSwipe({
@@ -172,6 +256,10 @@ export default function Swipe({ session }: SwipeProps) {
     void handleSwipe('satisfied')
   }, [handleSwipe])
 
+  const handleNotSure = useCallback(() => {
+    void handleSwipe('not_sure')
+  }, [handleSwipe])
+
   // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -192,12 +280,24 @@ export default function Swipe({ session }: SwipeProps) {
       } else if (event.key === 'ArrowRight') {
         event.preventDefault()
         handleSatisfied()
+      } else if (event.key === 'ArrowDown' || event.key.toLowerCase() === 'n') {
+        event.preventDefault()
+        handleNotSure()
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentPurchase, swiping, handleRegret, handleSatisfied, lastSwipe, undoing, handleUndo])
+  }, [
+    currentPurchase,
+    swiping,
+    handleRegret,
+    handleSatisfied,
+    handleNotSure,
+    lastSwipe,
+    undoing,
+    handleUndo,
+  ])
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -220,39 +320,8 @@ export default function Swipe({ session }: SwipeProps) {
   if (purchases.length === 0) {
     return (
       <section className="route-content">
+        {renderUpcomingSection()}
         <h1>Swipe queue</h1>
-        <div className="swipe-filter">
-          <button
-            type="button"
-            className={`filter-chip ${viewMode === 'all' ? 'active' : ''}`}
-            onClick={() => {
-              setViewMode('all')
-              setCurrentIndex(0)
-            }}
-          >
-            All
-          </button>
-          <button
-            type="button"
-            className={`filter-chip ${viewMode === 'immediate' ? 'active' : ''}`}
-            onClick={() => {
-              setViewMode('immediate')
-              setCurrentIndex(0)
-            }}
-          >
-            Immediate
-          </button>
-          <button
-            type="button"
-            className={`filter-chip ${viewMode === 'later' ? 'active' : ''}`}
-            onClick={() => {
-              setViewMode('later')
-              setCurrentIndex(0)
-            }}
-          >
-            Later
-          </button>
-        </div>
         <p>Rate your past purchases to build your regret patterns.</p>
         <div className="empty-card">
           <span>No purchases to rate. Add some in your Profile first.</span>
@@ -264,42 +333,11 @@ export default function Swipe({ session }: SwipeProps) {
   if (!currentPurchase) {
     return (
       <section className="route-content">
+        {renderUpcomingSection()}
         <h1>Swipe queue</h1>
-        <div className="swipe-filter">
-          <button
-            type="button"
-            className={`filter-chip ${viewMode === 'all' ? 'active' : ''}`}
-            onClick={() => {
-              setViewMode('all')
-              setCurrentIndex(0)
-            }}
-          >
-            All
-          </button>
-          <button
-            type="button"
-            className={`filter-chip ${viewMode === 'immediate' ? 'active' : ''}`}
-            onClick={() => {
-              setViewMode('immediate')
-              setCurrentIndex(0)
-            }}
-          >
-            Immediate
-          </button>
-          <button
-            type="button"
-            className={`filter-chip ${viewMode === 'later' ? 'active' : ''}`}
-            onClick={() => {
-              setViewMode('later')
-              setCurrentIndex(0)
-            }}
-          >
-            Later
-          </button>
-        </div>
         <p>
-          {visiblePurchases.length === 0
-            ? 'No purchases match this filter.'
+          {duePurchases.length === 0
+            ? 'No swipes due yet.'
             : "You've rated all your purchases."}
         </p>
 
@@ -307,8 +345,7 @@ export default function Swipe({ session }: SwipeProps) {
           <div className="undo-toast">
             <span>
               Marked "{lastSwipe.purchaseTitle}" as{' '}
-              <strong>{lastSwipe.outcome}</strong>
-              <span className="timing-chip">{formatTimingLabel(lastSwipe.timing)}</span>
+              <strong>{formatOutcomeLabel(lastSwipe.outcome)}</strong>
             </span>
             <button
               type="button"
@@ -323,7 +360,11 @@ export default function Swipe({ session }: SwipeProps) {
 
         <div className="swipe-complete">
           <span className="complete-icon">✓</span>
-          <p>All caught up! Add more purchases in your Profile to continue.</p>
+          <p>
+            {upcomingPurchases.length > 0
+              ? 'No swipes due yet. Upcoming schedules are listed above.'
+              : 'All caught up! Add more purchases in your Profile to continue.'}
+          </p>
           <button
             className="ghost"
             type="button"
@@ -338,43 +379,13 @@ export default function Swipe({ session }: SwipeProps) {
 
   return (
     <section className="route-content">
+      {renderUpcomingSection()}
+
       <h1>Swipe queue</h1>
       <p>
-        Rate your past purchases. Left = regret, Right = satisfied.
-        <span className="keyboard-hint"> Use ← → arrow keys</span>
+        Rate your past purchases. Left = regret, Right = satisfied, Down = not sure.
+        <span className="keyboard-hint"> Use ← → ↓ or N</span>
       </p>
-      <div className="swipe-filter">
-        <button
-          type="button"
-          className={`filter-chip ${viewMode === 'all' ? 'active' : ''}`}
-          onClick={() => {
-            setViewMode('all')
-            setCurrentIndex(0)
-          }}
-        >
-          All
-        </button>
-        <button
-          type="button"
-          className={`filter-chip ${viewMode === 'immediate' ? 'active' : ''}`}
-          onClick={() => {
-            setViewMode('immediate')
-            setCurrentIndex(0)
-          }}
-        >
-          Immediate
-        </button>
-        <button
-          type="button"
-          className={`filter-chip ${viewMode === 'later' ? 'active' : ''}`}
-          onClick={() => {
-            setViewMode('later')
-            setCurrentIndex(0)
-          }}
-        >
-          Later
-        </button>
-      </div>
 
       {status && <div className="status error">{status}</div>}
 
@@ -384,8 +395,7 @@ export default function Swipe({ session }: SwipeProps) {
         <div className="undo-toast">
           <span>
             Marked "{lastSwipe.purchaseTitle}" as{' '}
-            <strong>{lastSwipe.outcome}</strong>
-            <span className="timing-chip">{formatTimingLabel(lastSwipe.timing)}</span>
+            <strong>{formatOutcomeLabel(lastSwipe.outcome)}</strong>
           </span>
           <button
             type="button"
@@ -457,6 +467,20 @@ export default function Swipe({ session }: SwipeProps) {
           <span className="swipe-label">Satisfied</span>
         </button>
       </div>
+
+      <div className="swipe-secondary">
+        <button
+          className="swipe-button unsure"
+          type="button"
+          onClick={handleNotSure}
+          disabled={swiping}
+          aria-label="Not sure"
+        >
+          <span className="swipe-icon">↓</span>
+          <span className="swipe-label">Not sure</span>
+        </button>
+      </div>
+
     </section>
   )
 }

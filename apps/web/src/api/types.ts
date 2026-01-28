@@ -1,8 +1,8 @@
 // Shared types for database rows and API responses
 
-export type SwipeOutcome = 'satisfied' | 'regret'
+export type SwipeOutcome = 'satisfied' | 'regret' | 'not_sure'
 
-export type SwipeTiming = 'immediate' | 'week' | 'month3' | 'month6'
+export type SwipeTiming = 'immediate' | 'day3' | 'week3' | 'month3'
 
 export type VerdictOutcome = 'buy' | 'hold' | 'skip'
 
@@ -70,6 +70,9 @@ export type UserRow = {
   created_at: string | null
   last_active: string | null
   onboarding_completed: boolean | null
+  profile_summary?: string | null
+  onboarding_answers?: OnboardingAnswers | null
+  weekly_fun_budget?: number | null
 }
 
 export type UserValueRow = {
@@ -77,6 +80,22 @@ export type UserValueRow = {
   value_type: string
   preference_score: number | null
   created_at: string | null
+}
+
+export type OnboardingAnswers = {
+  coreValues: string[]
+  regretPatterns: string[]
+  satisfactionPatterns: string[]
+  decisionStyle: string
+  financialSensitivity: string
+  spendingStressScore: number
+  emotionalRelationship: {
+    stability: number
+    excitement: number
+    control: number
+    reward: number
+  }
+  identityStability: string
 }
 
 export type Stats = {
@@ -91,6 +110,7 @@ export type PurchaseInput = {
   category: string | null
   vendor: string | null
   justification: string | null
+  isImportant: boolean
 }
 
 export type EvaluationResult = {
@@ -99,11 +119,25 @@ export type EvaluationResult = {
   reasoning: LLMEvaluationReasoning
 }
 
-// LLM evaluation response types (matches evaluate_logic_v2.md schema)
+export type ScoreExplanation = {
+  score: number
+  explanation: string
+}
+
+// LLM evaluation response types (matches evaluate_logic_v3.md schema)
 export type LLMEvaluationReasoning = {
-  valueConflictScore: ValueConflictScore
-  patternRepetitionRisk: PatternRepetitionRisk
-  rationale: string
+  valueConflict?: ScoreExplanation
+  patternRepetition?: ScoreExplanation
+  emotionalImpulse?: ScoreExplanation
+  financialStrain?: ScoreExplanation
+  longTermUtility?: ScoreExplanation
+  emotionalSupport?: ScoreExplanation
+  decisionScore?: number
+  rationale?: string
+  importantPurchase?: boolean
+  // Legacy fields for backward compatibility
+  valueConflictScore?: ValueConflictScore
+  patternRepetitionRisk?: PatternRepetitionRisk
 }
 
 export type ValueConflictScore = {
@@ -118,18 +152,11 @@ export type PatternRepetitionRisk = {
 
 // Raw LLM response format (for parsing)
 export type LLMEvaluationResponse = {
-  value_conflict_score: {
-    score: number
-    explanation: string
-  }
-  pattern_repetition_risk: {
-    score: number
-    explanation: string
-  }
-  final_verdict: {
-    decision: 'buy' | 'hold' | 'skip'
-    rationale: string
-  }
+  value_conflict: ScoreExplanation
+  emotional_impulse: ScoreExplanation
+  long_term_utility: ScoreExplanation
+  emotional_support: ScoreExplanation
+  rationale: string
 }
 
 // User value types matching database enum

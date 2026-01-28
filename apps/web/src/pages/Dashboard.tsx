@@ -1,0 +1,313 @@
+import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import type { Session } from '@supabase/supabase-js'
+import type { Stats, VerdictRow } from '../api/types'
+import { PURCHASE_CATEGORIES } from '../api/types'
+import { getSwipeStats } from '../api/statsService'
+import {
+  getVerdictHistory,
+  createVerdict,
+  evaluatePurchase,
+  updateVerdictDecision,
+} from '../api/verdictService'
+import VerdictDetailModal from '../components/VerdictDetailModal'
+
+type DashboardProps = {
+  session: Session | null
+}
+
+export default function Dashboard({ session }: DashboardProps) {
+  const [stats, setStats] = useState<Stats>({
+    swipesCompleted: 0,
+    regretRate: 0,
+    activeHolds: 0,
+  })
+  const [recentVerdicts, setRecentVerdicts] = useState<VerdictRow[]>([])
+  const [selectedVerdict, setSelectedVerdict] = useState<VerdictRow | null>(null)
+  const [verdictSavingId, setVerdictSavingId] = useState<string | null>(null)
+
+  // Form state
+  const [title, setTitle] = useState('')
+  const [price, setPrice] = useState('')
+  const [category, setCategory] = useState('uncategorized')
+  const [vendor, setVendor] = useState('')
+  const [justification, setJustification] = useState('')
+  const [importantPurchase, setImportantPurchase] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [status, setStatus] = useState<string>('')
+
+  const loadStats = useCallback(async () => {
+    if (!session) return
+    const data = await getSwipeStats(session.user.id)
+    setStats(data)
+  }, [session])
+
+  const loadRecentVerdicts = useCallback(async () => {
+    if (!session) return
+    const data = await getVerdictHistory(session.user.id, 3)
+    setRecentVerdicts(data)
+  }, [session])
+
+  useEffect(() => {
+    void loadStats()
+    void loadRecentVerdicts()
+  }, [loadStats, loadRecentVerdicts])
+
+  const resetForm = () => {
+    setTitle('')
+    setPrice('')
+    setCategory('uncategorized')
+    setVendor('')
+    setJustification('')
+    setImportantPurchase(false)
+  }
+
+  const handleEvaluate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!session) return
+
+    const priceValue = price ? Number(price) : null
+    if (!title.trim()) {
+      setStatus('Item title is required.')
+      return
+    }
+
+    setSubmitting(true)
+    setStatus('')
+
+    const input = {
+      title: title.trim(),
+      price: priceValue,
+      category: category.trim() || null,
+      vendor: vendor.trim() || null,
+      justification: justification.trim() || null,
+      isImportant: importantPurchase,
+    }
+
+    // Get API key from environment (in production, this should be handled server-side)
+    const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
+
+    const evaluation = await evaluatePurchase(session.user.id, input, openaiApiKey)
+    const { error } = await createVerdict(session.user.id, input, evaluation)
+
+    if (error) {
+      setStatus(error)
+      setSubmitting(false)
+      return
+    }
+
+    resetForm()
+    await loadStats()
+    await loadRecentVerdicts()
+    setSubmitting(false)
+  }
+
+  const handleVerdictDecision = async (
+    verdictId: string,
+    decision: 'bought' | 'hold' | 'skip',
+  ) => {
+    if (!session) return
+
+    setVerdictSavingId(verdictId)
+    setStatus('')
+
+    const { error } = await updateVerdictDecision(session.user.id, verdictId, decision)
+
+    if (error) {
+      setStatus(error)
+      setVerdictSavingId(null)
+      return
+    }
+
+    await loadStats()
+    await loadRecentVerdicts()
+    setVerdictSavingId(null)
+  }
+
+  return (
+    <section className="route-content">
+      <h1>Today's reflection</h1>
+      <div className="stat-grid">
+        <div className="stat-card">
+          <span className="stat-label">Swipes completed</span>
+          <span className="stat-value">{stats.swipesCompleted}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Regret rate</span>
+          <span className="stat-value">{stats.regretRate}%</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">24h holds active</span>
+          <span className="stat-value">{stats.activeHolds}</span>
+        </div>
+      </div>
+      <p>
+        Considering a purchase? Enter the details below and we'll evaluate it
+        against your patterns.
+      </p>
+
+      {status && <div className="status error">{status}</div>}
+
+      <div className="dashboard-grid">
+        <div className="decision-section">
+          <h2>New purchase decision</h2>
+          <form className="decision-form" onSubmit={handleEvaluate}>
+            <label>
+              What do you want to buy?
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Noise cancelling headphones"
+                required
+              />
+            </label>
+            <label>
+              Brand / Vendor
+              <input
+                type="text"
+                value={vendor}
+                onChange={(e) => setVendor(e.target.value)}
+                placeholder="Amazon"
+              />
+            </label>
+            <div className="form-row">
+              <label>
+                Price
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="299.00"
+                />
+              </label>
+              <label>
+                Category
+                <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                  {PURCHASE_CATEGORIES.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <label>
+              Why do you want this?
+              <textarea
+                value={justification}
+                onChange={(e) => setJustification(e.target.value)}
+                placeholder="I need it for work calls..."
+                rows={8}
+              />
+            </label>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={importantPurchase}
+                onChange={(e) => setImportantPurchase(e.target.checked)}
+              />
+              <span>Important purchase</span>
+            </label>
+            <button className="primary" type="submit" disabled={submitting}>
+              {submitting ? 'Evaluating...' : 'Evaluate'}
+            </button>
+          </form>
+        </div>
+
+        <div className="verdict-result">
+          <div className="section-header">
+            <h2>Latest verdict</h2>
+            <Link to="/profile" className="ghost">More</Link>
+          </div>
+          {recentVerdicts.length > 0 ? (
+            <div className="verdict-stack-vertical">
+              {recentVerdicts.map((verdict) => {
+                const rationale =
+                  (verdict.reasoning as { rationale?: string } | null)?.rationale ?? ''
+                return (
+                <div
+                  key={verdict.id}
+                  className={`verdict-card outcome-${verdict.predicted_outcome}`}
+                >
+                  <div
+                    className="verdict-card-clickable"
+                    onClick={() => setSelectedVerdict(verdict)}
+                    onKeyDown={(e) => e.key === 'Enter' && setSelectedVerdict(verdict)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="verdict-header">
+                      <span className="verdict-title">{verdict.candidate_title}</span>
+                      <span className="verdict-outcome">
+                        {verdict.predicted_outcome === 'buy' && '✓ Buy'}
+                        {verdict.predicted_outcome === 'hold' && '⏸ Hold for 24h'}
+                        {verdict.predicted_outcome === 'skip' && '✗ Skip'}
+                      </span>
+                    </div>
+                    {verdict.candidate_price && (
+                      <span className="verdict-price">
+                        ${verdict.candidate_price.toFixed(2)}
+                      </span>
+                    )}
+                    {verdict.hold_release_at && (
+                      <span className="verdict-hold">
+                        Hold expires:{' '}
+                        {new Date(verdict.hold_release_at).toLocaleString()}
+                      </span>
+                    )}
+                    <div className="verdict-meta">
+                      <span>Brand: {verdict.candidate_vendor ?? '—'}</span>
+                      {rationale && <span>Rationale: {rationale}</span>}
+                    </div>
+                  </div>
+                <div className="verdict-actions">
+                  <div className="decision-buttons">
+                    <button
+                      type="button"
+                      className={`decision-btn bought ${verdict.user_decision === 'bought' ? 'active' : ''}`}
+                        onClick={() => handleVerdictDecision(verdict.id, 'bought')}
+                        disabled={verdictSavingId === verdict.id}
+                      >
+                        Bought
+                      </button>
+                      <button
+                        type="button"
+                        className={`decision-btn hold ${verdict.user_decision === 'hold' ? 'active' : ''}`}
+                        onClick={() => handleVerdictDecision(verdict.id, 'hold')}
+                        disabled={verdictSavingId === verdict.id}
+                      >
+                        Hold 24h
+                      </button>
+                      <button
+                        type="button"
+                        className={`decision-btn skip ${verdict.user_decision === 'skip' ? 'active' : ''}`}
+                        onClick={() => handleVerdictDecision(verdict.id, 'skip')}
+                        disabled={verdictSavingId === verdict.id}
+                      >
+                        Skip
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+            </div>
+          ) : (
+            <div className="empty-card">No verdicts yet.</div>
+          )}
+        </div>
+      </div>
+
+      {selectedVerdict && (
+        <VerdictDetailModal
+          verdict={selectedVerdict}
+          isOpen={selectedVerdict !== null}
+          onClose={() => setSelectedVerdict(null)}
+        />
+      )}
+    </section>
+  )
+}
