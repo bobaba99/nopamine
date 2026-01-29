@@ -1,6 +1,5 @@
 import { supabase } from './supabaseClient'
-import type { PurchaseInput, ScoreExplanation, UserValueType } from './types'
-import { USER_VALUE_DESCRIPTIONS } from './types'
+import type { OnboardingAnswers, PurchaseInput, ScoreExplanation, VendorMatch } from './types'
 import { getEmbeddings } from './embeddingService'
 import { cosineSimilarity } from './utils'
 import { buildScore } from './verdictScoring'
@@ -15,6 +14,71 @@ type PurchaseWithSwipe = {
   verdict_id: string | null
   swipes: { outcome: string }[]
   verdicts: { justification: string | null } | null
+}
+
+const VENDOR_SELECT_FIELDS =
+  'vendor_id, vendor_name, vendor_category, vendor_quality, vendor_reliability, vendor_price_tier'
+
+const CATEGORY_VENDOR_MAP: Record<string, string> = {
+  home_goods: 'home goods',
+  health_wellness: 'health & wellness',
+  food_beverage: 'food & beverage',
+}
+
+const normalizeVendorCategory = (category: string | null | undefined) => {
+  if (!category) return null
+  const normalized = category.trim().toLowerCase()
+  return CATEGORY_VENDOR_MAP[normalized] ?? normalized
+}
+
+const fetchVendorMatch = async (
+  vendorName: string,
+  vendorCategory: string | null
+) => {
+  let query = supabase
+    .from('vendors')
+    .select(VENDOR_SELECT_FIELDS)
+    .ilike('vendor_name', vendorName)
+
+  if (vendorCategory) {
+    query = query.eq('vendor_category', vendorCategory)
+  }
+
+  const { data, error } = await query.maybeSingle()
+  if (error) {
+    return null
+  }
+
+  return (data ?? null) as VendorMatch | null
+}
+
+export const retrieveVendorMatch = async (
+  input: PurchaseInput
+): Promise<VendorMatch | null> => {
+  const vendorName = input.vendor?.trim()
+  if (!vendorName) return null
+
+  const vendorCategory = normalizeVendorCategory(input.category)
+  let match = await fetchVendorMatch(vendorName, vendorCategory)
+
+  if (!match && vendorCategory) {
+    match = await fetchVendorMatch(vendorName, null)
+  }
+
+  if (!match) {
+    const { data, error } = await supabase
+      .from('vendors')
+      .select(VENDOR_SELECT_FIELDS)
+      .ilike('vendor_name', `%${vendorName}%`)
+      .limit(1)
+      .maybeSingle()
+
+    if (!error && data) {
+      match = data as VendorMatch
+    }
+  }
+
+  return match
 }
 
 const formatPurchaseString = (purchase: PurchaseWithSwipe): string => {
@@ -169,19 +233,12 @@ export async function retrieveRecentPurchases(
   return `Recent purchases:\n${lines.join('\n')}`
 }
 
-export async function retrieveUserValues(userId: string): Promise<string> {
-  const [{ data: valueRows, error: valueError }, { data: profile, error: profileError }] =
-    await Promise.all([
-      supabase
-        .from('user_values')
-        .select('value_type, preference_score')
-        .eq('user_id', userId),
-      supabase
-        .from('users')
-        .select('profile_summary, weekly_fun_budget')
-        .eq('id', userId)
-        .maybeSingle(),
-    ])
+export async function retrieveUserProfileContext(userId: string): Promise<string> {
+  const { data: profile, error: profileError } = await supabase
+    .from('users')
+    .select('profile_summary, onboarding_answers, weekly_fun_budget')
+    .eq('id', userId)
+    .maybeSingle()
 
   const summary = profile?.profile_summary?.trim()
   const budget =
@@ -193,25 +250,53 @@ export async function retrieveUserValues(userId: string): Promise<string> {
 
   if (!profileError) {
     if (summary) {
-      contextParts.push(`Personal summary:\n- ${summary}`)
+      contextParts.push(`Profile summary:\n- ${summary}`)
     }
     if (budget) {
       contextParts.push(`Weekly fun budget:\n- ${budget}`)
     }
+    const onboarding = profile?.onboarding_answers as OnboardingAnswers | null | undefined
+    if (onboarding) {
+      const onboardingLines: string[] = []
+      if (onboarding.coreValues?.length) {
+        onboardingLines.push(`- Core values: ${onboarding.coreValues.join(', ')}`)
+      }
+      if (onboarding.regretPatterns?.length) {
+        onboardingLines.push(`- Regret patterns: ${onboarding.regretPatterns.join(', ')}`)
+      }
+      if (onboarding.satisfactionPatterns?.length) {
+        onboardingLines.push(
+          `- Satisfaction patterns: ${onboarding.satisfactionPatterns.join(', ')}`
+        )
+      }
+      if (onboarding.decisionStyle) {
+        onboardingLines.push(`- Decision style: ${onboarding.decisionStyle}`)
+      }
+      if (onboarding.financialSensitivity) {
+        onboardingLines.push(`- Financial sensitivity: ${onboarding.financialSensitivity}`)
+      }
+      if (typeof onboarding.spendingStressScore === 'number') {
+        onboardingLines.push(`- Spending stress score: ${onboarding.spendingStressScore}/5`)
+      }
+      if (onboarding.identityStability) {
+        onboardingLines.push(`- Identity stability: ${onboarding.identityStability}`)
+      }
+      if (onboarding.emotionalRelationship) {
+        const { stability, excitement, control, reward } = onboarding.emotionalRelationship
+        onboardingLines.push(
+          `- Emotional relationship: stability ${stability}/5, excitement ${excitement}/5, control ${control}/5, reward ${reward}/5`
+        )
+      }
+      if (onboardingLines.length > 0) {
+        contextParts.push(`Onboarding answers:\n${onboardingLines.join('\n')}`)
+      }
+    }
   }
 
-  if (valueError || !valueRows || valueRows.length === 0) {
-    contextParts.push('User values: none set.')
+  if (contextParts.length === 0) {
+    contextParts.push('Profile summary: not set.')
     return contextParts.join('\n\n')
   }
-
-  const lines = valueRows.map((v: { value_type: string; preference_score: number | null }) => {
-    const description = USER_VALUE_DESCRIPTIONS[v.value_type as UserValueType] ?? v.value_type
-    const score = v.preference_score ?? 'n/a'
-    return `- ${v.value_type} (${score}/5): "${description}"`
-  })
-
-  contextParts.push(`User values:\n${lines.join('\n')}`)
 
   return contextParts.join('\n\n')
 }

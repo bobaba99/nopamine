@@ -113,6 +113,21 @@ export type PurchaseInput = {
   isImportant: boolean
 }
 
+export type VendorQuality = 'low' | 'medium' | 'high'
+
+export type VendorReliability = 'low' | 'medium' | 'high'
+
+export type VendorPriceTier = 'budget' | 'mid_range' | 'premium' | 'luxury'
+
+export type VendorMatch = {
+  vendor_id: number
+  vendor_name: string
+  vendor_category: string
+  vendor_quality: VendorQuality
+  vendor_reliability: VendorReliability
+  vendor_price_tier: VendorPriceTier
+}
+
 export type EvaluationResult = {
   outcome: VerdictOutcome
   confidence: number

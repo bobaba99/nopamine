@@ -215,6 +215,12 @@
   gap: 1rem;
 }
 
+.signed-in {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
 .auth-form label {
   display: flex;
   flex-direction: column;
@@ -804,6 +810,17 @@
   gap: 0.4rem;
   font-size: 0.9rem;
   color: var(--ink-600);
+}
+
+.verdict-meta strong,
+.analysis-explanation strong {
+  font-weight: 600;
+}
+
+.verdict-meta em,
+.analysis-explanation em {
+  /* font-style: italic; */
+  letter-spacing: 0.01em;
 }
 
 .verdict-meta .user-decision {

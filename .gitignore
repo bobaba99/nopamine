@@ -4,7 +4,10 @@
 .env.*.local
 
 # Important docs
-doc/marketing_story.md
+doc/
+
+# Propriatory formula
+formula/
 
 # Virtual environments
 venv/

@@ -9,6 +9,7 @@ import type {
   UserValueRow,
   VerdictRow,
 } from '../api/types'
+import { PURCHASE_CATEGORIES } from '../api/types'
 import {
   getUserProfile,
   createUserProfile,
@@ -155,7 +156,7 @@ export default function Profile({ session }: ProfileProps) {
   const [purchaseTitle, setPurchaseTitle] = useState('')
   const [purchasePrice, setPurchasePrice] = useState('')
   const [purchaseVendor, setPurchaseVendor] = useState('')
-  const [purchaseCategory, setPurchaseCategory] = useState('')
+  const [purchaseCategory, setPurchaseCategory] = useState('other')
   const [purchaseDate, setPurchaseDate] = useState('')
   const [purchaseSaving, setPurchaseSaving] = useState(false)
   const [purchaseEditingId, setPurchaseEditingId] = useState<string | null>(null)
@@ -322,7 +323,7 @@ export default function Profile({ session }: ProfileProps) {
     setPurchaseTitle('')
     setPurchasePrice('')
     setPurchaseVendor('')
-    setPurchaseCategory('')
+    setPurchaseCategory('other')
     setPurchaseDate('')
     setPurchaseEditingId(null)
     setPurchaseModalOpen(false)
@@ -487,7 +488,7 @@ export default function Profile({ session }: ProfileProps) {
     setPurchaseTitle(purchase.title)
     setPurchasePrice(purchase.price.toString())
     setPurchaseVendor(purchase.vendor ?? '')
-    setPurchaseCategory(purchase.category ?? '')
+    setPurchaseCategory(purchase.category ?? 'other')
     setPurchaseDate(purchase.purchase_date)
     setPurchaseModalMode('edit')
     setPurchaseModalOpen(true)
@@ -968,12 +969,14 @@ export default function Profile({ session }: ProfileProps) {
                 </label>
                 <label>
                   Category
-                  <input
-                    type="text"
-                    value={purchaseCategory}
+                  <select
+                    value={purchaseCategory || 'other'}
                     onChange={(event) => setPurchaseCategory(event.target.value)}
-                    placeholder="Electronics"
-                  />
+                  >
+                    {PURCHASE_CATEGORIES.map((cat: { value: string; label: string }) => (
+                      <option key={cat.value} value={cat.value}>{cat.label}</option>
+                    ))}
+                  </select>
                 </label>
                 <label>
                   Purchase date

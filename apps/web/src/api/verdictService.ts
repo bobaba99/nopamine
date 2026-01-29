@@ -11,7 +11,8 @@ import {
   computePatternRepetition,
   retrieveRecentPurchases,
   retrieveSimilarPurchases,
-  retrieveUserValues,
+  retrieveUserProfileContext,
+  retrieveVendorMatch,
 } from './verdictContext'
 import { buildSystemPrompt, buildUserPrompt } from './verdictPrompts'
 import {
@@ -149,6 +150,7 @@ export async function createVerdict(
   input: PurchaseInput,
   evaluation: EvaluationResult
 ): Promise<{ error: string | null }> {
+  const vendorMatch = await retrieveVendorMatch(input)
   const holdReleaseAt =
     evaluation.outcome === 'hold'
       ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
@@ -160,6 +162,7 @@ export async function createVerdict(
     candidate_price: input.price,
     candidate_category: input.category,
     candidate_vendor: input.vendor,
+    candidate_vendor_id: vendorMatch?.vendor_id ?? null,
     justification: input.justification,
     predicted_outcome: evaluation.outcome,
     confidence_score: evaluation.confidence,
@@ -175,6 +178,7 @@ export async function evaluatePurchase(
   input: PurchaseInput,
   openaiApiKey?: string
 ): Promise<EvaluationResult> {
+  const vendorMatch = await retrieveVendorMatch(input)
   const { data: profile } = await supabase
     .from('users')
     .select('weekly_fun_budget')
@@ -194,24 +198,33 @@ export async function evaluatePurchase(
   )
 
   const patternRepetition = await computePatternRepetition(userId, input.category ?? null)
+  const [profileContext, similarPurchases, recentPurchases] = await Promise.all([
+    retrieveUserProfileContext(userId),
+    retrieveSimilarPurchases(userId, input, 5, openaiApiKey),
+    retrieveRecentPurchases(userId, 5),
+  ])
 
   if (!openaiApiKey) {
     console.warn('No OpenAI API key provided, using fallback evaluation')
     return evaluatePurchaseFallback(input, {
       patternRepetition,
       financialStrain,
+      vendorMatch,
+      profileContextSummary: profileContext,
+      similarPurchasesSummary: similarPurchases,
+      recentPurchasesSummary: recentPurchases,
     })
   }
 
   try {
-    const [userValues, similarPurchases, recentPurchases] = await Promise.all([
-      retrieveUserValues(userId),
-      retrieveSimilarPurchases(userId, input, 5, openaiApiKey),
-      retrieveRecentPurchases(userId, 5),
-    ])
-
     const systemPrompt = buildSystemPrompt()
-    const userPrompt = buildUserPrompt(input, userValues, similarPurchases, recentPurchases)
+    const userPrompt = buildUserPrompt(
+      input,
+      profileContext,
+      similarPurchases,
+      recentPurchases,
+      vendorMatch
+    )
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -289,6 +302,10 @@ export async function evaluatePurchase(
     return evaluatePurchaseFallback(input, {
       patternRepetition,
       financialStrain,
+      vendorMatch,
+      profileContextSummary: profileContext,
+      similarPurchasesSummary: similarPurchases,
+      recentPurchasesSummary: recentPurchases,
     })
   }
 }

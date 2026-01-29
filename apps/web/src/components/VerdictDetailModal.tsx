@@ -1,4 +1,5 @@
 import type { VerdictRow } from '../api/types'
+import { sanitizeVerdictRationaleHtml } from '../utils/sanitizeHtml'
 
 type VerdictDetailModalProps = {
   verdict: VerdictRow
@@ -242,7 +243,12 @@ export default function VerdictDetailModal({
                   <div className="analysis-header">
                     <span className="analysis-label">Rationale</span>
                   </div>
-                  <p className="analysis-explanation">{reasoning.rationale}</p>
+                  <p
+                    className="analysis-explanation"
+                    dangerouslySetInnerHTML={{
+                      __html: sanitizeVerdictRationaleHtml(reasoning.rationale),
+                    }}
+                  />
                 </div>
               )}
             </div>

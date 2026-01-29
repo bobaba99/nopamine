@@ -12,13 +12,17 @@ create type user_value_type as enum (
   'interpersonal_value',
   'emotional_value'
 );
+create type purchaseCategory as enum ('electronics', 'fashion', 'home goods', 'health & wellness', 'travel', 'experiences', 'subscriptions', 'food & beverage', 'services', 'education', 'other');
 create type ocr_status as enum ('pending', 'processing', 'completed', 'failed');
 create type verdict_outcome as enum ('bought', 'hold', 'skip');
+create type vendorQuality as enum ('low', 'medium', 'high');
+create type vendorReliability as enum ('low', 'medium', 'high');
+create type vendorPriceTier as enum ('budget', 'mid_range', 'premium', 'luxury');
 
 -- Users and onboarding
 create table users (
   id uuid primary key default gen_random_uuid(),
-  email varchar(255) unique not null,
+  email text unique not null,
   created_at timestamp default now(),
   last_active timestamp,
   onboarding_completed boolean default false,
@@ -40,15 +44,16 @@ create table user_values (
 create table purchases (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references users(id) on delete cascade,
-  title varchar(500) not null,
+  title text not null,
   price decimal(10,2) not null,
-  vendor varchar(255),
+  vendor text,
+  vendor_id int, -- optional FK to vendors when matched
   vendor_tier int check (vendor_tier between 0 and 3), -- 0: luxury, 1: premium, 2: mid-tier, 3: generic
-  category varchar(100), -- LLM-determined enum
+  category purchaseCategory, -- LLM-determined enum
   purchase_date date not null,
-  source varchar(20) check (source in ('email', 'ocr', 'manual', 'verdict')),
+  source text check (source in ('email', 'ocr', 'manual', 'verdict')),
   verdict_id uuid, -- links to verdict if source='verdict', FK added after verdicts table
-  order_id varchar(255), -- for deduplication
+  order_id text, -- for deduplication
   created_at timestamp default now(),
   unique(user_id, vendor, order_id) -- prevent duplicate imports
 );
@@ -70,7 +75,7 @@ create table swipes (
   purchase_id uuid references purchases(id) on delete cascade,
   schedule_id uuid references swipe_schedules(id) on delete cascade,
   timing swipe_timing not null,
-  outcome varchar(20) check (outcome in ('satisfied', 'regret', 'not_sure')) not null,
+  outcome text check (outcome in ('satisfied', 'regret', 'not_sure')) not null,
   created_at timestamp default now(),
   unique(user_id, purchase_id, timing),
   unique(schedule_id)
@@ -83,8 +88,8 @@ create table swipes (
 create table purchase_stats (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references users(id) on delete cascade,
-  dimension_type varchar(50) not null, -- 'category', 'vendor', 'price_range', 'vendor_tier'
-  dimension_value varchar(255) not null,
+  dimension_type text not null, -- 'category', 'vendor', 'price_range', 'vendor_tier'
+  dimension_value text not null,
   total_purchases int default 0,
   total_swipes int default 0,
   regret_count int default 0,
@@ -97,20 +102,30 @@ create table purchase_stats (
 create table verdicts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references users(id) on delete cascade,
-  candidate_title varchar(500) not null,
+  candidate_title text not null,
   candidate_price decimal(10,2),
-  candidate_category varchar(100),
-  candidate_vendor varchar(255),
+  candidate_category purchaseCategory,
+  candidate_vendor text,
+  candidate_vendor_id int, -- optional FK to vendors when matched
   justification text, -- user's stated reason for considering purchase
-  predicted_outcome varchar(20) check (predicted_outcome in ('buy', 'hold', 'skip')),
+  predicted_outcome text check (predicted_outcome in ('buy', 'hold', 'skip')),
   confidence_score decimal(5,4), -- 0.0 to 1.0
   reasoning jsonb, -- explainability: which patterns influenced verdict
   hold_release_at timestamp, -- when 24h hold expires
   user_proceeded boolean, -- did they buy despite red/yellow?
-  actual_outcome varchar(20) check (actual_outcome in ('satisfied', 'regret')), -- post-purchase swipe
-  user_decision varchar(20) check (user_decision in ('bought', 'hold', 'skip')), -- user's actual decision
+  actual_outcome text check (actual_outcome in ('satisfied', 'regret')), -- post-purchase swipe
+  user_decision text check (user_decision in ('bought', 'hold', 'skip')), -- user's actual decision
   user_hold_until timestamp, -- when user's self-imposed hold expires
   created_at timestamp default now()
+);
+
+create table vendors (
+  vendor_id int primary key,
+  vendor_name text not null,
+  vendor_category purchaseCategory not null,
+  vendor_quality vendorQuality not null,
+  vendor_reliability vendorReliability not null,
+  vendor_price_tier vendorPriceTier not null
 );
 
 create table hold_timers (
@@ -128,6 +143,15 @@ alter table purchases
   add constraint fk_purchases_verdict
   foreign key (verdict_id) references verdicts(id) on delete set null;
 
+-- Optional vendor FK: only set when a vendor match is found
+alter table purchases
+  add constraint fk_purchases_vendor_id
+  foreign key (vendor_id) references vendors(vendor_id) on delete set null;
+
+alter table verdicts
+  add constraint fk_verdicts_vendor_id
+  foreign key (candidate_vendor_id) references vendors(vendor_id) on delete set null;
+
 -- Index for finding purchase by verdict_id
 create index idx_purchases_verdict on purchases(verdict_id) where verdict_id is not null;
 
@@ -140,7 +164,7 @@ create unique index idx_purchases_verdict_unique on purchases(verdict_id) where 
 create table email_connections (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references users(id) on delete cascade unique,
-  provider varchar(50) not null, -- 'gmail', 'outlook', etc.
+  provider text not null, -- 'gmail', 'outlook', etc.
   encrypted_token text not null, -- encrypted OAuth token
   refresh_token text, -- encrypted
   token_expires_at timestamp,
@@ -154,18 +178,18 @@ create table email_connections (
 -- Supports bulk updates when adding new retail categories.
 create table email_vendors (
   id uuid primary key default gen_random_uuid(),
-  vendor_name varchar(255) unique not null,
+  vendor_name text unique not null,
   email_patterns text[], -- ['noreply@amazon.com', '%@marketplace.amazon.com']
   is_whitelisted boolean default true,
-  default_category varchar(100),
+  default_category purchaseCategory,
   vendor_tier int check (vendor_tier between 0 and 3)
 );
 
 create table ocr_jobs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references users(id) on delete cascade,
-  image_hash varchar(64) unique, -- SHA-256 to prevent duplicate uploads
-  status varchar(20) check (status in ('pending', 'processing', 'completed', 'failed')),
+  image_hash text unique, -- SHA-256 to prevent duplicate uploads
+  status text check (status in ('pending', 'processing', 'completed', 'failed')),
   extracted_data jsonb, -- raw OCR output before user confirmation
   error_message text,
   created_at timestamp default now(),
@@ -486,7 +510,7 @@ begin
     p_title,
     p_price,
     nullif(p_vendor, ''),
-    nullif(p_category, ''),
+    nullif(p_category, '')::purchaseCategory,
     p_purchase_date,
     p_source,
     p_verdict_id

@@ -131,13 +131,72 @@ Very important
 
 ## Verdict service logic (`verdictService.ts`, `Home.tsx`, `Profile.tsx`)
 
-TODO: map out schema
 - Schema: map out vendors with quality/reliability, utility coding for each brand reputation
 - Flag for important/major purchases (e.g., car, tool)
 - Use LLM to generate normally distributed data for testing and training algorithm
 - MTurk to collect real user data and recall a real purchase from last 3 months.
   - Linear regression for the decision index value
   - Logistic regression for the decision outcomes
+
+```json
+{
+  "quality": {
+    "definition": "How well the product performs its intended function when it works.",
+    "enum": {
+      "low": {
+        "score": 0.4,
+        "description": "Below-average performance; compromises are obvious."
+      },
+      "medium": {
+        "score": 0.6,
+        "description": "Adequate performance; meets basic expectations."
+      },
+      "high": {
+        "score": 0.8,
+        "description": "Strong performance; well-designed and efficient."
+      }
+    }
+  },
+  "reliability": {
+    "definition": "How consistently the product maintains acceptable performance over time.",
+    "enum": {
+      "low": {
+        "score": 0.4,
+        "description": "Noticeable failure risk; inconsistent durability."
+      },
+      "medium": {
+        "score": 0.6,
+        "description": "Generally dependable with occasional issues."
+      },
+      "high": {
+        "score": 0.8,
+        "description": "Rare failures; long-term dependable."
+      }
+    }
+  },
+  "price_tier": {
+    "definition": "Relative market positioning of the product’s price level.",
+    "enum": {
+      "budget": {
+        "typical_multiplier": "<0.7× market median",
+        "description": "Lowest-cost options; price is the primary selling point."
+      },
+      "mid_range": {
+        "typical_multiplier": "0.7–1.2× market median",
+        "description": "Balanced cost and performance; mainstream pricing."
+      },
+      "premium": {
+        "typical_multiplier": "1.2–2× market median",
+        "description": "Higher-than-average price; design, brand, or quality emphasis."
+      },
+      "luxury": {
+        "typical_multiplier": ">2× market median",
+        "description": "Price driven mainly by brand, exclusivity, or status signalling."
+      }
+    }
+  }
+}
+```
 
 ### Formula
 

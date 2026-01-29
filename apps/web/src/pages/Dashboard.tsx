@@ -4,6 +4,7 @@ import type { Session } from '@supabase/supabase-js'
 import type { Stats, VerdictRow } from '../api/types'
 import { PURCHASE_CATEGORIES } from '../api/types'
 import { getSwipeStats } from '../api/statsService'
+import { sanitizeVerdictRationaleHtml } from '../utils/sanitizeHtml'
 import {
   getVerdictHistory,
   createVerdict,
@@ -29,7 +30,7 @@ export default function Dashboard({ session }: DashboardProps) {
   // Form state
   const [title, setTitle] = useState('')
   const [price, setPrice] = useState('')
-  const [category, setCategory] = useState('uncategorized')
+  const [category, setCategory] = useState('other')
   const [vendor, setVendor] = useState('')
   const [justification, setJustification] = useState('')
   const [importantPurchase, setImportantPurchase] = useState(false)
@@ -56,7 +57,7 @@ export default function Dashboard({ session }: DashboardProps) {
   const resetForm = () => {
     setTitle('')
     setPrice('')
-    setCategory('uncategorized')
+    setCategory('other')
     setVendor('')
     setJustification('')
     setImportantPurchase(false)
@@ -259,8 +260,19 @@ export default function Dashboard({ session }: DashboardProps) {
                       </span>
                     )}
                     <div className="verdict-meta">
-                      <span>Brand: {verdict.candidate_vendor ?? '—'}</span>
-                      {rationale && <span>Rationale: {rationale}</span>}
+                      <span><strong>Brand: </strong>
+                        {verdict.candidate_vendor ?? '—'}
+                        </span>
+                      {rationale && (
+                        <div>
+                          <strong>Rationale</strong>
+                          <div
+                            dangerouslySetInnerHTML={{
+                              __html: sanitizeVerdictRationaleHtml(rationale),
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 <div className="verdict-actions">
