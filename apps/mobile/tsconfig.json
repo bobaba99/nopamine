@@ -8,6 +8,6 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "jsx": "react-native",
-    "types": ["expo"]
+    "types": ["expo", "react", "react-native"]
   }
 }
