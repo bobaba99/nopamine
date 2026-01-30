@@ -524,15 +524,31 @@
 }
 
 .profile-answer {
-  background: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(145deg,
+      rgba(255, 255, 255, 0.05),
+      rgba(255, 255, 255, 0.01));
   border: 1px solid var(--glass-border);
   border-radius: 14px;
   padding: 0.9rem 1rem;
-  backdrop-filter: blur(10px);
-  box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(40px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: var(--glass-shadow);
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.profile-answer:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 22px 60px rgba(15, 23, 42, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.profile-answer:active {
+  transform: scale(0.98);
 }
 
 .quiz-section {
@@ -824,13 +840,17 @@
 .verdict-card {
   padding: 1rem;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(145deg,
+      rgba(255, 255, 255, 0.05),
+      rgba(255, 255, 255, 0.01));
   border: 1px solid var(--glass-border);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  backdrop-filter: blur(10px);
-  box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(40px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: var(--glass-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .verdict-meta {
@@ -964,6 +984,23 @@
   color: var(--ink-500);
 }
 
+.swipe-progress-container {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  margin: 0.5rem 0 1.5rem;
+  overflow: hidden;
+}
+
+.swipe-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #3c64d1, #2563eb);
+  transition: width 0.3s ease;
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgba(60, 100, 209, 0.5);
+}
+
 .swipe-filter {
   display: flex;
   gap: 0.5rem;
@@ -1071,7 +1108,15 @@
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
   backdrop-filter: blur(40px) saturate(120%);
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition: transform 0.3s ease, opacity 0.3s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.swipe-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 22px 60px rgba(15, 23, 42, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .swipe-card.swiping-left {
@@ -1931,32 +1976,12 @@
   white-space: pre-line;
 }
 
-/* Clickable verdict cards */
-.verdict-card.clickable {
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.verdict-card.clickable:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(59, 130, 246, 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.verdict-card.clickable:focus {
-  outline: 2px solid rgba(59, 130, 246, 0.45);
-  outline-offset: 2px;
-}
-
-/* For Profile page: card contains clickable child */
-.verdict-card:has(.verdict-card-clickable) {
-  transition: all 0.15s ease;
-}
-
-.verdict-card:has(.verdict-card-clickable):hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(59, 130, 246, 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+.verdict-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 22px 60px rgba(15, 23, 42, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .verdict-card-clickable {
@@ -2086,4 +2111,143 @@
   margin-bottom: 1rem;
   background: rgba(255, 255, 255, 0.05);
   border-color: var(--glass-border);
+}
+
+/* Kinematics */
+.cursor-dot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  background-color: white;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: difference;
+}
+
+.cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid white;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9998;
+  mix-blend-mode: difference;
+}
+
+.glass-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-shimmer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.06), transparent 40%);
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+
+.glass-shimmer:hover::before {
+  opacity: 1;
+}
+
+/* Liquid Button */
+.liquid-button {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  /* Ensure transform works for scale animation */
+  transform: translateZ(0); 
+  will-change: transform;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.liquid-button::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.15) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.liquid-button:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+.liquid-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 22px 60px rgba(15, 23, 42, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.liquid-content {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Volumetric Input */
+.volumetric-input {
+  --glow-x: 50%;
+  --glow-y: 50%;
+  --glow-opacity: 0;
+  
+  position: relative;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  /* Proximity glow via box-shadow */
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(255, 255, 255, calc(var(--glow-opacity) * 0.15));
+}
+
+.volumetric-input:focus {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4), 0 0 15px rgba(59, 130, 246, 0.2);
+}
+
+/* Textarea wrapper for GlassCard shimmer effect */
+.decision-form .textarea-wrapper {
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+}
+
+.decision-form .textarea-wrapper:focus-within {
+  border-color: #3c64d1;
+  box-shadow: 0 0 0 3px rgba(60, 100, 209, 0.1);
+}
+
+.decision-form .textarea-wrapper textarea {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  border-radius: 0;
+  width: 100%;
+}
+
+.decision-form .textarea-wrapper textarea:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
 }

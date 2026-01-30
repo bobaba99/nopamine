@@ -10,9 +10,9 @@ import {
   createVerdict,
   evaluatePurchase,
   updateVerdictDecision,
-  regenerateVerdict,
 } from '../api/verdictService'
 import VerdictDetailModal from '../components/VerdictDetailModal'
+import { GlassCard, LiquidButton, VolumetricInput, SplitText } from '../components/Kinematics'
 
 type DashboardProps = {
   session: Session | null
@@ -27,7 +27,6 @@ export default function Dashboard({ session }: DashboardProps) {
   const [recentVerdicts, setRecentVerdicts] = useState<VerdictRow[]>([])
   const [selectedVerdict, setSelectedVerdict] = useState<VerdictRow | null>(null)
   const [verdictSavingId, setVerdictSavingId] = useState<string | null>(null)
-  const [verdictRegeneratingId, setVerdictRegeneratingId] = useState<string | null>(null)
 
   // Form state
   const [title, setTitle] = useState('')
@@ -134,44 +133,22 @@ export default function Dashboard({ session }: DashboardProps) {
     setVerdictSavingId(null)
   }
 
-  const handleVerdictRegenerate = async (verdict: VerdictRow) => {
-    if (!session) return
-
-    setVerdictRegeneratingId(verdict.id)
-    setStatus('')
-
-    const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
-    const { data, error } = await regenerateVerdict(session.user.id, verdict, openaiApiKey)
-
-    if (error) {
-      setStatus(error)
-      setVerdictRegeneratingId(null)
-      return
-    }
-
-    await loadRecentVerdicts()
-    if (data && selectedVerdict?.id === data.id) {
-      setSelectedVerdict(data)
-    }
-    setVerdictRegeneratingId(null)
-  }
-
   return (
     <section className="route-content">
-      <h1>Today's reflection</h1>
+      <h1><SplitText>Today's reflection</SplitText></h1>
       <div className="stat-grid">
-        <div className="stat-card">
+        <GlassCard className="stat-card">
           <span className="stat-label">Swipes completed</span>
           <span className="stat-value">{stats.swipesCompleted}</span>
-        </div>
-        <div className="stat-card">
+        </GlassCard>
+        <GlassCard className="stat-card">
           <span className="stat-label">Regret rate</span>
           <span className="stat-value">{stats.regretRate}%</span>
-        </div>
-        <div className="stat-card">
+        </GlassCard>
+        <GlassCard className="stat-card">
           <span className="stat-label">24h holds active</span>
           <span className="stat-value">{stats.activeHolds}</span>
-        </div>
+        </GlassCard>
       </div>
       <p>
         Considering a purchase? Enter the details below and we'll evaluate it
@@ -186,8 +163,8 @@ export default function Dashboard({ session }: DashboardProps) {
           <form className="decision-form" onSubmit={handleEvaluate}>
             <label>
               What do you want to buy?
-              <input
-                type="text"
+              <VolumetricInput
+                as="input"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Noise cancelling headphones"
@@ -196,8 +173,8 @@ export default function Dashboard({ session }: DashboardProps) {
             </label>
             <label>
               Brand / Vendor
-              <input
-                type="text"
+              <VolumetricInput
+                as="input"
                 value={vendor}
                 onChange={(e) => setVendor(e.target.value)}
                 placeholder="Amazon"
@@ -206,7 +183,8 @@ export default function Dashboard({ session }: DashboardProps) {
             <div className="form-row">
               <label>
                 Price
-                <input
+                <VolumetricInput
+                  as="input"
                   type="number"
                   min={0}
                   step="0.01"
@@ -217,23 +195,25 @@ export default function Dashboard({ session }: DashboardProps) {
               </label>
               <label>
                 Category
-                <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                <VolumetricInput as="select" value={category} onChange={(e: any) => setCategory(e.target.value)}>
                   {PURCHASE_CATEGORIES.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </VolumetricInput>
               </label>
             </div>
             <label>
               Why do you want this?
-              <textarea
-                value={justification}
-                onChange={(e) => setJustification(e.target.value)}
-                placeholder="I need it for work calls..."
-                rows={8}
-              />
+              <GlassCard className="textarea-wrapper">
+                <textarea
+                  value={justification}
+                  onChange={(e) => setJustification(e.target.value)}
+                  placeholder="I need it for work calls..."
+                  rows={8}
+                />
+              </GlassCard>
             </label>
             <div className="toggle-row">
               <input
@@ -272,16 +252,16 @@ export default function Dashboard({ session }: DashboardProps) {
                 </label>
               </div>
             </div>
-            <button className="primary" type="submit" disabled={submitting}>
+            <LiquidButton className="primary" type="submit" disabled={submitting}>
               {submitting ? 'Evaluating...' : 'Evaluate'}
-            </button>
+            </LiquidButton>
           </form>
         </div>
 
         <div className="verdict-result">
           <div className="section-header">
             <h2>Latest verdict</h2>
-            <Link to="/profile" className="ghost">More</Link>
+            <LiquidButton as={Link} to="/profile" className="ghost">More</LiquidButton>
           </div>
           {recentVerdicts.length > 0 ? (
             <div className="verdict-stack-vertical">
@@ -289,7 +269,7 @@ export default function Dashboard({ session }: DashboardProps) {
                 const rationale =
                   (verdict.reasoning as { rationale?: string } | null)?.rationale ?? ''
                 return (
-                <div
+                <GlassCard
                   key={verdict.id}
                   className={`verdict-card outcome-${verdict.predicted_outcome}`}
                 >
@@ -337,41 +317,33 @@ export default function Dashboard({ session }: DashboardProps) {
                   </div>
                 <div className="verdict-actions">
                   <div className="decision-buttons">
-                    <button
+                    <LiquidButton
                       type="button"
                       className={`decision-btn bought ${verdict.user_decision === 'bought' ? 'active' : ''}`}
                         onClick={() => handleVerdictDecision(verdict.id, 'bought')}
                         disabled={verdictSavingId === verdict.id}
                       >
                         Bought
-                      </button>
-                      <button
+                      </LiquidButton>
+                      <LiquidButton
                         type="button"
                         className={`decision-btn hold ${verdict.user_decision === 'hold' ? 'active' : ''}`}
                         onClick={() => handleVerdictDecision(verdict.id, 'hold')}
                         disabled={verdictSavingId === verdict.id}
                       >
                         Hold 24h
-                      </button>
-                      <button
+                      </LiquidButton>
+                      <LiquidButton
                         type="button"
                         className={`decision-btn skip ${verdict.user_decision === 'skip' ? 'active' : ''}`}
                         onClick={() => handleVerdictDecision(verdict.id, 'skip')}
                         disabled={verdictSavingId === verdict.id}
                       >
                         Skip
-                      </button>
+                      </LiquidButton>
                     </div>
-                    <button
-                      type="button"
-                      className="ghost"
-                      onClick={() => handleVerdictRegenerate(verdict)}
-                      disabled={verdictRegeneratingId === verdict.id}
-                    >
-                      {verdictRegeneratingId === verdict.id ? 'Regenerating...' : 'Regenerate'}
-                    </button>
                   </div>
-                </div>
+                </GlassCard>
               )
             })}
             </div>
@@ -386,8 +358,6 @@ export default function Dashboard({ session }: DashboardProps) {
           verdict={selectedVerdict}
           isOpen={selectedVerdict !== null}
           onClose={() => setSelectedVerdict(null)}
-          onRegenerate={handleVerdictRegenerate}
-          isRegenerating={verdictRegeneratingId === selectedVerdict.id}
         />
       )}
     </section>

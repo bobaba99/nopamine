@@ -21,12 +21,7 @@ import {
   updateUserValue,
   deleteUserValue,
 } from '../api/userValueService'
-import {
-  getVerdictHistory,
-  updateVerdictDecision,
-  deleteVerdict,
-  regenerateVerdict,
-} from '../api/verdictService'
+import { getVerdictHistory, updateVerdictDecision, deleteVerdict } from '../api/verdictService'
 import {
   getPurchaseHistory,
   createPurchase,
@@ -34,6 +29,7 @@ import {
   deletePurchase,
 } from '../api/purchaseService'
 import VerdictDetailModal from '../components/VerdictDetailModal'
+import { GlassCard, LiquidButton, VolumetricInput } from '../components/Kinematics'
 import ListFilters, { type FilterState, INITIAL_FILTERS } from '../components/ListFilters'
 
 type ProfileProps = {
@@ -105,52 +101,31 @@ const decisionStyleOptions = [
   'It depends heavily on mood',
 ]
 
+const financialSensitivityOptions = [
+  'Very cautious',
+  'Balanced',
+  'Flexible',
+  'Indifferent',
+]
+
 const identityStabilityOptions = [
   'Not important',
   'Somewhat important',
   'Very important',
 ]
 
-const materialismItems = [
-  {
-    key: 'centrality',
-    prompt: "Do you think it's important to own expensive things?",
-  },
-  {
-    key: 'happiness',
-    prompt: 'Does buying expensive things make you happy?',
-  },
-  {
-    key: 'success',
-    prompt: 'Do you like people who have expensive things more than you like other people?',
-  },
-] as const
-
-const locusOfControlItems = [
-  {
-    key: 'workHard',
-    prompt: 'If I work hard, I will succeed.',
-  },
-  {
-    key: 'destiny',
-    prompt: 'Destiny often gets in the way of my plans.',
-  },
-] as const
-
 const DEFAULT_ONBOARDING: OnboardingAnswers = {
   coreValues: [],
   regretPatterns: [],
   satisfactionPatterns: [],
   decisionStyle: '',
-  neuroticismScore: 3,
-  materialism: {
-    centrality: 2,
-    happiness: 2,
-    success: 2,
-  },
-  locusOfControl: {
-    workHard: 3,
-    destiny: 3,
+  financialSensitivity: '',
+  spendingStressScore: 3,
+  emotionalRelationship: {
+    stability: 3,
+    excitement: 3,
+    control: 3,
+    reward: 3,
   },
   identityStability: '',
 }
@@ -165,13 +140,9 @@ const normalizeOnboardingAnswers = (
     coreValues: answers.coreValues ?? [],
     regretPatterns: answers.regretPatterns ?? [],
     satisfactionPatterns: answers.satisfactionPatterns ?? [],
-    materialism: {
-      ...DEFAULT_ONBOARDING.materialism,
-      ...answers.materialism,
-    },
-    locusOfControl: {
-      ...DEFAULT_ONBOARDING.locusOfControl,
-      ...answers.locusOfControl,
+    emotionalRelationship: {
+      ...DEFAULT_ONBOARDING.emotionalRelationship,
+      ...answers.emotionalRelationship,
     },
   }
 }
@@ -193,7 +164,6 @@ export default function Profile({ session }: ProfileProps) {
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false)
   const [purchaseModalMode, setPurchaseModalMode] = useState<'add' | 'edit'>('add')
   const [verdictSavingId, setVerdictSavingId] = useState<string | null>(null)
-  const [verdictRegeneratingId, setVerdictRegeneratingId] = useState<string | null>(null)
   const [selectedVerdict, setSelectedVerdict] = useState<VerdictRow | null>(null)
   const [editingValues, setEditingValues] = useState(false)
   const [profileSummary, setProfileSummary] = useState('')
@@ -243,14 +213,6 @@ export default function Profile({ session }: ProfileProps) {
     if (purchaseSearch && !matchesSearch(p.title, purchaseSearch)) return false
     return matchesFilters(p, purchaseFilters)
   })
-
-  const materialismAverage =
-    (onboardingAnswers.materialism.centrality +
-      onboardingAnswers.materialism.happiness +
-      onboardingAnswers.materialism.success) /
-    3
-
-  const locusSummary = `Work hard → succeed: ${onboardingAnswers.locusOfControl.workHard}/5, Destiny gets in the way: ${onboardingAnswers.locusOfControl.destiny}/5`
 
   const loadProfile = async () => {
     if (!session) return
@@ -590,28 +552,6 @@ export default function Profile({ session }: ProfileProps) {
     setVerdictSavingId(null)
   }
 
-  const handleVerdictRegenerate = async (verdict: VerdictRow) => {
-    if (!session) return
-
-    setVerdictRegeneratingId(verdict.id)
-    setStatus('')
-
-    const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
-    const { data, error } = await regenerateVerdict(session.user.id, verdict, openaiApiKey)
-
-    if (error) {
-      setStatus(error)
-      setVerdictRegeneratingId(null)
-      return
-    }
-
-    await loadVerdicts()
-    if (data && selectedVerdict?.id === data.id) {
-      setSelectedVerdict(data)
-    }
-    setVerdictRegeneratingId(null)
-  }
-
   return (
     <section className="route-content">
       <h1>Profile</h1>
@@ -630,13 +570,13 @@ export default function Profile({ session }: ProfileProps) {
         <div className="section-header">
           <h2>Decision profile</h2>
           <div className="header-actions">
-            <button
+            <LiquidButton
               type="button"
               className="ghost"
               onClick={() => setProfileModalOpen(true)}
             >
               Edit Decision Profile
-            </button>
+            </LiquidButton>
           </div>
         </div>
         <p className="values-description">
@@ -661,54 +601,36 @@ export default function Profile({ session }: ProfileProps) {
           </div>
         </div>
         <div className="profile-answer-grid">
-          <div className="profile-answer">
+          <GlassCard className="profile-answer">
             <span className="label">Core values</span>
             <span className="value">
               {onboardingAnswers.coreValues.length > 0
                 ? onboardingAnswers.coreValues.join(', ')
                 : 'Not set'}
             </span>
-          </div>
-          <div className="profile-answer">
+          </GlassCard>
+          <GlassCard className="profile-answer">
             <span className="label">Regret triggers</span>
             <span className="value">
               {onboardingAnswers.regretPatterns.length > 0
                 ? onboardingAnswers.regretPatterns.join(', ')
                 : 'Not set'}
             </span>
-          </div>
-          <div className="profile-answer">
+          </GlassCard>
+          <GlassCard className="profile-answer">
             <span className="label">Satisfaction pattern</span>
             <span className="value">
               {onboardingAnswers.satisfactionPatterns.length > 0
                 ? onboardingAnswers.satisfactionPatterns.join(', ')
                 : 'Not set'}
             </span>
-          </div>
-          <div className="profile-answer">
-            <span className="label">Decision approach</span>
+          </GlassCard>
+          <GlassCard className="profile-answer">
+            <span className="label">Decision style</span>
             <span className="value">
               {onboardingAnswers.decisionStyle || 'Not set'}
             </span>
-          </div>
-          <div className="profile-answer">
-            <span className="label">Stress response</span>
-            <span className="value">{onboardingAnswers.neuroticismScore}/5</span>
-          </div>
-          <div className="profile-answer">
-            <span className="label">Views on expensive things</span>
-            <span className="value">{materialismAverage.toFixed(1)}/4</span>
-          </div>
-          <div className="profile-answer">
-            <span className="label">Sense of control</span>
-            <span className="value">{locusSummary}</span>
-          </div>
-          <div className="profile-answer">
-            <span className="label">Identity alignment</span>
-            <span className="value">
-              {onboardingAnswers.identityStability || 'Not set'}
-            </span>
-          </div>
+          </GlassCard>
         </div>
       </div>
 
@@ -791,13 +713,13 @@ export default function Profile({ session }: ProfileProps) {
         <div className="verdict-result">
           <div className="section-header">
             <h2>Verdict history</h2>
-            <button
+            <LiquidButton
               type="button"
               className="ghost"
               onClick={() => setVerdictFiltersOpen((o) => !o)}
             >
               {verdictFiltersOpen ? 'Hide filters' : 'Filter / Search'}
-            </button>
+            </LiquidButton>
           </div>
           <div className={`collapsible ${verdictFiltersOpen ? 'open' : ''}`}>
             <ListFilters
@@ -817,7 +739,7 @@ export default function Profile({ session }: ProfileProps) {
               {filteredVerdicts.map((verdict) => {
                 const isSaving = verdictSavingId === verdict.id
                 return (
-                  <div key={verdict.id} className="verdict-card">
+                  <GlassCard key={verdict.id} className="verdict-card">
                     <div
                       className="verdict-card-clickable"
                       onClick={() => setSelectedVerdict(verdict)}
@@ -849,49 +771,41 @@ export default function Profile({ session }: ProfileProps) {
                     </div>
                     <div className="verdict-actions">
                       <div className="decision-buttons">
-                        <button
+                        <LiquidButton
                           type="button"
                           className={`decision-btn bought ${verdict.user_decision === 'bought' ? 'active' : ''}`}
                           onClick={() => handleVerdictDecision(verdict.id, 'bought')}
                           disabled={isSaving}
                         >
                           Bought
-                        </button>
-                        <button
+                        </LiquidButton>
+                        <LiquidButton
                           type="button"
                           className={`decision-btn hold ${verdict.user_decision === 'hold' ? 'active' : ''}`}
                           onClick={() => handleVerdictDecision(verdict.id, 'hold')}
                           disabled={isSaving}
                         >
                           Hold 24h
-                        </button>
-                        <button
+                        </LiquidButton>
+                        <LiquidButton
                           type="button"
                           className={`decision-btn skip ${verdict.user_decision === 'skip' ? 'active' : ''}`}
                           onClick={() => handleVerdictDecision(verdict.id, 'skip')}
                           disabled={isSaving}
                         >
                           Skip
-                        </button>
+                        </LiquidButton>
                       </div>
-                      <button
-                        type="button"
-                        className="ghost"
-                        onClick={() => handleVerdictRegenerate(verdict)}
-                        disabled={verdictRegeneratingId === verdict.id}
-                      >
-                        {verdictRegeneratingId === verdict.id ? 'Regenerating...' : 'Regenerate'}
-                      </button>
-                      <button
+                      <LiquidButton
                         type="button"
                         className="link danger"
                         onClick={() => handleVerdictDelete(verdict.id)}
                         disabled={isSaving}
                       >
                         Delete
-                      </button>
+                      </LiquidButton>
                     </div>
-                  </div>
+                  </GlassCard>
                 )
               })}
             </div>
@@ -902,14 +816,14 @@ export default function Profile({ session }: ProfileProps) {
           <div className="section-header">
             <h2>Purchase history</h2>
             <div className="header-actions">
-              <button
+              <LiquidButton
                 type="button"
                 className="ghost"
                 onClick={() => setPurchaseFiltersOpen((o) => !o)}
               >
                 {purchaseFiltersOpen ? 'Hide filters' : 'Filter / Search'}
-              </button>
-              <button
+              </LiquidButton>
+              <LiquidButton
                 type="button"
                 className="ghost"
                 onClick={() => {
@@ -919,7 +833,7 @@ export default function Profile({ session }: ProfileProps) {
                 }}
               >
                 Add
-              </button>
+              </LiquidButton>
             </div>
           </div>
           <div className={`collapsible ${purchaseFiltersOpen ? 'open' : ''}`}>
@@ -938,7 +852,7 @@ export default function Profile({ session }: ProfileProps) {
           ) : (
             <div className="verdict-list">
               {filteredPurchases.map((purchase) => (
-                <div key={purchase.id} className="verdict-card">
+                <GlassCard key={purchase.id} className="verdict-card">
                   <div className="verdict-card-content">
                     <div>
                       <span className="stat-label">Item </span>
@@ -960,23 +874,23 @@ export default function Profile({ session }: ProfileProps) {
                     </div>
                   </div>
                   <div className="verdict-actions">
-                    <button
+                    <LiquidButton
                       className="link"
                       type="button"
                       onClick={() => handlePurchaseEdit(purchase)}
                     >
                       Edit
-                    </button>
-                    <button
+                    </LiquidButton>
+                    <LiquidButton
                       className="link danger"
                       type="button"
                       onClick={() => handlePurchaseDelete(purchase.id)}
                       disabled={purchaseSaving}
                     >
                       Delete
-                    </button>
+                    </LiquidButton>
                   </div>
-                </div>
+                </GlassCard>
               ))}
             </div>
           )}
@@ -988,8 +902,6 @@ export default function Profile({ session }: ProfileProps) {
           verdict={selectedVerdict}
           isOpen={selectedVerdict !== null}
           onClose={() => setSelectedVerdict(null)}
-          onRegenerate={handleVerdictRegenerate}
-          isRegenerating={verdictRegeneratingId === selectedVerdict.id}
         />,
         document.body
       )}
@@ -1027,8 +939,8 @@ export default function Profile({ session }: ProfileProps) {
               <form className="purchase-form" onSubmit={handlePurchaseSubmit}>
                 <label>
                   Item title
-                  <input
-                    type="text"
+                  <VolumetricInput
+                    as="input"
                     value={purchaseTitle}
                     onChange={(event) => setPurchaseTitle(event.target.value)}
                     placeholder="Noise cancelling headphones"
@@ -1037,7 +949,8 @@ export default function Profile({ session }: ProfileProps) {
                 </label>
                 <label>
                   Price
-                  <input
+                  <VolumetricInput
+                    as="input"
                     type="number"
                     min={0}
                     step="0.01"
@@ -1049,8 +962,8 @@ export default function Profile({ session }: ProfileProps) {
                 </label>
                 <label>
                   Vendor
-                  <input
-                    type="text"
+                  <VolumetricInput
+                    as="input"
                     value={purchaseVendor}
                     onChange={(event) => setPurchaseVendor(event.target.value)}
                     placeholder="Amazon"
@@ -1058,7 +971,8 @@ export default function Profile({ session }: ProfileProps) {
                 </label>
                 <label>
                   Category
-                  <select
+                  <VolumetricInput
+                    as="select"
                     className="purchase-select"
                     value={purchaseCategory || 'other'}
                     onChange={(event) => setPurchaseCategory(event.target.value)}
@@ -1066,11 +980,12 @@ export default function Profile({ session }: ProfileProps) {
                     {PURCHASE_CATEGORIES.map((cat: { value: string; label: string }) => (
                       <option key={cat.value} value={cat.value}>{cat.label}</option>
                     ))}
-                  </select>
+                  </VolumetricInput>
                 </label>
                 <label>
                   Purchase date
-                  <input
+                  <VolumetricInput
+                    as="input"
                     type="date"
                     value={purchaseDate}
                     onChange={(event) => setPurchaseDate(event.target.value)}
@@ -1078,21 +993,21 @@ export default function Profile({ session }: ProfileProps) {
                   />
                 </label>
                 <div className="values-actions">
-                  <button className="primary" type="submit" disabled={purchaseSaving}>
+                  <LiquidButton className="primary" type="submit" disabled={purchaseSaving}>
                     {purchaseSaving
                       ? 'Saving...'
                       : purchaseModalMode === 'edit'
                         ? 'Update purchase'
                         : 'Add purchase'}
-                  </button>
-                  <button
+                  </LiquidButton>
+                  <LiquidButton
                     className="ghost"
                     type="button"
                     onClick={resetPurchaseForm}
                     disabled={purchaseSaving}
                   >
                     Cancel
-                  </button>
+                  </LiquidButton>
                 </div>
               </form>
             </div>
@@ -1135,7 +1050,8 @@ export default function Profile({ session }: ProfileProps) {
                 <h3>Personal summary</h3>
                 <p>Describe who you are and what you are optimizing for.</p>
                 <label className="modal-field">
-                  <textarea
+                  <VolumetricInput
+                    as="textarea"
                     value={profileDraftSummary}
                     onChange={(event) => setProfileDraftSummary(event.target.value)}
                     placeholder="The user prioritises financial stability and minimalism, often regrets impulse tech purchases, is most satisfied with durable functional items, and has a moderately deliberate decision style."
@@ -1148,7 +1064,8 @@ export default function Profile({ session }: ProfileProps) {
                 <h3>Weekly fun budget</h3>
                 <p>Set a weekly ceiling for fun and entertainment purchases.</p>
                 <label className="modal-field">
-                  <input
+                  <VolumetricInput
+                    as="input"
                     type="number"
                     min={0}
                     step="0.01"
@@ -1166,7 +1083,7 @@ export default function Profile({ session }: ProfileProps) {
                   {coreValueOptions.map((option) => {
                     const selected = onboardingAnswers.coreValues.includes(option)
                     return (
-                      <button
+                      <LiquidButton
                         key={option}
                         type="button"
                         className={`quiz-chip ${selected ? 'selected' : ''}`}
@@ -1178,7 +1095,7 @@ export default function Profile({ session }: ProfileProps) {
                         }
                       >
                         {option}
-                      </button>
+                      </LiquidButton>
                     )
                   })}
                 </div>
@@ -1191,7 +1108,7 @@ export default function Profile({ session }: ProfileProps) {
                   {regretPatternOptions.map((option) => {
                     const selected = onboardingAnswers.regretPatterns.includes(option)
                     return (
-                      <button
+                      <LiquidButton
                         key={option}
                         type="button"
                         className={`quiz-chip ${selected ? 'selected' : ''}`}
@@ -1203,7 +1120,7 @@ export default function Profile({ session }: ProfileProps) {
                         }
                       >
                         {option}
-                      </button>
+                      </LiquidButton>
                     )
                   })}
                 </div>
@@ -1216,7 +1133,7 @@ export default function Profile({ session }: ProfileProps) {
                   {satisfactionPatternOptions.map((option) => {
                     const selected = onboardingAnswers.satisfactionPatterns.includes(option)
                     return (
-                      <button
+                      <LiquidButton
                         key={option}
                         type="button"
                         className={`quiz-chip ${selected ? 'selected' : ''}`}
@@ -1230,18 +1147,18 @@ export default function Profile({ session }: ProfileProps) {
                         }
                       >
                         {option}
-                      </button>
+                      </LiquidButton>
                     )
                   })}
                 </div>
               </div>
 
               <div className="quiz-section">
-                <h3>4. How you decide</h3>
+                <h3>4. Decision Style</h3>
                 <p>Which best describes how you usually decide?</p>
                 <div className="quiz-options">
                   {decisionStyleOptions.map((option) => (
-                    <button
+                    <LiquidButton
                       key={option}
                       type="button"
                       className={`quiz-chip ${onboardingAnswers.decisionStyle === option ? 'selected' : ''
@@ -1254,107 +1171,97 @@ export default function Profile({ session }: ProfileProps) {
                       }
                     >
                       {option}
-                    </button>
+                    </LiquidButton>
                   ))}
                 </div>
               </div>
 
               <div className="quiz-section">
-                <h3>5. Under stress</h3>
-                <p>
-                  I tend to experience negative emotions easily (e.g., worry, nervousness,
-                  tension, sadness), and I find it difficult to stay calm or emotionally steady
-                  under stress.
-                </p>
+                <h3>5. Financial Sensitivity</h3>
+                <p>When spending money, I mostly feel…</p>
+                <div className="quiz-options">
+                  {financialSensitivityOptions.map((option) => (
+                    <LiquidButton
+                      key={option}
+                      type="button"
+                      className={`quiz-chip ${onboardingAnswers.financialSensitivity === option ? 'selected' : ''
+                        }`}
+                      onClick={() =>
+                        setOnboardingAnswers((prev) => ({
+                          ...prev,
+                          financialSensitivity: option,
+                        }))
+                      }
+                    >
+                      {option}
+                    </LiquidButton>
+                  ))}
+                </div>
                 <div className="quiz-range">
                   <label>
-                    Scale: 1 = Disagree a lot, 5 = Agree a lot
+                    Spending money causes me stress
                     <input
                       type="range"
                       min="1"
                       max="5"
                       step="1"
-                      value={onboardingAnswers.neuroticismScore}
+                      value={onboardingAnswers.spendingStressScore}
                       onChange={(event) =>
                         setOnboardingAnswers((prev) => ({
                           ...prev,
-                          neuroticismScore: Number(event.target.value),
+                          spendingStressScore: Number(event.target.value),
                         }))
                       }
                     />
                   </label>
-                  <span className="range-value">{onboardingAnswers.neuroticismScore}</span>
+                  <span className="range-value">
+                    {onboardingAnswers.spendingStressScore}
+                  </span>
                 </div>
               </div>
 
               <div className="quiz-section">
-                <h3>6. Views on expensive things</h3>
-                <p>Rate each 1–4 (1 = No, not at all; 4 = Yes, very much).</p>
-                {materialismItems.map((item) => (
-                  <div key={item.key} className="quiz-range">
+                <h3>6. Emotional Relationship to Buying</h3>
+                <p>Rate each 1–5</p>
+                {(['stability', 'excitement', 'control', 'reward'] as const).map((key) => (
+                  <div key={key} className="quiz-range">
                     <label>
-                      {item.prompt}
-                      <input
-                        type="range"
-                        min="1"
-                        max="4"
-                        step="1"
-                        value={onboardingAnswers.materialism[item.key]}
-                        onChange={(event) =>
-                          setOnboardingAnswers((prev) => ({
-                            ...prev,
-                            materialism: {
-                              ...prev.materialism,
-                              [item.key]: Number(event.target.value),
-                            },
-                          }))
-                        }
-                      />
-                    </label>
-                    <span className="range-value">
-                      {onboardingAnswers.materialism[item.key]}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="quiz-section">
-                <h3>7. Sense of control</h3>
-                <p>Scale: 1 = does not apply at all, 5 = applies completely.</p>
-                {locusOfControlItems.map((item) => (
-                  <div key={item.key} className="quiz-range">
-                    <label>
-                      {item.prompt}
+                      {key === 'stability' && 'They help me feel more stable'}
+                      {key === 'excitement' && 'They help me feel excited'}
+                      {key === 'control' && 'They help me feel in control'}
+                      {key === 'reward' && 'They help me feel rewarded'}
                       <input
                         type="range"
                         min="1"
                         max="5"
                         step="1"
-                        value={onboardingAnswers.locusOfControl[item.key]}
+                        value={onboardingAnswers.emotionalRelationship[key]}
                         onChange={(event) =>
                           setOnboardingAnswers((prev) => ({
                             ...prev,
-                            locusOfControl: {
-                              ...prev.locusOfControl,
-                              [item.key]: Number(event.target.value),
+                            emotionalRelationship: {
+                              ...prev.emotionalRelationship,
+                              [key]: Number(event.target.value),
                             },
                           }))
                         }
                       />
                     </label>
                     <span className="range-value">
-                      {onboardingAnswers.locusOfControl[item.key]}
+                      {onboardingAnswers.emotionalRelationship[key]}
                     </span>
                   </div>
                 ))}
               </div>
 
               <div className="quiz-section">
-                <h3>8. Identity alignment</h3>
-                <p>How important is it that your purchases reflect who you believe you are?</p>
+                <h3>7. Identity Stability</h3>
+                <p>
+                  How important is it that your purchases reflect who you believe you are?
+                </p>
                 <div className="quiz-options">
                   {identityStabilityOptions.map((option) => (
-                    <button
+                    <LiquidButton
                       key={option}
                       type="button"
                       className={`quiz-chip ${onboardingAnswers.identityStability === option ? 'selected' : ''
@@ -1367,13 +1274,13 @@ export default function Profile({ session }: ProfileProps) {
                       }
                     >
                       {option}
-                    </button>
+                    </LiquidButton>
                   ))}
                 </div>
               </div>
 
               <div className="values-actions">
-                <button
+                <LiquidButton
                   className="primary"
                   type="button"
                   onClick={async () => {
@@ -1386,14 +1293,14 @@ export default function Profile({ session }: ProfileProps) {
                   disabled={profileSaving}
                 >
                   {profileSaving ? 'Saving...' : 'Save profile'}
-                </button>
-                <button
+                </LiquidButton>
+                <LiquidButton
                   className="ghost"
                   type="button"
                   onClick={() => setProfileModalOpen(false)}
                 >
                   Close
-                </button>
+                </LiquidButton>
               </div>
             </div>
           </div>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { SwipeOutcome, SwipeQueueItem, SwipeTiming } from '../api/types'
 import { getUnratedPurchases, createSwipe, deleteSwipe } from '../api/swipeService'
+import { GlassCard, LiquidButton } from '../components/Kinematics'
 
 type SwipeProps = {
   session: Session | null
@@ -105,6 +106,8 @@ export default function Swipe({ session }: SwipeProps) {
   const currentItem = duePurchases[currentIndex] ?? null
   const currentPurchase = currentItem?.purchase ?? null
   const remaining = duePurchases.length - currentIndex
+  const totalDue = duePurchases.length
+  const progress = totalDue > 0 ? (currentIndex / totalDue) * 100 : 0
 
   const handleFilterChange = (mode: SwipeFilterMode) => {
     setViewMode(mode)
@@ -119,14 +122,14 @@ export default function Swipe({ session }: SwipeProps) {
         { value: 'week3', label: '3 weeks' },
         { value: 'month3', label: '3 months' },
       ].map((option) => (
-        <button
+        <LiquidButton
           key={option.value}
           type="button"
           className={`filter-chip ${viewMode === option.value ? 'active' : ''}`}
           onClick={() => handleFilterChange(option.value as SwipeFilterMode)}
         >
           {option.label}
-        </button>
+        </LiquidButton>
       ))}
     </div>
   )
@@ -150,13 +153,13 @@ export default function Swipe({ session }: SwipeProps) {
         ) : (
           <div className="upcoming-grid">
             {upcomingFiltered.slice(0, 6).map((item) => (
-              <div key={item.schedule_id} className="upcoming-card glass-panel">
+              <GlassCard key={item.schedule_id} className="upcoming-card glass-panel">
                 <span className="upcoming-title">{item.purchase.title}</span>
                 <span className="upcoming-meta">
                   {formatTimingLabel(item.timing)} •{' '}
                   {new Date(item.scheduled_for).toLocaleDateString()}
                 </span>
-              </div>
+              </GlassCard>
             ))}
           </div>
         )}
@@ -347,14 +350,14 @@ export default function Swipe({ session }: SwipeProps) {
               Marked "{lastSwipe.purchaseTitle}" as{' '}
               <strong>{formatOutcomeLabel(lastSwipe.outcome)}</strong>
             </span>
-            <button
+            <LiquidButton
               type="button"
               className="undo-button"
               onClick={() => void handleUndo()}
               disabled={undoing}
             >
               {undoing ? 'Undoing...' : 'Undo'}
-            </button>
+            </LiquidButton>
           </div>
         )}
 
@@ -365,13 +368,13 @@ export default function Swipe({ session }: SwipeProps) {
               ? 'No swipes due yet. Upcoming schedules are listed above.'
               : 'All caught up! Add more purchases in your Profile to continue.'}
           </p>
-          <button
+          <LiquidButton
             className="ghost"
             type="button"
             onClick={() => void loadUnratedPurchases()}
           >
             Refresh
-          </button>
+          </LiquidButton>
         </div>
       </section>
     )
@@ -382,6 +385,14 @@ export default function Swipe({ session }: SwipeProps) {
       {renderUpcomingSection()}
 
       <h1>Swipe queue</h1>
+      {totalDue > 0 && (
+        <div className="swipe-progress-container">
+          <div
+            className="swipe-progress-bar"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
       <p>
         Rate your past purchases. Left = regret, Right = satisfied, Down = not sure.
         <span className="keyboard-hint"> Use ← → ↓ or N</span>
@@ -397,19 +408,19 @@ export default function Swipe({ session }: SwipeProps) {
             Marked "{lastSwipe.purchaseTitle}" as{' '}
             <strong>{formatOutcomeLabel(lastSwipe.outcome)}</strong>
           </span>
-          <button
+          <LiquidButton
             type="button"
             className="undo-button"
             onClick={() => void handleUndo()}
             disabled={undoing}
           >
             {undoing ? 'Undoing...' : 'Undo'}
-          </button>
+          </LiquidButton>
         </div>
       )}
 
       <div className="swipe-container">
-        <button
+        <LiquidButton
           className="swipe-button regret"
           type="button"
           onClick={handleRegret}
@@ -418,9 +429,9 @@ export default function Swipe({ session }: SwipeProps) {
         >
           <span className="swipe-icon">←</span>
           <span className="swipe-label">Regret</span>
-        </button>
+        </LiquidButton>
 
-        <div
+        <GlassCard
           className={`swipe-card ${swipeDirection ? `swiping-${swipeDirection}` : ''}`}
         >
           <div className="swipe-card-content">
@@ -454,9 +465,9 @@ export default function Swipe({ session }: SwipeProps) {
               )}
             </div>
           </div>
-        </div>
+        </GlassCard>
 
-        <button
+        <LiquidButton
           className="swipe-button satisfied"
           type="button"
           onClick={handleSatisfied}
@@ -465,11 +476,11 @@ export default function Swipe({ session }: SwipeProps) {
         >
           <span className="swipe-icon">→</span>
           <span className="swipe-label">Satisfied</span>
-        </button>
+        </LiquidButton>
       </div>
 
       <div className="swipe-secondary">
-        <button
+        <LiquidButton
           className="swipe-button unsure"
           type="button"
           onClick={handleNotSure}
@@ -478,7 +489,7 @@ export default function Swipe({ session }: SwipeProps) {
         >
           <span className="swipe-icon">↓</span>
           <span className="swipe-label">Not sure</span>
-        </button>
+        </LiquidButton>
       </div>
 
     </section>

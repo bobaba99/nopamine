@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import Swipe from './pages/Swipe'
 import Profile from './pages/Profile'
 import './styles/App.css'
+import { CustomCursor, useGSAPLoader, SplitText, LiquidButton, VolumetricInput } from './components/Kinematics'
 
 type AuthMode = 'sign_in' | 'sign_up'
 
@@ -134,20 +135,20 @@ function AuthRoute({
               <span className="label">Signed in as </span>
               <span className="value">{session.user.email}</span>
             </div>
-            <button
+            <LiquidButton
               className="primary"
               type="button"
               onClick={() => navigate('/profile')}
             >
               Continue
-            </button>
+            </LiquidButton>
           </div>
         ) : (
           <form className="auth-form" onSubmit={onAuth}>
             <label>
               Email
-              <input
-                type="email"
+              <VolumetricInput
+                as="input"
                 autoComplete="email"
                 value={email}
                 onChange={(event) => onEmailChange(event.target.value)}
@@ -157,7 +158,8 @@ function AuthRoute({
             </label>
             <label>
               Password
-              <input
+              <VolumetricInput
+                as="input"
                 type="password"
                 autoComplete={
                   authMode === 'sign_in' ? 'current-password' : 'new-password'
@@ -169,18 +171,18 @@ function AuthRoute({
                 required
               />
             </label>
-            <button className="primary" type="submit" disabled={loading}>
+            <LiquidButton className="primary" type="submit" disabled={loading}>
               {loading
                 ? 'Working...'
                 : authMode === 'sign_in'
                   ? 'Sign in'
                   : 'Create account'}
-            </button>
-            <button className="link" type="button" onClick={onToggleMode}>
+            </LiquidButton>
+            <LiquidButton className="link" type="button" onClick={onToggleMode}>
               {authMode === 'sign_in'
                 ? 'Need an account? Sign up'
                 : 'Already have an account? Sign in'}
-            </button>
+            </LiquidButton>
           </form>
         )}
       </section>
@@ -195,6 +197,7 @@ function App() {
   const [password, setPassword] = useState('')
   const [status, setStatus] = useState<StatusMessage | null>(null)
   const [loading, setLoading] = useState(false)
+  const gsapLoaded = useGSAPLoader()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -289,6 +292,7 @@ function App() {
   return (
     <BrowserRouter>
       <div className="page">
+        {gsapLoaded && <CustomCursor />}
         <header className="topbar">
           <div className="brand">Nopamine</div>
           {session && (
@@ -309,14 +313,15 @@ function App() {
               <div className="session-chip">
                 <span className="session-label">Signed in</span>
                 <span className="session-email">{session.user.email}</span>
-                <button
+                <LiquidButton
                   className="ghost"
                   type="button"
                   onClick={handleSignOut}
                   disabled={loading}
+                  data-cursor="expand"
                 >
                   Sign out
-                </button>
+                </LiquidButton>
               </div>
             ) : (
               <span className="hint">Start with email + password</span>
