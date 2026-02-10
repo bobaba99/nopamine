@@ -11,3 +11,34 @@ Fix last commit message: `git commit --amend`
 Undo last local commit without deleting changes `git reset HEAD~1`
 
 Undo pushed commmit safely `git revert <commit-hash>`
+
+npm linting command: `npm --workspace apps/web run lint`
+
+# Git Work Trees
+
+Use git work trees to work on multiple branches at the same time.
+`git worktree add <path> <branch>`
+`git worktree list`
+`git worktree remove <path>`
+
+For example:
+`git worktree add ../nopamine-timeout fix/verdict-llm-timeout-handling`
+`git worktree add ../nopamine-email feat/purchase-email-import-flow`
+`git worktree add ../nopamine-settings feat/settings-route-user-preferences`
+`git worktree add ../nopamine-share feat/verdict-share-capability`
+`git worktree add ../nopamine-resources feat/resources-page`
+`git worktree add ../nopamine-seo feat/resources-page-seo-optimization`
+
+Run `npm run dev` in the respective paths to start the development servers.
+`npm run dev -- --port 3001`
+`npm run dev -- --port 3002`
+`npm run dev -- --port 3003`
+
+Merge later:
+`git checkout main`
+`git merge feat/purchase-email-import-flow`
+`git push`
+
+Clean up work trees:
+`git worktree remove ../nopamine-email`
+`git branch -d feat/purchase-email-import-flow`

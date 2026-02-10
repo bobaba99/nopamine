@@ -141,6 +141,29 @@ create table hold_timers (
   created_at timestamp default now()
 );
 
+-- Public educational resources/articles.
+-- Readable by all users when published.
+create table resources (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique check (char_length(slug) between 3 and 120),
+  title text not null,
+  summary text not null,
+  body_markdown text not null,
+  category text,
+  tags text[] not null default '{}'::text[],
+  reading_time_minutes int check (reading_time_minutes > 0),
+  canonical_url text,
+  cover_image_url text,
+  cta_url text,
+  is_published boolean not null default false,
+  published_at timestamp,
+  created_by uuid references users(id) on delete set null,
+  updated_by uuid references users(id) on delete set null,
+  created_at timestamp default now(),
+  updated_at timestamp default now(),
+  check (published_at is null or is_published = true)
+);
+
 -- Add FK from purchases to verdicts (defined after verdicts table exists)
 -- ON DELETE SET NULL: if verdict is deleted, purchase remains but loses the link
 alter table purchases
@@ -216,6 +239,11 @@ create index idx_purchases_vendor_tier on purchases(user_id, vendor_tier);
 
 -- Email sync
 create index idx_email_connections_active on email_connections(user_id) where is_active = true;
+
+-- Resources
+create index idx_resources_published on resources(is_published, published_at desc);
+create index idx_resources_category on resources(category);
+create index idx_resources_tags_gin on resources using gin(tags);
 
 -- Row Level Security (RLS)
 alter table users enable row level security;
@@ -358,6 +386,14 @@ create policy "purchase_stats_delete_own"
   on purchase_stats
   for delete
   using ((select auth.uid()) = user_id);
+
+-- Resources RLS
+alter table resources enable row level security;
+
+create policy "resources_select_published"
+  on resources
+  for select
+  using (is_published = true);
 
 -- Verdicts RLS
 alter table verdicts enable row level security;

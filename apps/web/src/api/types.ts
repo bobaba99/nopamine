@@ -68,6 +68,40 @@ export type VerdictRow = {
   created_at: string | null
 }
 
+export type ResourceRow = {
+  id: string
+  slug: string
+  title: string
+  summary: string
+  body_markdown: string
+  category: string | null
+  tags: string[]
+  reading_time_minutes: number | null
+  canonical_url: string | null
+  cover_image_url: string | null
+  cta_url: string | null
+  is_published: boolean
+  published_at: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export type ResourceListItem = Pick<
+  ResourceRow,
+  | 'id'
+  | 'slug'
+  | 'title'
+  | 'summary'
+  | 'category'
+  | 'tags'
+  | 'reading_time_minutes'
+  | 'canonical_url'
+  | 'cover_image_url'
+  | 'cta_url'
+  | 'published_at'
+  | 'created_at'
+>
+
 export type UserRow = {
   id: string
   email: string

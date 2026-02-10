@@ -10,7 +10,7 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "types": ["vite/client"],
-    "ignoreDeprecations": "6.0"
+    "noEmit": true
   },
   "include": ["src"]
 }

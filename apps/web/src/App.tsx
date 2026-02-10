@@ -5,6 +5,8 @@ import { supabase } from './api/supabaseClient'
 import Dashboard from './pages/Dashboard'
 import Swipe from './pages/Swipe'
 import Profile from './pages/Profile'
+import Resources from './pages/Resources'
+import AdminResources from './pages/AdminResources'
 import './styles/App.css'
 import { CustomCursor, useGSAPLoader, LiquidButton, VolumetricInput } from './components/Kinematics'
 
@@ -18,6 +20,10 @@ type StatusMessage = {
 const hasSupabaseConfig =
   Boolean(import.meta.env.VITE_SUPABASE_URL) &&
   Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY)
+const configuredAdminEmails = (import.meta.env.VITE_ADMIN_EMAILS ?? '')
+  .split(',')
+  .map((value: string) => value.trim().toLowerCase())
+  .filter((value: string) => value.length > 0)
 
 const syncUserRecord = async (activeSession: Session) => {
   const email = activeSession.user.email
@@ -226,6 +232,13 @@ function App() {
       ? 'Welcome back. Keep your future self honest.'
       : 'Create your regret mirror. No judgement, just clarity.'
   }, [authMode, session])
+  const isAdminUser = useMemo(() => {
+    const email = session?.user.email?.toLowerCase()
+    if (!email) {
+      return false
+    }
+    return configuredAdminEmails.includes(email)
+  }, [session])
 
   const handleAuth = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -291,19 +304,31 @@ function App() {
         {gsapLoaded && <CustomCursor />}
         <header className="topbar">
           <div className="brand">Nopamine</div>
-          {session && (
-            <nav className="nav topbar-nav">
+          <nav className="nav topbar-nav">
+            {session && (
               <NavLink to="/" end className="nav-link">
                 Dashboard
               </NavLink>
+            )}
+            {session && (
               <NavLink to="/swipe" className="nav-link">
                 Swipe
               </NavLink>
+            )}
+            {session && (
               <NavLink to="/profile" className="nav-link">
                 Profile
               </NavLink>
-            </nav>
-          )}
+            )}
+            {session && isAdminUser && (
+              <NavLink to="/admin/resources" className="nav-link">
+                Admin
+              </NavLink>
+            )}
+            <NavLink to="/resources" className="nav-link">
+              Resources
+            </NavLink>
+          </nav>
           <div className="top-actions">
             {session ? (
               <div className="session-chip">
@@ -350,6 +375,9 @@ function App() {
                 </PublicOnly>
               }
             />
+            <Route element={<AppShell />}>
+              <Route path="/resources" element={<Resources />} />
+            </Route>
 
             <Route element={<RequireAuth session={session} />}>
               <Route
@@ -362,6 +390,14 @@ function App() {
                 <Route index element={<Dashboard session={session} />} />
                 <Route path="swipe" element={<Swipe session={session} />} />
                 <Route path="profile" element={<Profile session={session} />} />
+                <Route
+                  path="admin/resources"
+                  element={
+                    isAdminUser
+                      ? <AdminResources session={session} />
+                      : <Navigate to="/" replace />
+                  }
+                />
               </Route>
             </Route>
 

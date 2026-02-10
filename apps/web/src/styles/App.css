@@ -1450,6 +1450,21 @@
   min-height: 80px;
 }
 
+.admin-editor-shell .ql-toolbar.ql-snow,
+.admin-editor-shell .ql-container.ql-snow {
+  border-color: var(--glass-border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-editor-shell .ql-container {
+  min-height: 260px;
+}
+
+.admin-editor-shell .ql-editor {
+  min-height: 240px;
+  color: var(--ink-700);
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
