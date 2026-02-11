@@ -508,18 +508,20 @@ export async function evaluatePurchase(
     retrieveSimilarPurchases(userId, input, 5, openaiApiKey, { ratingWindow: 'long_term' }),
   ])
 
+  const buildFallbackOverrides = (fallbackAlgorithm: VerdictAlgorithm) => ({
+    patternRepetition,
+    financialStrain,
+    vendorMatch,
+    profileContextSummary: profileContext,
+    similarPurchasesSummary: `${similarRecentPurchases}\n${similarLongTermPurchases}`,
+    recentPurchasesSummary: `${recentRatedPurchases}\n${longTermRatedPurchases}`,
+    psychScores,
+    algorithm: fallbackAlgorithm,
+  })
+
   if (!openaiApiKey) {
     console.warn('No OpenAI API key provided, using fallback evaluation')
-    return evaluatePurchaseFallback(input, {
-      patternRepetition,
-      financialStrain,
-      vendorMatch,
-      profileContextSummary: profileContext,
-      similarPurchasesSummary: `${similarRecentPurchases}\n${similarLongTermPurchases}`,
-      recentPurchasesSummary: `${recentRatedPurchases}\n${longTermRatedPurchases}`,
-      psychScores,
-      algorithm: getFallbackAlgorithm(algorithm),
-    })
+    return evaluatePurchaseFallback(input, buildFallbackOverrides(getFallbackAlgorithm(algorithm)))
   }
 
   try {
@@ -661,16 +663,7 @@ export async function evaluatePurchase(
       typeof llmResponse.confidence !== 'number' ||
       !Number.isFinite(llmResponse.confidence)
     ) {
-      return evaluatePurchaseFallback(input, {
-        patternRepetition,
-        financialStrain,
-        vendorMatch,
-        profileContextSummary: profileContext,
-        similarPurchasesSummary: `${similarRecentPurchases}\n${similarLongTermPurchases}`,
-        recentPurchasesSummary: `${recentRatedPurchases}\n${longTermRatedPurchases}`,
-        psychScores,
-        algorithm: getFallbackAlgorithm(algorithm),
-      })
+      return evaluatePurchaseFallback(input, buildFallbackOverrides(getFallbackAlgorithm(algorithm)))
     }
 
     if (algorithm === 'llm_only') {
@@ -744,16 +737,7 @@ export async function evaluatePurchase(
     }
   } catch (error) {
     console.error('LLM evaluation failed, using fallback:', error)
-    return evaluatePurchaseFallback(input, {
-      patternRepetition,
-      financialStrain,
-      vendorMatch,
-      profileContextSummary: profileContext,
-      similarPurchasesSummary: `${similarRecentPurchases}\n${similarLongTermPurchases}`,
-      recentPurchasesSummary: `${recentRatedPurchases}\n${longTermRatedPurchases}`,
-      psychScores,
-      algorithm: getFallbackAlgorithm(algorithm),
-    })
+    return evaluatePurchaseFallback(input, buildFallbackOverrides(getFallbackAlgorithm(algorithm)))
   }
 }
 
