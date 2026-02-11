@@ -1,6 +1,22 @@
 import { supabase } from './supabaseClient'
 import type { SwipeOutcome, SwipeQueueItem, SwipeTiming } from './types'
 
+type SwipeScheduleQueryRow = {
+  id: string
+  timing: string
+  scheduled_for: string
+  purchase: {
+    id: string
+    title: string
+    price: number
+    vendor: string | null
+    category: string | null
+    purchase_date: string
+    source: string | null
+    verdict_id: string | null
+  }
+}
+
 export async function getUnratedPurchases(
   userId: string,
   options?: { includeFuture?: boolean },
@@ -11,7 +27,7 @@ export async function getUnratedPurchases(
   let query = supabase
     .from('swipe_schedules')
     .select(
-      'id, timing, scheduled_for, purchase:purchase_id (id, title, price, vendor, category, purchase_date)',
+      'id, timing, scheduled_for, purchase:purchase_id (id, title, price, vendor, category, purchase_date, source, verdict_id)',
     )
     .eq('user_id', userId)
     .is('completed_at', null)
@@ -27,14 +43,47 @@ export async function getUnratedPurchases(
     throw new Error(error.message)
   }
 
-  return (
-    data?.map((row) => ({
+  const rows = (data ?? []) as SwipeScheduleQueryRow[]
+
+  // Get verdict decisions for purchases that came from verdicts
+  const verdictIds = rows
+    .map((row) => row.purchase.verdict_id)
+    .filter((id): id is string => id !== null)
+
+  let verdictDecisions: Record<string, string> = {}
+
+  if (verdictIds.length > 0) {
+    const { data: verdicts } = await supabase
+      .from('verdicts')
+      .select('id, user_decision')
+      .in('id', verdictIds)
+
+    verdictDecisions = (verdicts ?? []).reduce(
+      (acc, v) => {
+        acc[v.id] = v.user_decision
+        return acc
+      },
+      {} as Record<string, string>,
+    )
+  }
+
+  return rows.map((row) => {
+    const verdictId = row.purchase.verdict_id
+    const userDecision = verdictId ? verdictDecisions[verdictId] : null
+    // "Regret not buying" applies to verdict purchases where user chose skip or hold
+    const isRegretNotBuying =
+      row.purchase.source === 'verdict' &&
+      userDecision !== null &&
+      userDecision !== 'bought'
+
+    return {
       schedule_id: row.id,
       timing: row.timing as SwipeTiming,
       scheduled_for: row.scheduled_for,
       purchase: row.purchase,
-    })) ?? []
-  )
+      is_regret_not_buying: isRegretNotBuying,
+    }
+  })
 }
 
 export async function createSwipe(

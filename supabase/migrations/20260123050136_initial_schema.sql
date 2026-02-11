@@ -56,6 +56,8 @@ create table purchases (
   source text check (source in ('email', 'ocr', 'manual', 'verdict')),
   verdict_id uuid, -- links to verdict if source='verdict', FK added after verdicts table
   order_id text, -- for deduplication
+  is_past_purchase boolean default false, -- marks seed/manually-added past purchases
+  past_purchase_outcome text check (past_purchase_outcome in ('satisfied', 'regret', 'not_sure')), -- direct outcome for past purchases
   created_at timestamp default now(),
   unique(user_id, vendor, order_id) -- prevent duplicate imports
 );
@@ -522,7 +524,9 @@ create or replace function add_purchase(
   p_category text,
   p_purchase_date date,
   p_source text default 'manual',
-  p_verdict_id uuid default null
+  p_verdict_id uuid default null,
+  p_is_past_purchase boolean default false,
+  p_past_purchase_outcome text default null
 )
 returns purchases
 language plpgsql
@@ -530,6 +534,7 @@ security invoker
 as $$
 declare
   new_row purchases;
+  v_user_decision text;
 begin
   if auth.uid() is null then
     raise exception 'Not authenticated';
@@ -543,7 +548,9 @@ begin
     category,
     purchase_date,
     source,
-    verdict_id
+    verdict_id,
+    is_past_purchase,
+    past_purchase_outcome
   )
   values (
     auth.uid(),
@@ -553,7 +560,9 @@ begin
     nullif(p_category, '')::purchaseCategory,
     p_purchase_date,
     p_source,
-    p_verdict_id
+    p_verdict_id,
+    p_is_past_purchase,
+    p_past_purchase_outcome
   )
   on conflict (verdict_id) where verdict_id is not null
   do update set
@@ -564,14 +573,44 @@ begin
     purchase_date = excluded.purchase_date
   returning * into new_row;
 
-  insert into swipe_schedules (user_id, purchase_id, timing, scheduled_for)
-  values
-    (auth.uid(), new_row.id, 'day3'::swipe_timing, new_row.purchase_date + interval '3 days'),
-    (auth.uid(), new_row.id, 'week3'::swipe_timing, new_row.purchase_date + interval '3 weeks'),
-    (auth.uid(), new_row.id, 'month3'::swipe_timing, new_row.purchase_date + interval '3 months')
-  on conflict (user_id, purchase_id, timing) do update
-    set scheduled_for = excluded.scheduled_for
-    where swipe_schedules.completed_at is null;
+  -- Determine scheduling logic based on purchase type
+  -- Past purchases: no swipe schedules needed (outcome stored directly)
+  if not p_is_past_purchase then
+    if p_source = 'verdict' and p_verdict_id is not null then
+      -- Get the user's decision from the verdict
+      select user_decision into v_user_decision
+      from verdicts
+      where id = p_verdict_id and user_id = auth.uid();
+
+      if v_user_decision = 'bought' then
+        -- Verdict purchase where user bought: schedule 3 follow-up swipes
+        insert into swipe_schedules (user_id, purchase_id, timing, scheduled_for)
+        values
+          (auth.uid(), new_row.id, 'day3'::swipe_timing, new_row.purchase_date + interval '3 days'),
+          (auth.uid(), new_row.id, 'week3'::swipe_timing, new_row.purchase_date + interval '3 weeks'),
+          (auth.uid(), new_row.id, 'month3'::swipe_timing, new_row.purchase_date + interval '3 months')
+        on conflict (user_id, purchase_id, timing) do update
+          set scheduled_for = excluded.scheduled_for
+          where swipe_schedules.completed_at is null;
+      else
+        -- Verdict purchase where user skipped/held: single immediate swipe for "regret not buying"
+        insert into swipe_schedules (user_id, purchase_id, timing, scheduled_for)
+        values
+          (auth.uid(), new_row.id, 'immediate'::swipe_timing, new_row.purchase_date)
+        on conflict (user_id, purchase_id, timing) do update
+          set scheduled_for = excluded.scheduled_for
+          where swipe_schedules.completed_at is null;
+      end if;
+    else
+      -- Non-verdict, non-past purchase (manual entry for recent purchase): single immediate swipe
+      insert into swipe_schedules (user_id, purchase_id, timing, scheduled_for)
+      values
+        (auth.uid(), new_row.id, 'immediate'::swipe_timing, new_row.purchase_date)
+      on conflict (user_id, purchase_id, timing) do update
+        set scheduled_for = excluded.scheduled_for
+        where swipe_schedules.completed_at is null;
+    end if;
+  end if;
 
   return new_row;
 end;

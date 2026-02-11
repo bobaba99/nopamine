@@ -2,6 +2,8 @@ Run `npm install` in `apps/web` to pull @supabase/supabase-js (package-lock not 
 
 Run `npm run dev` in `apps/web`.
 
+Create new migration: `supabase migration new [MIGRATION]`
+
 After staging all files for `git add`, use `git restore --staged '*.md'` to unstage specific files for other commits.
 
 Use `git add '*.tsx'` to add only certain files.

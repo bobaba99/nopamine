@@ -394,7 +394,9 @@ export default function Swipe({ session }: SwipeProps) {
         </div>
       )}
       <p>
-        Rate your past purchases. Left = regret, Right = satisfied, Down = not sure.
+        {currentItem?.is_regret_not_buying
+          ? 'Do you regret NOT buying this? Left = yes (regret), Right = no (satisfied), Down = not sure.'
+          : 'Rate your past purchases. Left = regret, Right = satisfied, Down = not sure.'}
         <span className="keyboard-hint"> Use ← → ↓ or N</span>
       </p>
 
@@ -425,16 +427,23 @@ export default function Swipe({ session }: SwipeProps) {
           type="button"
           onClick={handleRegret}
           disabled={swiping}
-          aria-label="Regret"
+          aria-label={currentItem?.is_regret_not_buying ? 'Yes, regret' : 'Regret'}
         >
           <span className="swipe-icon">←</span>
-          <span className="swipe-label">Regret</span>
+          <span className="swipe-label">
+            {currentItem?.is_regret_not_buying ? 'Yes' : 'Regret'}
+          </span>
         </LiquidButton>
 
         <GlassCard
-          className={`swipe-card ${swipeDirection ? `swiping-${swipeDirection}` : ''}`}
+          className={`swipe-card ${swipeDirection ? `swiping-${swipeDirection}` : ''} ${currentItem?.is_regret_not_buying ? 'regret-not-buying' : ''}`}
         >
           <div className="swipe-card-content">
+            {currentItem?.is_regret_not_buying && (
+              <div className="regret-not-buying-label">
+                Did you regret NOT buying this?
+              </div>
+            )}
             <div className="swipe-title-row">
               <span className="swipe-title">{currentPurchase.title}</span>
               {currentItem && (
@@ -454,7 +463,7 @@ export default function Swipe({ session }: SwipeProps) {
                 <span>Category: {currentPurchase.category}</span>
               )}
               <span>
-                Purchased:{' '}
+                Considered:{' '}
                 {new Date(currentPurchase.purchase_date).toLocaleDateString()}
               </span>
               {currentItem && (
@@ -472,10 +481,12 @@ export default function Swipe({ session }: SwipeProps) {
           type="button"
           onClick={handleSatisfied}
           disabled={swiping}
-          aria-label="Satisfied"
+          aria-label={currentItem?.is_regret_not_buying ? 'No regret' : 'Satisfied'}
         >
           <span className="swipe-icon">→</span>
-          <span className="swipe-label">Satisfied</span>
+          <span className="swipe-label">
+            {currentItem?.is_regret_not_buying ? 'No' : 'Satisfied'}
+          </span>
         </LiquidButton>
       </div>
 

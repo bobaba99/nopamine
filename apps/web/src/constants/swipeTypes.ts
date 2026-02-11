@@ -51,6 +51,8 @@ export type SwipeQueueItem = {
   timing: SwipeTiming
   scheduled_for: string
   purchase: PurchaseRow
+  /** Whether this is a "regret not buying" swipe (verdict skip/hold) */
+  is_regret_not_buying: boolean
 }
 
 /**
