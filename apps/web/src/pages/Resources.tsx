@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { ResourceListItem } from '../api/types'
 import { getPublishedResources } from '../api/resourceService'
 import { GlassCard, LiquidButton } from '../components/Kinematics'
@@ -74,7 +75,6 @@ export default function Resources() {
       ) : (
         <div className="verdict-list">
           {resources.map((resource) => {
-            const articleLink = getSafeLink(resource.canonical_url)
             const ctaLink = getSafeLink(resource.cta_url)
 
             return (
@@ -85,7 +85,6 @@ export default function Resources() {
                   </div>
                   <div className="verdict-meta">
                     <span>{resource.summary}</span>
-                    {resource.category && <span>Category: {resource.category}</span>}
                     {resource.reading_time_minutes && (
                       <span>Reading time: {resource.reading_time_minutes} min</span>
                     )}
@@ -101,19 +100,13 @@ export default function Resources() {
                   </div>
                 </div>
                 <div className="verdict-actions">
-                  {articleLink ? (
-                    <LiquidButton
-                      as="a"
-                      href={articleLink.href}
-                      target={articleLink.external ? '_blank' : undefined}
-                      rel={articleLink.external ? 'noopener noreferrer' : undefined}
-                      className="link"
-                    >
-                      Read article
-                    </LiquidButton>
-                  ) : (
-                    <span className="label">Article route coming soon</span>
-                  )}
+                  <LiquidButton
+                    as={Link}
+                    to={`/resources/${resource.slug}`}
+                    className="primary"
+                  >
+                    Read more
+                  </LiquidButton>
                   {ctaLink && (
                     <LiquidButton
                       as="a"
