@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
 import type { ResourceRow } from '../api/types'
 import { getResourceBySlug } from '../api/resourceService'
-import { GlassCard } from '../components/Kinematics'
+import { GlassCard, LiquidButton } from '../components/Kinematics'
 
 const formatPublishedDate = (value: string | null): string | null => {
   if (!value) {
@@ -13,6 +14,10 @@ const formatPublishedDate = (value: string | null): string | null => {
     month: 'long',
     day: 'numeric',
   })
+}
+
+const scrollToTop = () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 export default function ResourceDetail() {
@@ -105,7 +110,7 @@ export default function ResourceDetail() {
           <div className="article-meta">
             {publishedDate && <span className="published-date">{publishedDate}</span>}
             {resource.reading_time_minutes && (
-              <span className="reading-time">{resource.reading_time_minutes} min read</span>
+              <span className="reading-time"> Reading time: {resource.reading_time_minutes} min</span>
             )}
           </div>
           {resource.tags.length > 0 && (
@@ -134,6 +139,24 @@ export default function ResourceDetail() {
           Back to Resources
         </Link>
       </footer>
+
+      {createPortal(
+        <div className="floating-buttons">
+          <LiquidButton
+            as="button"
+            type="button"
+            onClick={scrollToTop}
+            className="floating-button floating-top-button"
+            aria-label="Back to top"
+          >
+            ↑
+          </LiquidButton>
+          <LiquidButton as={Link} to="/resources" className="floating-button floating-back-button">
+            ← Back to Resources
+          </LiquidButton>
+        </div>,
+        document.body
+      )}
     </section>
   )
 }
