@@ -2,14 +2,15 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
 import { Link } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
-import type { Stats, VerdictAlgorithm, VerdictRow } from '../api/types'
+import type { Stats, VerdictRow } from '../api/types'
 import { PURCHASE_CATEGORIES } from '../api/types'
 import { getSwipeStats } from '../api/statsService'
 import { sanitizeVerdictRationaleHtml } from '../utils/sanitizeHtml'
 import {
   getVerdictHistory,
-  createVerdict,
   evaluatePurchase,
+  submitVerdict,
+  inputFromVerdict,
   updateVerdictDecision,
 } from '../api/verdictService'
 import VerdictDetailModal from '../components/VerdictDetailModal'
@@ -28,6 +29,7 @@ export default function Dashboard({ session }: DashboardProps) {
   const [recentVerdicts, setRecentVerdicts] = useState<VerdictRow[]>([])
   const [selectedVerdict, setSelectedVerdict] = useState<VerdictRow | null>(null)
   const [verdictSavingId, setVerdictSavingId] = useState<string | null>(null)
+  const [verdictRegeneratingId, setVerdictRegeneratingId] = useState<string | null>(null)
 
   // Form state
   const [title, setTitle] = useState('')
@@ -36,10 +38,10 @@ export default function Dashboard({ session }: DashboardProps) {
   const [vendor, setVendor] = useState('')
   const [justification, setJustification] = useState('')
   const [importantPurchase, setImportantPurchase] = useState(false)
-  const [verdictAlgorithm, setVerdictAlgorithm] =
-    useState<VerdictAlgorithm>('standard')
   const [submitting, setSubmitting] = useState(false)
   const [status, setStatus] = useState<string>('')
+  const generationLockMessage =
+    'Another verdict is currently being generated or regenerated. Please wait for it to finish.'
 
   const loadStats = useCallback(async () => {
     if (!session) return
@@ -74,6 +76,10 @@ export default function Dashboard({ session }: DashboardProps) {
   const handleEvaluate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!session) return
+    if (submitting || verdictRegeneratingId) {
+      window.alert(generationLockMessage)
+      return
+    }
 
     const priceValue = price ? Number(price) : null
     if (!title.trim()) {
@@ -99,10 +105,9 @@ export default function Dashboard({ session }: DashboardProps) {
     const evaluation = await evaluatePurchase(
       session.user.id,
       input,
-      openaiApiKey,
-      verdictAlgorithm
+      openaiApiKey
     )
-    const { error } = await createVerdict(session.user.id, input, evaluation)
+    const { error } = await submitVerdict(session.user.id, input, evaluation)
 
     if (error) {
       setStatus(error)
@@ -136,6 +141,50 @@ export default function Dashboard({ session }: DashboardProps) {
     await loadStats()
     await loadRecentVerdicts()
     setVerdictSavingId(null)
+  }
+
+  const handleVerdictRegenerate = async (verdict: VerdictRow) => {
+    if (!session) return
+    if (submitting || verdictRegeneratingId) {
+      window.alert(generationLockMessage)
+      return
+    }
+
+    setVerdictRegeneratingId(verdict.id)
+    setStatus('')
+
+    try {
+      const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
+      const input = inputFromVerdict(verdict)
+      const evaluation = await evaluatePurchase(session.user.id, input, openaiApiKey)
+      const { data, error } = await submitVerdict(
+        session.user.id,
+        input,
+        evaluation,
+        verdict.id
+      )
+
+      if (error || !data) {
+        setStatus(error ?? 'Failed to regenerate verdict.')
+        return
+      }
+
+      setRecentVerdicts((previousVerdicts) =>
+        previousVerdicts.map((previousVerdict) =>
+          previousVerdict.id === data.id ? data : previousVerdict
+        )
+      )
+      if (selectedVerdict?.id === data.id) {
+        setSelectedVerdict(data)
+      }
+      await loadStats()
+    } catch {
+      setStatus('Failed to regenerate verdict.')
+    } finally {
+      setVerdictRegeneratingId((currentVerdictId) =>
+        currentVerdictId === verdict.id ? null : currentVerdictId
+      )
+    }
   }
 
   return (
@@ -240,33 +289,7 @@ export default function Dashboard({ session }: DashboardProps) {
               <span className="toggle-label">Scoring model</span>
               <div className="segmented-toggle" role="radiogroup" aria-label="Scoring model">
                 <label>
-                  <input
-                    type="radio"
-                    name="verdict-algorithm"
-                    value="standard"
-                    checked={verdictAlgorithm === 'standard'}
-                    onChange={() => setVerdictAlgorithm('standard')}
-                  />
-                  <span>Standard logistic</span>
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="verdict-algorithm"
-                    value="cost_sensitive_iso"
-                    checked={verdictAlgorithm === 'cost_sensitive_iso'}
-                    onChange={() => setVerdictAlgorithm('cost_sensitive_iso')}
-                  />
-                  <span>Cost-sensitive isotonic</span>
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="verdict-algorithm"
-                    value="llm_only"
-                    checked={verdictAlgorithm === 'llm_only'}
-                    onChange={() => setVerdictAlgorithm('llm_only')}
-                  />
+                  <input type="radio" name="verdict-algorithm" value="llm_only" checked readOnly />
                   <span>LLM only</span>
                 </label>
               </div>
@@ -340,9 +363,19 @@ export default function Dashboard({ session }: DashboardProps) {
                   <div className="decision-buttons">
                     <LiquidButton
                       type="button"
+                      className="link"
+                      onClick={() => handleVerdictRegenerate(verdict)}
+                      disabled={
+                        submitting || verdictRegeneratingId !== null || verdictSavingId === verdict.id
+                      }
+                    >
+                      {verdictRegeneratingId === verdict.id ? 'Regenerating...' : 'Regenerate'}
+                    </LiquidButton>
+                    <LiquidButton
+                      type="button"
                       className={`decision-btn bought ${verdict.user_decision === 'bought' ? 'active' : ''}`}
                         onClick={() => handleVerdictDecision(verdict.id, 'bought')}
-                        disabled={verdictSavingId === verdict.id}
+                        disabled={verdictSavingId === verdict.id || verdictRegeneratingId !== null}
                       >
                         Bought
                       </LiquidButton>
@@ -350,7 +383,7 @@ export default function Dashboard({ session }: DashboardProps) {
                         type="button"
                         className={`decision-btn hold ${verdict.user_decision === 'hold' ? 'active' : ''}`}
                         onClick={() => handleVerdictDecision(verdict.id, 'hold')}
-                        disabled={verdictSavingId === verdict.id}
+                        disabled={verdictSavingId === verdict.id || verdictRegeneratingId !== null}
                       >
                         Hold 24h
                       </LiquidButton>
@@ -358,7 +391,7 @@ export default function Dashboard({ session }: DashboardProps) {
                         type="button"
                         className={`decision-btn skip ${verdict.user_decision === 'skip' ? 'active' : ''}`}
                         onClick={() => handleVerdictDecision(verdict.id, 'skip')}
-                        disabled={verdictSavingId === verdict.id}
+                        disabled={verdictSavingId === verdict.id || verdictRegeneratingId !== null}
                       >
                         Skip
                       </LiquidButton>
@@ -379,6 +412,8 @@ export default function Dashboard({ session }: DashboardProps) {
           verdict={selectedVerdict}
           isOpen={selectedVerdict !== null}
           onClose={() => setSelectedVerdict(null)}
+          onRegenerate={handleVerdictRegenerate}
+          isRegenerating={verdictRegeneratingId === selectedVerdict.id}
         />
       )}
     </section>
