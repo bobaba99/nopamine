@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
 import type { ResourceRow } from '../api/types'
@@ -26,30 +26,38 @@ export default function ResourceDetail() {
   const [status, setStatus] = useState<'loading' | 'error' | 'not_found' | 'ready'>('loading')
   const [errorMessage, setErrorMessage] = useState('')
 
-  const loadResource = useCallback(async () => {
-    if (!slug) {
-      setStatus('not_found')
-      return
-    }
+  useEffect(() => {
+    let cancelled = false
 
-    setStatus('loading')
-    try {
-      const data = await getResourceBySlug(slug)
-      if (!data) {
+    const loadResource = async () => {
+      if (!slug) {
         setStatus('not_found')
         return
       }
-      setResource(data)
-      setStatus('ready')
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unknown error')
-      setStatus('error')
+
+      setStatus('loading')
+      try {
+        const data = await getResourceBySlug(slug)
+        if (cancelled) return
+        if (!data) {
+          setStatus('not_found')
+          return
+        }
+        setResource(data)
+        setStatus('ready')
+      } catch (error) {
+        if (cancelled) return
+        setErrorMessage(error instanceof Error ? error.message : 'Unknown error')
+        setStatus('error')
+      }
+    }
+
+    void loadResource()
+
+    return () => {
+      cancelled = true
     }
   }, [slug])
-
-  useEffect(() => {
-    void loadResource()
-  }, [loadResource])
 
   if (status === 'loading') {
     return (
