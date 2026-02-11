@@ -24,7 +24,7 @@ The admin editor is available at `/admin/resources` for signed-in users whose em
 
 - Rich text formatting: bold, italic, underline, strikethrough, font size, lists, links
 - Image upload: PNG/JPEG/GIF (via API upload endpoint)
-- Actions: create, edit, save, publish, unpublish
+- Actions: create, edit, save, publish, unpublish, delete
 
 The page calls service-role-backed API routes in `apps/api`, so you must also run API with admin env configured.
 

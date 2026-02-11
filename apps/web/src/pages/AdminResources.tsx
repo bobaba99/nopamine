@@ -5,6 +5,7 @@ import Quill from 'quill'
 import 'quill/dist/quill.snow.css'
 import {
   createAdminResource,
+  deleteAdminResource,
   getAdminResources,
   publishAdminResource,
   unpublishAdminResource,
@@ -283,6 +284,34 @@ export default function AdminResources({ session }: AdminResourcesProps) {
     }
   }
 
+  const handleDelete = async () => {
+    if (!session?.access_token || !selectedResourceId || !selectedResource) {
+      return
+    }
+    const confirmed = window.confirm(
+      `Delete "${selectedResource.title}"? This cannot be undone.`
+    )
+    if (!confirmed) {
+      return
+    }
+
+    setSaving(true)
+    setStatus(null)
+    try {
+      await deleteAdminResource(session.access_token, selectedResourceId)
+      resetForm()
+      await loadResources()
+      setStatus({ type: 'success', message: 'Article deleted.' })
+    } catch (error) {
+      setStatus({
+        type: 'error',
+        message: `Delete failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <section className="route-content">
       <div className="section-header">
@@ -301,6 +330,14 @@ export default function AdminResources({ session }: AdminResourcesProps) {
             disabled={!selectedResourceId || saving}
           >
             {isPublished ? 'Unpublish' : 'Publish'}
+          </LiquidButton>
+          <LiquidButton
+            className="ghost"
+            type="button"
+            onClick={handleDelete}
+            disabled={!selectedResourceId || saving}
+          >
+            Delete
           </LiquidButton>
         </div>
       </div>

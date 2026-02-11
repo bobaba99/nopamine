@@ -100,6 +100,17 @@ export async function unpublishAdminResource(
   return payload.data
 }
 
+export async function deleteAdminResource(
+  accessToken: string,
+  resourceId: string
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/admin/resources/${resourceId}`, {
+    method: 'DELETE',
+    headers: withAuthHeaders(accessToken),
+  })
+  await assertOk(response)
+}
+
 export async function uploadAdminResourceImage(
   accessToken: string,
   image: File
