@@ -83,6 +83,59 @@ export const retrieveVendorMatch = async (
 
 type RatingWindow = 'recent' | 'long_term'
 
+const getSimilarPurchasesEmptyMessage = (ratingWindow?: RatingWindow) => {
+  if (ratingWindow === 'recent') {
+    return 'No similar purchases found from ratings in the last 30 days.'
+  }
+  if (ratingWindow === 'long_term') {
+    return 'No similar purchases found from ratings older than 6 months.'
+  }
+  return 'No similar purchases found.'
+}
+
+const getSimilarPurchasesSemanticLabel = (ratingWindow?: RatingWindow) => {
+  if (ratingWindow === 'recent') {
+    return 'Similar purchases rated in the last 30 days (semantic match):'
+  }
+  if (ratingWindow === 'long_term') {
+    return 'Similar purchases rated over 6 months ago (semantic match):'
+  }
+  return 'Similar purchases (semantic match):'
+}
+
+const getSimilarPurchasesCategoryLabel = (
+  category: string,
+  ratingWindow?: RatingWindow
+) => {
+  if (ratingWindow === 'recent') {
+    return `Similar purchases rated in the last 30 days (category "${category}"):\n`
+  }
+  if (ratingWindow === 'long_term') {
+    return `Similar purchases rated over 6 months ago (category "${category}"):\n`
+  }
+  return `Similar purchases in "${category}":\n`
+}
+
+const getRecentPurchasesEmptyMessage = (ratingWindow?: RatingWindow) => {
+  if (ratingWindow === 'recent') {
+    return 'No recent ratings found in the last 30 days.'
+  }
+  if (ratingWindow === 'long_term') {
+    return 'No long-term ratings found (older than 6 months).'
+  }
+  return null
+}
+
+const getRecentPurchasesLabel = (ratingWindow?: RatingWindow) => {
+  if (ratingWindow === 'recent') {
+    return 'Recent rated purchases (last 30 days):'
+  }
+  if (ratingWindow === 'long_term') {
+    return 'Long-term rated purchases (over 6 months ago):'
+  }
+  return 'Recent purchases:'
+}
+
 const buildSwipeSummary = (
   swipes?: { outcome: string; timing?: string | null; rated_at?: string | null }[]
 ) => {
@@ -219,13 +272,7 @@ export async function retrieveSimilarPurchases(
   )
 
   if (purchases.length === 0) {
-    if (options?.ratingWindow === 'recent') {
-      return 'No similar purchases found from ratings in the last 30 days.'
-    }
-    if (options?.ratingWindow === 'long_term') {
-      return 'No similar purchases found from ratings older than 6 months.'
-    }
-    return 'No similar purchases found.'
+    return getSimilarPurchasesEmptyMessage(options?.ratingWindow)
   }
 
   if (!openaiApiKey) {
@@ -262,12 +309,7 @@ export async function retrieveSimilarPurchases(
     }
 
     const lines = topMatches.map(formatPurchaseString)
-    const label =
-      options?.ratingWindow === 'recent'
-        ? 'Similar purchases rated in the last 30 days (semantic match):'
-        : options?.ratingWindow === 'long_term'
-          ? 'Similar purchases rated over 6 months ago (semantic match):'
-          : 'Similar purchases (semantic match):'
+    const label = getSimilarPurchasesSemanticLabel(options?.ratingWindow)
     return `${label}\n${lines.join('\n')}`
   } catch (embeddingError) {
     console.warn('Embedding lookup failed, falling back to category match.', embeddingError)
@@ -278,21 +320,10 @@ export async function retrieveSimilarPurchases(
       (purchase) => purchase.category === input.category
     )
     if (categoryMatches.length === 0) {
-      if (options?.ratingWindow === 'recent') {
-        return 'No similar purchases found from ratings in the last 30 days.'
-      }
-      if (options?.ratingWindow === 'long_term') {
-        return 'No similar purchases found from ratings older than 6 months.'
-      }
-      return 'No similar purchases found.'
+      return getSimilarPurchasesEmptyMessage(options?.ratingWindow)
     }
     const lines = categoryMatches.slice(0, limit).map(formatPurchaseString)
-    const label =
-      options?.ratingWindow === 'recent'
-        ? `Similar purchases rated in the last 30 days (category "${input.category}"):\n`
-        : options?.ratingWindow === 'long_term'
-          ? `Similar purchases rated over 6 months ago (category "${input.category}"):\n`
-          : `Similar purchases in "${input.category}":\n`
+    const label = getSimilarPurchasesCategoryLabel(input.category, options?.ratingWindow)
     return `${label}${lines.join('\n')}`
   }
 }
@@ -323,21 +354,14 @@ export async function retrieveRecentPurchases(
     filterPurchasesByRatingWindow(data as unknown as PurchaseWithSwipe[], options?.ratingWindow)
   )
   if (purchases.length === 0) {
-    if (options?.ratingWindow === 'recent') {
-      return 'No recent ratings found in the last 30 days.'
-    }
-    if (options?.ratingWindow === 'long_term') {
-      return 'No long-term ratings found (older than 6 months).'
+    const emptyMessage = getRecentPurchasesEmptyMessage(options?.ratingWindow)
+    if (emptyMessage) {
+      return emptyMessage
     }
   }
 
   const lines = purchases.slice(0, limit).map(formatPurchaseString)
-  const label =
-    options?.ratingWindow === 'recent'
-      ? 'Recent rated purchases (last 30 days):'
-      : options?.ratingWindow === 'long_term'
-        ? 'Long-term rated purchases (over 6 months ago):'
-        : 'Recent purchases:'
+  const label = getRecentPurchasesLabel(options?.ratingWindow)
   return `${label}\n${lines.join('\n')}`
 }
 
