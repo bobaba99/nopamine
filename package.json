@@ -11,10 +11,10 @@
     "doc": "doc"
   },
   "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
     "dev:web": "npm --workspace apps/web run dev",
     "dev:mobile": "npm --workspace apps/mobile start",
     "dev:api": "npm --workspace apps/api run dev",
-
     "build:web": "npm --workspace apps/web run build",
     "build:api": "npm --workspace apps/api run build"
   },
@@ -29,5 +29,8 @@
   "bugs": {
     "url": "https://github.com/bobaba99/nopamine/issues"
   },
-  "homepage": "https://github.com/bobaba99/nopamine#readme"
+  "homepage": "https://github.com/bobaba99/nopamine#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
 }

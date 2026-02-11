@@ -5,14 +5,15 @@ import Quill from 'quill'
 import 'quill/dist/quill.snow.css'
 import {
   createAdminResource,
+  deleteAdminResource,
   getAdminResources,
   publishAdminResource,
   unpublishAdminResource,
   updateAdminResource,
   uploadAdminResourceImage,
-  type ResourceUpsertInput,
 } from '../api/adminResourceService'
-import type { ResourceRow } from '../api/types'
+import type { ResourceRow, ResourceUpsertInput } from '../api/types'
+import { RECOMMENDED_TAGS } from '../constants/resourceTags'
 import { GlassCard, LiquidButton, VolumetricInput } from '../components/Kinematics'
 
 type AdminResourcesProps = {
@@ -46,9 +47,11 @@ export default function AdminResources({ session }: AdminResourcesProps) {
   const [slug, setSlug] = useState('')
   const [title, setTitle] = useState('')
   const [summary, setSummary] = useState('')
-  const [category, setCategory] = useState('')
-  const [tagsText, setTagsText] = useState('')
-  const [readingTimeMinutes, setReadingTimeMinutes] = useState('')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [newTagInput, setNewTagInput] = useState('')
+  const [showTagDropdown, setShowTagDropdown] = useState(false)
+  const tagDropdownRef = useRef<HTMLDivElement>(null)
+
   const [canonicalUrl, setCanonicalUrl] = useState('')
   const [coverImageUrl, setCoverImageUrl] = useState('')
   const [ctaUrl, setCtaUrl] = useState('')
@@ -66,9 +69,9 @@ export default function AdminResources({ session }: AdminResourcesProps) {
     setSlug('')
     setTitle('')
     setSummary('')
-    setCategory('')
-    setTagsText('')
-    setReadingTimeMinutes('')
+    setSelectedTags([])
+    setNewTagInput('')
+
     setCanonicalUrl('')
     setCoverImageUrl('')
     setCtaUrl('')
@@ -86,9 +89,9 @@ export default function AdminResources({ session }: AdminResourcesProps) {
     setSlug(resource.slug)
     setTitle(resource.title)
     setSummary(resource.summary)
-    setCategory(resource.category ?? '')
-    setTagsText(resource.tags.join(', '))
-    setReadingTimeMinutes(resource.reading_time_minutes?.toString() ?? '')
+    setSelectedTags(resource.tags)
+    setNewTagInput('')
+
     setCanonicalUrl(resource.canonical_url ?? '')
     setCoverImageUrl(resource.cover_image_url ?? '')
     setCtaUrl(resource.cta_url ?? '')
@@ -196,6 +199,38 @@ export default function AdminResources({ session }: AdminResourcesProps) {
     return () => window.clearTimeout(timeoutId)
   }, [loadResources])
 
+  // Close tag dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tagDropdownRef.current && !tagDropdownRef.current.contains(event.target as Node)) {
+        setShowTagDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    )
+  }
+
+  const addNewTag = () => {
+    const trimmed = newTagInput.trim().toLowerCase().replace(/\s+/g, '-')
+    if (trimmed && !selectedTags.includes(trimmed)) {
+      setSelectedTags((prev) => [...prev, trimmed])
+    }
+    setNewTagInput('')
+    setShowTagDropdown(false)
+  }
+
+  const removeTag = (tag: string) => {
+    setSelectedTags((prev) => prev.filter((t) => t !== tag))
+  }
+
+  const availableTags = RECOMMENDED_TAGS.filter((tag) => !selectedTags.includes(tag))
+
   const handleSave = async () => {
     if (!session?.access_token) {
       setStatus({ type: 'error', message: 'Sign in to access the admin editor.' })
@@ -205,6 +240,11 @@ export default function AdminResources({ session }: AdminResourcesProps) {
     const normalizedSlug = slug.trim() || buildSlug(title)
     if (!normalizedSlug || !title.trim() || !summary.trim()) {
       setStatus({ type: 'error', message: 'Slug, title, and summary are required.' })
+      return
+    }
+
+    if (selectedTags.length === 0) {
+      setStatus({ type: 'error', message: 'At least one tag is required.' })
       return
     }
 
@@ -218,22 +258,13 @@ export default function AdminResources({ session }: AdminResourcesProps) {
       title: title.trim(),
       summary: summary.trim(),
       bodyMarkdown,
-      category: category.trim() || null,
-      tags: tagsText
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0),
-      readingTimeMinutes: readingTimeMinutes.trim() ? Number(readingTimeMinutes) : null,
+      tags: selectedTags,
+
       canonicalUrl: canonicalUrl.trim() || null,
       coverImageUrl: coverImageUrl.trim() || null,
       ctaUrl: ctaUrl.trim() || null,
       isPublished,
       publishedAt,
-    }
-
-    if (payload.readingTimeMinutes !== null && payload.readingTimeMinutes <= 0) {
-      setStatus({ type: 'error', message: 'Reading time must be a positive number.' })
-      return
     }
 
     setSaving(true)
@@ -283,6 +314,34 @@ export default function AdminResources({ session }: AdminResourcesProps) {
     }
   }
 
+  const handleDelete = async () => {
+    if (!session?.access_token || !selectedResourceId || !selectedResource) {
+      return
+    }
+    const confirmed = window.confirm(
+      `Delete "${selectedResource.title}"? This cannot be undone.`
+    )
+    if (!confirmed) {
+      return
+    }
+
+    setSaving(true)
+    setStatus(null)
+    try {
+      await deleteAdminResource(session.access_token, selectedResourceId)
+      resetForm()
+      await loadResources()
+      setStatus({ type: 'success', message: 'Article deleted.' })
+    } catch (error) {
+      setStatus({
+        type: 'error',
+        message: `Delete failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <section className="route-content">
       <div className="section-header">
@@ -301,6 +360,14 @@ export default function AdminResources({ session }: AdminResourcesProps) {
             disabled={!selectedResourceId || saving}
           >
             {isPublished ? 'Unpublish' : 'Publish'}
+          </LiquidButton>
+          <LiquidButton
+            className="ghost"
+            type="button"
+            onClick={handleDelete}
+            disabled={!selectedResourceId || saving}
+          >
+            Delete
           </LiquidButton>
         </div>
       </div>
@@ -343,7 +410,7 @@ export default function AdminResources({ session }: AdminResourcesProps) {
           <h2>{selectedResource ? `Editing: ${selectedResource.title}` : 'New article'}</h2>
           <form className="decision-form" onSubmit={(event) => event.preventDefault()}>
             <label>
-              Slug
+              <span className="label-text">Slug <span className="required">*</span></span>
               <VolumetricInput
                 as="input"
                 value={slug}
@@ -354,7 +421,7 @@ export default function AdminResources({ session }: AdminResourcesProps) {
               />
             </label>
             <label>
-              Title
+              <span className="label-text">Title <span className="required">*</span></span>
               <VolumetricInput
                 as="input"
                 value={title}
@@ -366,7 +433,7 @@ export default function AdminResources({ session }: AdminResourcesProps) {
               />
             </label>
             <label>
-              Summary
+              <span className="label-text">Summary <span className="required">*</span></span>
               <VolumetricInput
                 as="textarea"
                 value={summary}
@@ -376,43 +443,87 @@ export default function AdminResources({ session }: AdminResourcesProps) {
                 rows={3}
               />
             </label>
-            <div className="form-row">
-              <label>
-                Category
-                <VolumetricInput
-                  as="input"
-                  value={category}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                    setCategory(event.target.value)
-                  }
-                />
+            <div className="form-group" ref={tagDropdownRef}>
+              <label className="tags-label">
+                <span className="label-text">Tags <span className="required">*</span></span>
               </label>
-              <label>
-                Reading time (minutes)
-                <VolumetricInput
-                  as="input"
-                  type="number"
-                  min={1}
-                  value={readingTimeMinutes}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                    setReadingTimeMinutes(event.target.value)
-                  }
-                />
-              </label>
+              <div className="tags-container">
+                {selectedTags.map((tag) => (
+                  <span key={tag} className="tag-pill">
+                    {tag}
+                    <button
+                      type="button"
+                      className="tag-remove"
+                      onClick={() => removeTag(tag)}
+                      aria-label={`Remove ${tag}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <div className="tag-input-wrapper">
+                  <input
+                    type="text"
+                    className="tag-input"
+                    value={newTagInput}
+                    onChange={(e) => setNewTagInput(e.target.value)}
+                    onFocus={() => setShowTagDropdown(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addNewTag()
+                      }
+                    }}
+                    placeholder={selectedTags.length === 0 ? 'Select or type a tag...' : 'Add tag...'}
+                  />
+                  {showTagDropdown && (
+                    <div className="tag-dropdown">
+                      {newTagInput.trim() && !(RECOMMENDED_TAGS as readonly string[]).includes(newTagInput.trim().toLowerCase()) && (
+                        <button
+                          type="button"
+                          className="tag-option create-new"
+                          onClick={addNewTag}
+                        >
+                          + Create "{newTagInput.trim().toLowerCase().replace(/\s+/g, '-')}"
+                        </button>
+                      )}
+                      {availableTags.length > 0 && (
+                        <div className="tag-section">
+                          <div className="tag-section-title">Recommended</div>
+                          {availableTags.map((tag) => (
+                            <button
+                              key={tag}
+                              type="button"
+                              className="tag-option"
+                              onClick={() => toggleTag(tag)}
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {selectedTags.length > 0 && (
+                        <div className="tag-section">
+                          <div className="tag-section-title">Selected</div>
+                          {selectedTags.map((tag) => (
+                            <button
+                              key={tag}
+                              type="button"
+                              className="tag-option selected"
+                              onClick={() => removeTag(tag)}
+                            >
+                              ✓ {tag}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             <label>
-              Tags (comma separated)
-              <VolumetricInput
-                as="input"
-                value={tagsText}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                  setTagsText(event.target.value)
-                }
-                placeholder="impulse, framework, psychology"
-              />
-            </label>
-            <label>
-              Canonical URL
+              <span className="label-text">Canonical URL</span>
               <VolumetricInput
                 as="input"
                 value={canonicalUrl}
@@ -453,6 +564,9 @@ export default function AdminResources({ session }: AdminResourcesProps) {
                 }
               />
               <span className="toggle-label">Published</span>
+            </div>
+            <div className="editor-label">
+              Body content <span className="required">*</span>
             </div>
             <div className="admin-editor-shell">
               <div ref={editorContainerRef} />

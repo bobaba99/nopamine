@@ -289,6 +289,17 @@ Updates `users`: `profile_summary`, `onboarding_answers`, `weekly_fun_budget` (c
 |-------------|--------------------------|
 | Page load | `getPublishedResources` |
 
+### Admin Resources (`/admin/resources`)
+
+| User Action | Service Calls (in order) |
+|-------------|--------------------------|
+| Page load | `getAdminResources` |
+| Save (new) | `createAdminResource` |
+| Save (edit) | `updateAdminResource` |
+| Publish / Unpublish | `publishAdminResource` / `unpublishAdminResource` |
+| Delete | `deleteAdminResource` |
+| Image upload | `uploadAdminResourceImage` |
+
 ### Auth (App.tsx)
 
 | User Action | Service Calls (in order) |
