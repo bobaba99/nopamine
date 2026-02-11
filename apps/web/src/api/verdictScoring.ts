@@ -8,7 +8,7 @@ import type {
 } from './types'
 import { clamp01 } from './utils'
 
-export const WEIGHTS = {
+const BASE_WEIGHTS = {
   // Original 6 features
   intercept: 0.627685,
   value_conflict: 2.438147,
@@ -21,24 +21,11 @@ export const WEIGHTS = {
   // NEW: Personality traits
   neuroticism: 1.919056,
   materialism: 0.554621,
-  locus_of_control: 1.023947
+  locus_of_control: 1.023947,
 } as const
 
-const COST_SENSITIVE_WEIGHTS = {
-  // Original 6 features
-  intercept: 0.627685,
-  value_conflict: 2.438147,
-  pattern_repetition: -2.792755,
-  emotional_impulse: 1.275967,
-  financial_strain: 0.982964,
-  longTerm_utility: -2.244344,
-  emotional_support: -1.444325,
-
-  // NEW: Personality traits
-  neuroticism: 1.919056,
-  materialism: 0.554621,
-  locus_of_control: 1.023947
-} as const
+export const WEIGHTS = BASE_WEIGHTS
+const COST_SENSITIVE_WEIGHTS = BASE_WEIGHTS
 
 const COST_SENSITIVE_THRESHOLDS = {
   buy: 0.35,
