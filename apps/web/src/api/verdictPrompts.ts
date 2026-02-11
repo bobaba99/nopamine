@@ -58,7 +58,7 @@ Important purchase policy (APPLIES to this purchase):
 - Only treat price as negative when there is clear evidence of affordability strain (e.g., exceeds monthly budget significantly) or poor long-term utility.
 - You must explicitly acknowledge the "important purchase" status in the rationale and state that high price is tolerated.
 - If this purchase has long-term utility and is essential, approve it regardless of value conflicts and high upfront cost. Suggest financing options instead of returning "skip".
-- Never return a "skip" verdict for an important purchase unless there is concrete evidence of poor long-term utility or severe affordability strain.`
+- Never return a "skip" verdict for an important purchase unless there is concrete evidence of poor long-term utility or severe affordability strain (i.e., exceeds 3 months of monthly budget).`
 }
 
 export const buildUserPrompt = (

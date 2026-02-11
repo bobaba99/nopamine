@@ -193,12 +193,6 @@ export const evaluatePurchaseFallback = (
     }
   }
 
-  const impulseCategories = ['clothing', 'fashion', 'accessories', 'gadgets', 'electronics']
-  if (input.category && impulseCategories.some((c) => input.category!.toLowerCase().includes(c))) {
-    riskScore += 20
-    reasons.push('Category has higher impulse purchase rate')
-  }
-
   if (!input.justification || input.justification.length < 20) {
     riskScore += 25
     reasons.push('Weak or missing justification')

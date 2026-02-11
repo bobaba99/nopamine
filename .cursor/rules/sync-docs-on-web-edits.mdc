@@ -1,0 +1,37 @@
+---
+description: When editing apps/web scripts, update VERDICT_SERVICE_LOGIC.md and FUNCTION_PIPELINE.md to keep docs in sync
+globs: apps/web/**/*.ts, apps/web/**/*.tsx
+alwaysApply: false
+---
+
+# Sync Documentation on Web Edits
+
+When you make edits to scripts in `apps/web/`, update the corresponding markdown files so documentation stays accurate.
+
+## Which Doc to Update
+
+| Files Changed | Update |
+|---------------|--------|
+| `apps/web/src/api/verdictContext.ts`, `verdictPrompts.ts`, `verdictScoring.ts`, `verdictService.ts`, `utils.ts` | **VERDICT_SERVICE_LOGIC.md** |
+| Any `apps/web/` scripts that add/remove/change function calls, APIs, services, data flow, or page-to-service mappings | **FUNCTION_PIPELINE.md** |
+| Both verdict logic and pipeline-affecting changes | Update **both** |
+
+## What to Update
+
+**VERDICT_SERVICE_LOGIC.md**
+- Reflect new/removed/renamed functions
+- Update thresholds, formulas, decision rules
+- Adjust data flow diagram if the pipeline changes
+- Keep sections aligned with `verdictContext`, `verdictPrompts`, `verdictScoring`, `verdictService`
+
+**FUNCTION_PIPELINE.md**
+- Add or remove service functions and their callers
+- Update page-to-service call map
+- Adjust database table access summary
+- Refresh external API call list
+
+## When to Skip
+
+- Cosmetic edits (formatting, comments)
+- Test-only changes
+- Edits to files outside `apps/web/` (e.g. `apps/api/`, `supabase/`)
