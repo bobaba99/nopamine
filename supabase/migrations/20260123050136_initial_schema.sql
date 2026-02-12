@@ -12,7 +12,7 @@ create type user_value_type as enum (
   'interpersonal_value',
   'emotional_value'
 );
-create type purchaseCategory as enum ('electronics', 'fashion', 'home goods', 'health & wellness', 'travel', 'experiences', 'subscriptions', 'food & beverage', 'services', 'education', 'other');
+create type purchaseCategory as enum ('electronics', 'fashion', 'home goods', 'health & wellness', 'travel', 'entertainment', 'subscriptions', 'food & beverage', 'services', 'education', 'other');
 create type ocr_status as enum ('pending', 'processing', 'completed', 'failed');
 create type verdict_outcome as enum ('bought', 'hold', 'skip');
 create type vendorQuality as enum ('low', 'medium', 'high');
@@ -641,3 +641,31 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row
   execute function public.handle_new_user();
+
+-- Legacy category normalization: experiences -> entertainment
+do $$
+begin
+  if exists (
+    select 1
+    from pg_type t
+    join pg_enum e on t.oid = e.enumtypid
+    where t.typname = 'purchasecategory' and e.enumlabel = 'experiences'
+  ) and not exists (
+    select 1
+    from pg_type t
+    join pg_enum e on t.oid = e.enumtypid
+    where t.typname = 'purchasecategory' and e.enumlabel = 'entertainment'
+  ) then
+    alter type purchaseCategory rename value 'experiences' to 'entertainment';
+  end if;
+end
+$$;
+
+update purchase_stats
+set dimension_value = 'entertainment'
+where dimension_type = 'category'
+  and lower(trim(dimension_value)) = 'experiences';
+
+update resources
+set category = 'entertainment'
+where lower(trim(category)) = 'experiences';

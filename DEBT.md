@@ -5,6 +5,11 @@
 - [ ] Add guiding questions for writing justification
 - [ ] Add warning modal dialog if the justification is too short
 
+`feat/purchase-email-import-flow`
+
+- [ ] Generate test email sets according to vendor data
+- [ ] Some emails are image-based instead of text-based, skipping lots of those ones
+
 `feat/about`
 
 - [ ] Write content for about page

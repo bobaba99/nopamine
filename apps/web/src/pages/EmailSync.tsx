@@ -29,11 +29,16 @@ type Status = {
 const GMAIL_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
 const GMAIL_SCOPES = 'https://www.googleapis.com/auth/gmail.readonly'
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY ?? ''
+const IMPORT_RESULT_STORAGE_PREFIX = 'email-sync-import-result'
+
+const getImportResultStorageKey = (userId: string) =>
+  `${IMPORT_RESULT_STORAGE_PREFIX}:${userId}`
 
 export default function EmailSync({ session }: EmailSyncProps) {
   const [connection, setConnection] = useState<EmailConnectionRow | null>(null)
   const [status, setStatus] = useState<Status>({ type: 'idle' })
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
+  const [hasHydratedImportResult, setHasHydratedImportResult] = useState(false)
   const [stats, setStats] = useState<{ totalImported: number; lastSyncDate: string | null } | null>(null)
   const [isImporting, setIsImporting] = useState(false)
 
@@ -59,6 +64,42 @@ export default function EmailSync({ session }: EmailSyncProps) {
   useEffect(() => {
     loadConnectionData()
   }, [loadConnectionData])
+
+  // Restore the latest import result for this user after page refresh.
+  useEffect(() => {
+    if (!userId) {
+      setImportResult(null)
+      setHasHydratedImportResult(false)
+      return
+    }
+
+    try {
+      const raw = window.localStorage.getItem(getImportResultStorageKey(userId))
+      if (!raw) {
+        setImportResult(null)
+        return
+      }
+      const parsed = JSON.parse(raw) as ImportResult
+      setImportResult(parsed)
+    } catch {
+      window.localStorage.removeItem(getImportResultStorageKey(userId))
+      setImportResult(null)
+    } finally {
+      setHasHydratedImportResult(true)
+    }
+  }, [userId])
+
+  // Persist latest import result so it survives reloads.
+  useEffect(() => {
+    if (!userId || !hasHydratedImportResult) return
+
+    const storageKey = getImportResultStorageKey(userId)
+    if (!importResult) {
+      window.localStorage.removeItem(storageKey)
+      return
+    }
+    window.localStorage.setItem(storageKey, JSON.stringify(importResult))
+  }, [userId, importResult, hasHydratedImportResult])
 
   // Initialize Google OAuth
   const handleConnectGmail = useCallback(() => {
@@ -147,7 +188,6 @@ export default function EmailSync({ session }: EmailSyncProps) {
 
     setIsImporting(true)
     setStatus({ type: 'loading', message: 'Scanning emails for receipts...' })
-    setImportResult(null)
 
     try {
       const result = await importGmailReceipts(
@@ -182,156 +222,162 @@ export default function EmailSync({ session }: EmailSyncProps) {
         <h1>Email Sync</h1>
       </div>
 
-      <div className="dashboard-grid">
-        {/* Connection Card */}
-        <GlassCard className="verdict-result">
-          <h2>Connect Email</h2>
-          <p>
-            Import your purchase receipts automatically by connecting your email.
-            We only read order confirmations and receipts.
-          </p>
+      <GlassCard className="email-sync-container">
+        <div className="dashboard-grid">
+          {/* Connection Card */}
+          <div className="content-panel">
+            <h2>Connect Email</h2>
+            <p>
+              Import your purchase receipts automatically by connecting your email.
+              We only read order confirmations and receipts.
+            </p>
 
-          {status.message && (
-            <div className={`status ${status.type}`}>
-              {status.message}
-            </div>
-          )}
+            {status.message && (
+              <div className={`status ${status.type}`}>
+                {status.message}
+              </div>
+            )}
 
-          <div className="email-providers">
-            {isConnected ? (
-              <div className="connected-status">
-                <div className="provider-info">
-                  <GmailLogo className="provider-logo" />
-                  <span>Gmail Connected</span>
+            <div className="email-providers">
+              {isConnected ? (
+                <div className="connected-status">
+                  <div className="provider-info">
+                    <GmailLogo className="provider-logo" />
+                    <span>Gmail Connected</span>
+                  </div>
+                  <div className="connection-actions">
+                    <LiquidButton
+                      className="primary"
+                      onClick={handleImport}
+                      type="button"
+                      disabled={isImporting}
+                    >
+                      {isImporting ? 'Importing...' : 'Import Receipts'}
+                    </LiquidButton>
+                    <LiquidButton
+                      className="ghost"
+                      onClick={handleDisconnect}
+                      type="button"
+                      disabled={isImporting}
+                    >
+                      Disconnect
+                    </LiquidButton>
+                  </div>
                 </div>
-                <div className="connection-actions">
+              ) : (
+                <LiquidButton
+                  className="primary"
+                  onClick={handleConnectGmail}
+                  type="button"
+                  disabled={!session}
+                >
+                  <GmailLogo className="button-icon" />
+                  Connect Gmail
+                </LiquidButton>
+              )}
+            </div>
+
+            {stats && (
+              <div className="import-stats">
+                <p>
+                  <strong>{stats.totalImported}</strong> receipts imported
+                  {stats.lastSyncDate && (
+                    <> · Last sync: {new Date(stats.lastSyncDate).toLocaleDateString()}</>
+                  )}
+                </p>
+              </div>
+            )}
+
+            {importResult && (
+              <div className="import-result">
+                <h3>Import Results</h3>
+                <ul>
+                  <li>Imported: {importResult.imported.length}</li>
+                  <li>Skipped (duplicates/non-receipts): {importResult.skipped}</li>
+                  {importResult.errors.length > 0 && (
+                    <li>Errors: {importResult.errors.length}</li>
+                  )}
+                </ul>
+                {importResult.imported.length > 0 && (
+                  <div className="imported-list">
+                    <h4>New Purchases</h4>
+                    {importResult.imported.map((item, idx) => (
+                      <div key={idx} className="imported-item">
+                        <span className="item-title">{item.title}</span>
+                        <span className="item-vendor">{item.vendor}</span>
+                        <span className="item-price">${item.price.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="import-actions">
                   <LiquidButton
-                    className="btn-primary"
-                    onClick={handleImport}
-                    disabled={isImporting}
+                    className="ghost"
+                    onClick={downloadMessagesMarkdown}
+                    type="button"
                   >
-                    {isImporting ? 'Importing...' : 'Import Receipts'}
-                  </LiquidButton>
-                  <LiquidButton
-                    className="btn-secondary"
-                    onClick={handleDisconnect}
-                    disabled={isImporting}
-                  >
-                    Disconnect
+                    Download Import Log
                   </LiquidButton>
                 </div>
               </div>
-            ) : (
-              <LiquidButton
-                className="btn-primary"
-                onClick={handleConnectGmail}
-                disabled={!session}
-              >
-                <GmailLogo className="button-icon" />
-                Connect Gmail
-              </LiquidButton>
             )}
           </div>
 
-          {stats && (
-            <div className="import-stats">
-              <p>
-                <strong>{stats.totalImported}</strong> receipts imported
-                {stats.lastSyncDate && (
-                  <> · Last sync: {new Date(stats.lastSyncDate).toLocaleDateString()}</>
-                )}
-              </p>
-            </div>
-          )}
+          {/* How It Works Card */}
+          <div className="content-panel">
+            <h2>How It Works</h2>
 
-          {importResult && (
-            <div className="import-result">
-              <h3>Import Results</h3>
-              <ul>
-                <li>Imported: {importResult.imported.length}</li>
-                <li>Skipped (duplicates/non-receipts): {importResult.skipped}</li>
-                {importResult.errors.length > 0 && (
-                  <li>Errors: {importResult.errors.length}</li>
-                )}
-              </ul>
-              {importResult.imported.length > 0 && (
-                <div className="imported-list">
-                  <h4>New Purchases</h4>
-                  {importResult.imported.map((item, idx) => (
-                    <div key={idx} className="imported-item">
-                      <span className="item-title">{item.title}</span>
-                      <span className="item-vendor">{item.vendor}</span>
-                      <span className="item-price">${item.price.toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="import-actions">
-                <LiquidButton
-                  className="btn-secondary"
-                  onClick={downloadMessagesMarkdown}
-                >
-                  Download Import Log
-                </LiquidButton>
-              </div>
-            </div>
-          )}
-        </GlassCard>
+            <h3>Step-by-step workflow</h3>
+            <ol>
+              <li><strong>OAuth prompt</strong> — you authorize read-only access</li>
+              <li><strong>Permission grant</strong> — limited to gmail.readonly scope</li>
+              <li><strong>Receipt scan</strong> — we search for order confirmations</li>
+              <li><strong>AI extraction</strong> — GPT extracts product details</li>
+              <li><strong>Deduplication</strong> — no duplicate imports via order ID</li>
+              <li><strong>Swipe queue</strong> — imported purchases ready for feedback</li>
+            </ol>
 
-        {/* How It Works Card */}
-        <GlassCard className="verdict-result">
-          <h2>How It Works</h2>
+            <h3>What emails are scanned</h3>
+            <p>
+              Only receipt and order confirmation patterns (matching sender patterns like
+              &quot;noreply,&quot; &quot;no-reply,&quot; &quot;receipts&quot; and subject lines like
+              &quot;Order confirmation,&quot; &quot;Your receipt,&quot; &quot;Shipping notification&quot;).
+            </p>
 
-          <h3>Step-by-step workflow</h3>
-          <ol>
-            <li><strong>OAuth prompt</strong> — you authorize read-only access</li>
-            <li><strong>Permission grant</strong> — limited to gmail.readonly scope</li>
-            <li><strong>Receipt scan</strong> — we search for order confirmations</li>
-            <li><strong>AI extraction</strong> — GPT extracts product details</li>
-            <li><strong>Deduplication</strong> — no duplicate imports via order ID</li>
-            <li><strong>Swipe queue</strong> — imported purchases ready for feedback</li>
-          </ol>
+            <h3>What data is extracted</h3>
+            <ul>
+              <li>Product name</li>
+              <li>Price</li>
+              <li>Vendor</li>
+              <li>Category</li>
+              <li>Purchase date</li>
+              <li>Order ID (for deduplication)</li>
+            </ul>
 
-          <h3>What emails are scanned</h3>
-          <p>
-            Only receipt and order confirmation patterns (matching sender patterns like
-            &quot;noreply,&quot; &quot;no-reply,&quot; &quot;receipts&quot; and subject lines like
-            &quot;Order confirmation,&quot; &quot;Your receipt,&quot; &quot;Shipping notification&quot;).
-          </p>
+            <h3>What is never read or stored</h3>
+            <ul>
+              <li>Email body content beyond receipts</li>
+              <li>Personal messages</li>
+              <li>Attachments</li>
+              <li>Contacts</li>
+              <li>Drafts</li>
+            </ul>
 
-          <h3>What data is extracted</h3>
-          <ul>
-            <li>Product name</li>
-            <li>Price</li>
-            <li>Vendor</li>
-            <li>Category</li>
-            <li>Purchase date</li>
-            <li>Order ID (for deduplication)</li>
-          </ul>
-
-          <h3>What is never read or stored</h3>
-          <ul>
-            <li>Email body content beyond receipts</li>
-            <li>Personal messages</li>
-            <li>Attachments</li>
-            <li>Contacts</li>
-            <li>Drafts</li>
-          </ul>
-
-          <h3>How to revoke access</h3>
-          <p>
-            Click &quot;Disconnect&quot; above, or visit your{' '}
-            <a
-              href="https://myaccount.google.com/permissions"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Google Account permissions
-            </a>{' '}
-            to revoke access at any time.
-          </p>
-        </GlassCard>
-      </div>
+            <h3>How to revoke access</h3>
+            <p>
+              Click &quot;Disconnect&quot; above, or visit your{' '}
+              <a
+                href="https://myaccount.google.com/permissions"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Google Account permissions
+              </a>{' '}
+              to revoke access at any time.
+            </p>
+          </div>
+        </div>
+      </GlassCard>
     </section>
   )
 }

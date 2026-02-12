@@ -66,6 +66,6 @@ export const USER_VALUE_DESCRIPTIONS: Record<UserValueType, string> = {
   durability: 'I value things that last several years.',
   efficiency: 'I value tools that save time for me.',
   aesthetics: "I value items that fit my existing environment's visual language.",
-  interpersonal_value: 'I value purchases that facilitate shared experiences.',
+  interpersonal_value: 'I value purchases that facilitate shared entertainment.',
   emotional_value: 'I value purchases that provide meaningful emotional benefits.',
 }

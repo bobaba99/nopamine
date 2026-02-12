@@ -66,7 +66,7 @@ export const PURCHASE_CATEGORIES = [
   { value: 'home goods', label: 'Home goods' },
   { value: 'health & wellness', label: 'Health & wellness' },
   { value: 'travel', label: 'Travel' },
-  { value: 'experiences', label: 'Experiences' },
+  { value: 'entertainment', label: 'Entertainment' },
   { value: 'subscriptions', label: 'Subscriptions' },
   { value: 'food & beverage', label: 'Food & beverage' },
   { value: 'services', label: 'Services' },

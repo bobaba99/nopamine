@@ -112,7 +112,7 @@ begin
     (test_user_id, 'Robot Vacuum Cleaner', 349.00, 'Amazon', 2, 'home goods', current_date - interval '15 days', 'manual', 'ORD-012', true),
 
     -- Entertainment & Hobbies
-    (test_user_id, 'Board Game Collection Bundle', 75.00, 'Target', 2, 'experiences', current_date - interval '14 days', 'manual', 'ORD-013', true),
+    (test_user_id, 'Board Game Collection Bundle', 75.00, 'Target', 2, 'entertainment', current_date - interval '14 days', 'manual', 'ORD-013', true),
     (test_user_id, 'Streaming Service Annual Sub', 139.99, 'Netflix', 2, 'subscriptions', current_date - interval '12 days', 'manual', 'ORD-014', true),
     (test_user_id, 'Vinyl Record Player Retro', 129.00, 'Urban Outfitters', 2, 'electronics', current_date - interval '10 days', 'manual', 'ORD-015', true),
 

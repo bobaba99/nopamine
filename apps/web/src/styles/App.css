@@ -2180,6 +2180,8 @@
 .glass-shimmer {
   position: relative;
   overflow: hidden;
+  border-radius: 16px;
+  box-sizing: border-box;
 }
 
 .glass-shimmer::before {
@@ -2189,15 +2191,21 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.06), transparent 40%);
-  z-index: 2;
+  background: radial-gradient(1000px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05) 30%, transparent 50%);
+  z-index: 1;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.5s;
+  border-radius: inherit;
 }
 
 .glass-shimmer:hover::before {
   opacity: 1;
+}
+
+/* Ensure nested containers within glass-shimmer work correctly */
+.glass-shimmer * {
+  box-sizing: border-box;
 }
 
 /* Liquid Button */
@@ -2215,6 +2223,7 @@
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: inherit;
   background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.15) 0%, transparent 60%);
   opacity: 0;
   transition: opacity 0.3s;
@@ -2794,13 +2803,68 @@
   color: var(--ink-600);
 }
 
-/* Email Sync Import Results */
+/* Email Sync Container - single GlassCard wrapper WITHOUT shimmer */
+.email-sync-container {
+  margin-top: 2rem;
+  padding: 2rem;
+}
+
+.email-sync-container::before {
+  display: none;
+}
+
+.email-sync-container .dashboard-grid {
+  margin-top: 0;
+}
+
+/* Content panels inside - transparent to allow shimmer through */
+.content-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  position: relative;
+  z-index: 0;
+}
+
+.content-panel h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--ink-800);
+}
+
+.content-panel h3 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.1rem;
+  color: var(--ink-700);
+}
+
+.content-panel p {
+  margin: 0;
+  color: var(--ink-600);
+  line-height: 1.6;
+}
+
+.content-panel ol,
+.content-panel ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--ink-600);
+}
+
+.content-panel li {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+/* Email Sync Import Results - nested container with subtle border */
 .import-result {
   margin-top: 1.5rem;
   padding: 1rem;
-  background: var(--glass-bg);
-  border-radius: 8px;
-  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+  z-index: 0;
 }
 
 .import-result h3 {
@@ -2822,7 +2886,7 @@
 .imported-list {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--glass-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .imported-list h4 {
@@ -2836,7 +2900,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 0;
-  border-bottom: 1px solid var(--glass-border);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   font-size: 0.875rem;
 }
 
@@ -2866,7 +2930,65 @@
 .import-actions {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--glass-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   gap: 0.5rem;
+}
+
+.connection-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.email-providers {
+  margin-top: 0.75rem;
+}
+
+.connected-status {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.provider-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--ink-800);
+}
+
+.provider-logo,
+.button-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+}
+
+.connection-actions .primary,
+.connection-actions .ghost,
+.import-actions .primary,
+.import-actions .ghost {
+  min-height: 44px;
+  padding: 0.72rem 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.96rem;
+  line-height: 1.1;
+}
+
+.connection-actions .liquid-button::before,
+.import-actions .liquid-button::before,
+.email-providers > .liquid-button::before {
+  inset: 1px;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at var(--x, 50%) var(--y, 50%),
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(255, 255, 255, 0.08) 35%,
+    transparent 70%
+  );
 }

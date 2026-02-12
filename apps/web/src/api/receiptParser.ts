@@ -21,7 +21,7 @@ Extract the following fields for EACH item purchased:
 - title: The item/product name (be specific but concise)
 - price: The item price as a number (no currency symbols). Must be the actual price paid, not 0.
 - vendor: The store/merchant name
-- category: One of: electronics, fashion, home goods, health & wellness, travel, experiences, subscriptions, food & beverage, services, education, other
+- category: One of: electronics, fashion, home goods, health & wellness, travel, entertainment, subscriptions, food & beverage, services, education, other
 - purchase_date: The date of purchase in YYYY-MM-DD format
 - order_id: The order/confirmation number if present, otherwise null
 
@@ -53,7 +53,7 @@ const VALID_CATEGORIES: PurchaseCategory[] = [
   'home goods',
   'health & wellness',
   'travel',
-  'experiences',
+  'entertainment',
   'subscriptions',
   'food & beverage',
   'services',
