@@ -106,8 +106,8 @@ User clicks "Import Gmail"
   → OAuth flow (Google consent)
   → Store encrypted tokens in email_connections
   → Fetch recent 100 messages (gmail.users.messages.list)
-  → Filter by sender patterns (no-reply, receipts, etc.) for receipts and stops at 10 receipts
-  → Get message content (gmail.users.messages.get) for the 10 selected purchases
+  → Multi-stage filter pipeline (see 4.4.2)
+  → Get message content (gmail.users.messages.get) for candidates
   → Clean HTML/strip noise
   → GPT-5-nano extracts: {title, price, vendor, category, purchase_date}
   → Create purchases via purchaseService (source='email')
@@ -119,6 +119,36 @@ User clicks "Import Gmail"
 - Token expiry: If the Gmail OAuth token expires, the user is prompted to reconnect Gmail.
 - No receipts found: If no receipt emails match the search patterns, display a helpful message.
 - Duplicate imports: Order ID deduplication prevents the same receipt from being imported twice.
+
+#### 4.4.2 Multi-Stage Receipt Filtering
+
+Before sending emails to GPT for parsing, a 3-stage filter pipeline rejects non-receipt emails:
+
+| Stage | Filter             | Rejects                                                                  |
+|-------|--------------------|--------------------------------------------------------------------------|
+| 1     | Negative patterns  | Shipping notifications, refunds, returns, promotions, account management |
+| 2     | Price detection    | Emails with no price patterns ($, €, £, total, amount)                   |
+| 3     | Keyword confidence | Emails with low receipt keyword confidence (<0.5 weighted score)         |
+
+**Emails rejected by the filter pipeline:**
+
+| Email Type                  | Rejection Reason                               |
+|-----------------------------|------------------------------------------------|
+| "Your order has shipped"    | Stage 1: negative pattern (shipping)           |
+| "Refund processed"          | Stage 1: negative pattern (refund)             |
+| "Limited time offer!"       | Stage 1: negative pattern (promotional)        |
+| "Password reset"            | Stage 1: negative pattern (account management) |
+| Newsletter with "order now" | Stage 2: no price patterns                     |
+| Generic "thank you" email   | Stage 3: low confidence                        |
+
+**Emails that pass to GPT:**
+
+| Email Type                   | Why It Passes                                 |
+|------------------------------|-----------------------------------------------|
+| Amazon order confirmation    | Price patterns + "order confirmation" keyword |
+| Netflix subscription receipt | Price patterns + "receipt" keyword            |
+| Uber Eats receipt            | Price patterns + "total" + "receipt"          |
+| App Store purchase           | Price patterns + "invoice" keyword            |
 
 ---
 

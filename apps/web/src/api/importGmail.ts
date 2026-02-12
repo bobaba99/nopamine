@@ -8,7 +8,7 @@ import {
   getMessage,
   parseMessage,
   buildReceiptQuery,
-  looksLikeReceipt,
+  filterEmailForReceipt,
 } from './gmailClient'
 import { parseReceiptWithAI, type ExtractedReceipt } from './receiptParser'
 import { updateLastSync } from './emailConnectionService'
@@ -69,8 +69,9 @@ export async function importGmailReceipts(
       const fullMessage = await getMessage(accessToken, header.id)
       const parsed = parseMessage(fullMessage)
 
-      // Pre-filter: check if email looks like a receipt
-      if (!looksLikeReceipt(parsed)) {
+      // Multi-stage pre-filter: check if email looks like a receipt
+      const filterResult = filterEmailForReceipt(parsed)
+      if (!filterResult.shouldProcess) {
         skipped++
         continue
       }

@@ -352,7 +352,7 @@ Updates `users`: `profile_summary`, `onboarding_answers`, `weekly_fun_budget` (c
 | 2 | `listMessages(accessToken, query, maxMessages * 3)` | gmailClient | Gmail API |
 | 3 | `getMessage(accessToken, messageId)` | gmailClient | Gmail API |
 | 4 | `parseMessage(message)` | gmailClient | — |
-| 5 | `looksLikeReceipt(parsed)` | gmailClient | — |
+| 5 | `filterEmailForReceipt(parsed)` | gmailClient | — |
 | 6 | `parseReceiptWithAI(text, sender, subject, date, apiKey)` | receiptParser | OpenAI API |
 | 7 | `supabase.rpc('add_purchase', {...})` | direct | — |
 | 8 | `updateLastSync(userId)` | emailConnectionService | — |
@@ -390,7 +390,53 @@ Updates `users`: `profile_summary`, `onboarding_answers`, `weekly_fun_budget` (c
 
 ---
 
-### 11.3 Page → Service Call Map (EmailSync)
+### 11.3 Multi-Stage Receipt Filtering (gmailClient.ts)
+
+Before sending emails to the LLM for parsing, a multi-stage filter pipeline rejects non-receipt emails to reduce API costs and improve accuracy.
+
+```text
+Gmail Query → Stage 1: Negative Pattern Filter → Stage 2: Price Pattern Detection
+            → Stage 3: Enhanced Keyword Scoring → LLM → Validation → DB
+```
+
+#### `filterEmailForReceipt(email)` → `FilterResult`
+
+**Purpose:** Combined multi-stage filter that determines if email should be sent to LLM.
+
+| Stage | Function                             | Action                                                 |
+|-------|--------------------------------------|--------------------------------------------------------|
+| 1     | `matchesNegativePatterns(email)`     | Hard reject if matches shipping/refund/promo patterns  |
+| 2     | `detectPricePatterns(email)`         | Reject if no price patterns found (0-1 confidence)     |
+| 3     | `calculateReceiptConfidence(email)`  | Weighted keyword scoring (0-1 confidence)              |
+| —     | Combined                             | Weighted average ≥ 0.5 → process, else reject          |
+
+#### `matchesNegativePatterns(email)` → `boolean`
+
+Rejects emails matching non-receipt patterns:
+
+- Returns/Refunds: `refund processed`, `return label`, `cancellation`
+- Shipping-only: `has shipped`, `tracking number`, `out for delivery`
+- Promotional: `shop now`, `limited time offer`, `exclusive deal`
+- Account management: `password reset`, `subscription cancelled`
+
+#### `detectPricePatterns(email)` → `number`
+
+Returns confidence score based on price pattern presence:
+
+- `$12.99`, `USD 12.99`, `Total: $12.99`, `€12.99`, `£12.99`
+- Returns: 0 (no prices), 0.5 (one price), 1 (multiple prices)
+
+#### `calculateReceiptConfidence(email)` → `number`
+
+Weighted keyword scoring:
+
+- **High weight (0.4 each):** `order confirmation`, `payment received`, `receipt for your`, `order #`, `transaction id`
+- **Medium weight (0.2 each):** `receipt`, `invoice`, `subtotal`, `total:`, `amount paid`
+- **Low weight (0.1 each):** `order`, `confirmation`, `thank you`
+
+---
+
+### 11.4 Page → Service Call Map (EmailSync)
 
 | User Action | Service Calls (in order) |
 |-------------|--------------------------|
