@@ -98,7 +98,7 @@ export async function updateVerdictDecision(
   userId: string,
   verdictId: string,
   decision: UserDecision
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null; isDuplicate: boolean }> {
   const userHoldUntil =
     decision === 'hold' ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null
 
@@ -144,7 +144,18 @@ export async function updateVerdictDecision(
     })
 
     if (purchaseError) {
-      return { error: purchaseError.message }
+      const isDuplicate =
+        purchaseError.code === '23505' ||
+        purchaseError.message.toLowerCase().includes('duplicate') ||
+        purchaseError.details?.toLowerCase().includes('unique') ||
+        purchaseError.details?.toLowerCase().includes('verdict_id') ||
+        false
+
+      if (isDuplicate) {
+        return { error: null, isDuplicate: true }
+      }
+
+      return { error: purchaseError.message, isDuplicate: false }
     }
   }
 
@@ -157,7 +168,7 @@ export async function updateVerdictDecision(
     .eq('id', verdictId)
     .eq('user_id', userId)
 
-  return { error: error?.message ?? null }
+  return { error: error?.message ?? null, isDuplicate: false }
 }
 
 export async function deleteVerdict(

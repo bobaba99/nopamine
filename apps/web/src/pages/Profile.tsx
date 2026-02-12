@@ -448,9 +448,15 @@ export default function Profile({ session }: ProfileProps) {
       source: 'manual',
     }
 
-    const { error } = purchaseEditingId
+    const { error, isDuplicate } = purchaseEditingId
       ? await updatePurchase(session.user.id, purchaseEditingId, payload)
       : await createPurchase(payload)
+
+    if (isDuplicate) {
+      setStatus('This purchase already exists.')
+      setPurchaseSaving(false)
+      return
+    }
 
     if (error) {
       setStatus(error)

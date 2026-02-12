@@ -32,7 +32,7 @@ export type CreatePurchaseInput = {
 
 export async function createPurchase(
   input: CreatePurchaseInput
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null; isDuplicate: boolean }> {
   const { error } = await supabase.rpc('add_purchase', {
     p_title: input.title,
     p_price: input.price,
@@ -44,14 +44,25 @@ export async function createPurchase(
     p_is_past_purchase: input.isPastPurchase ?? false,
   })
 
-  return { error: error?.message ?? null }
+  if (error) {
+    const isDuplicate =
+      error.code === '23505' ||
+      error.message.toLowerCase().includes('duplicate') ||
+      error.details?.toLowerCase().includes('unique') ||
+      error.details?.toLowerCase().includes('order_id') ||
+      false
+
+    return { error: error.message, isDuplicate }
+  }
+
+  return { error: null, isDuplicate: false }
 }
 
 export async function updatePurchase(
   userId: string,
   purchaseId: string,
   input: CreatePurchaseInput
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null; isDuplicate: boolean }> {
   const { error } = await supabase
     .from('purchases')
     .update({
@@ -65,7 +76,7 @@ export async function updatePurchase(
     .eq('id', purchaseId)
     .eq('user_id', userId)
 
-  return { error: error?.message ?? null }
+  return { error: error?.message ?? null, isDuplicate: false }
 }
 
 export async function deletePurchase(

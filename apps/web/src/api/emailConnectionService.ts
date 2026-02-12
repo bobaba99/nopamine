@@ -37,13 +37,9 @@ export async function getEmailConnection(
     .select('*')
     .eq('user_id', userId)
     .eq('is_active', true)
-    .single()
+    .maybeSingle()
 
   if (error) {
-    // PGRST116 = no rows found, which is expected for new users
-    if (error.code === 'PGRST116') {
-      return null
-    }
     throw new Error(error.message)
   }
 

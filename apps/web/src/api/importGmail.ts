@@ -83,7 +83,7 @@ export async function importGmailReceipts(
 
   // List candidate messages (fetch more than needed for filtering)
   // TODO: optimize number of messages fetched
-  const messageHeaders = await listMessages(accessToken, query, maxMessages * 5)
+  const messageHeaders = await listMessages(accessToken, query, maxMessages * 3)
 
   if (messageHeaders.length === 0) {
     const log = endImportLog()
@@ -164,25 +164,25 @@ export async function importGmailReceipts(
         if (results.length >= maxMessages) break
 
         // Create purchase via RPC (handles deduplication via order_id constraint)
-        const { error } = await createEmailPurchase(receipt)
+        const { error, isDuplicate } = await createEmailPurchase(receipt)
+
+        if (isDuplicate) {
+          skipped++
+          logSkip({
+            emailId: header.id,
+            emailSubject: parsed.subject,
+            reason: 'duplicate_order_id',
+          })
+          continue
+        }
 
         if (error) {
-          // Check if it's a duplicate (unique constraint violation)
-          if (error.includes('duplicate') || error.includes('unique')) {
-            skipped++
-            logSkip({
-              emailId: header.id,
-              emailSubject: parsed.subject,
-              reason: 'duplicate_order_id',
-            })
-          } else {
-            errors.push(`${receipt.title}: ${error}`)
-            logError({
-              emailId: header.id,
-              emailSubject: parsed.subject,
-              reason: error,
-            })
-          }
+          errors.push(`${receipt.title}: ${error}`)
+          logError({
+            emailId: header.id,
+            emailSubject: parsed.subject,
+            reason: error,
+          })
           continue
         }
 
@@ -232,7 +232,7 @@ export async function importGmailReceipts(
  */
 async function createEmailPurchase(
   receipt: ExtractedReceipt
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null; isDuplicate: boolean }> {
   const { error } = await supabase.rpc('add_purchase', {
     p_title: receipt.title,
     p_price: receipt.price,
@@ -246,7 +246,24 @@ async function createEmailPurchase(
     p_order_id: receipt.order_id,
   })
 
-  return { error: error?.message ?? null }
+  if (error) {
+    // Detect duplicate via various error indicators
+    // - 23505: PostgreSQL unique constraint violation
+    // - 409: HTTP Conflict status (Supabase)
+    // - error message/details containing duplicate/unique keywords
+    const isDuplicate =
+      error.code === '23505' ||
+      error.code === '409' ||
+      error.message.toLowerCase().includes('duplicate') ||
+      error.message.toLowerCase().includes('conflict') ||
+      error.details?.toLowerCase().includes('unique') ||
+      error.details?.toLowerCase().includes('order_id') ||
+      false
+
+    return { error: error.message, isDuplicate }
+  }
+
+  return { error: null, isDuplicate: false }
 }
 
 /**
@@ -298,9 +315,9 @@ export async function getEmailImportStats(userId: string): Promise<{
     .select('last_sync')
     .eq('user_id', userId)
     .eq('is_active', true)
-    .single()
+    .maybeSingle()
 
-  if (connError && connError.code !== 'PGRST116') {
+  if (connError) {
     throw new Error(connError.message)
   }
 

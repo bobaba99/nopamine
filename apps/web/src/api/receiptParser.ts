@@ -4,6 +4,7 @@
  */
 
 import type { PurchaseCategory } from './types'
+import OpenAI from "openai";
 
 export type ExtractedReceipt = {
   title: string
@@ -12,15 +13,6 @@ export type ExtractedReceipt = {
   category: PurchaseCategory | null
   purchase_date: string
   order_id: string | null
-}
-
-type OpenAIResponse = {
-  choices: Array<{
-    message: {
-      content: string
-    }
-    finish_reason: string
-  }>
 }
 
 const EXTRACTION_PROMPT = `You are a receipt parser that extracts purchase information from email content.
@@ -96,31 +88,27 @@ export async function parseReceiptWithAI(
       throw new Error('OpenAI API key is missing or empty')
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-5-nano',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0,
-        max_tokens: 2000,
-      }),
+    const client = new OpenAI({
+      apiKey: openaiApiKey,
+      dangerouslyAllowBrowser: true,
     })
 
-    if (!response.ok) {
-      const error = await response.json()
-      const errorMessage = error.error?.message ?? 'OpenAI API request failed'
-      if (response.status === 401 || response.status === 400) {
-        throw new Error(`OpenAI authentication failed: ${errorMessage}. Check VITE_OPENAI_API_KEY.`)
-      }
-      throw new Error(errorMessage)
+    const response = await client.responses.parse({
+      model: 'gpt-5-nano',
+      text: { format: { type: 'json_object' } },
+      input: [{ role: 'user', content: prompt }],
+      max_output_tokens: 2000,
+    })
+
+    if (response.error) {
+      throw new Error(response.error.message)
     }
 
-    const data: OpenAIResponse = await response.json()
-    const content = data.choices[0]?.message?.content?.trim()
+    if (response.incomplete_details?.reason) {
+      throw new Error(`OpenAI response incomplete: ${response.incomplete_details.reason}`)
+    }
+
+    const content = response.output_text?.trim()
 
     if (!content) {
       return []
@@ -152,6 +140,15 @@ export async function parseReceiptWithAI(
 
     return results
   } catch (error) {
+    if (error instanceof OpenAI.APIError) {
+      const errorMessage = error.message || 'OpenAI API request failed'
+      if (error.status === 401 || error.status === 400) {
+        throw new Error(
+          `OpenAI authentication failed: ${errorMessage}. Check VITE_OPENAI_API_KEY.`
+        )
+      }
+      throw new Error(errorMessage)
+    }
     if (error instanceof SyntaxError) {
       // JSON parse error - not a valid receipt response
       return []

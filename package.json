@@ -32,5 +32,8 @@
   "homepage": "https://github.com/bobaba99/nopamine#readme",
   "devDependencies": {
     "concurrently": "^9.2.1"
+  },
+  "dependencies": {
+    "openai": "^6.21.0"
   }
 }

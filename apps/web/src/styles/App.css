@@ -2793,3 +2793,80 @@
   margin-bottom: 0.5rem;
   color: var(--ink-600);
 }
+
+/* Email Sync Import Results */
+.import-result {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--glass-bg);
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+}
+
+.import-result h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: var(--ink-800);
+}
+
+.import-result ul {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+}
+
+.import-result li {
+  margin-bottom: 0.25rem;
+  color: var(--ink-600);
+}
+
+.imported-list {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.imported-list h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  color: var(--ink-700);
+}
+
+.imported-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--glass-border);
+  font-size: 0.875rem;
+}
+
+.imported-item:last-child {
+  border-bottom: none;
+}
+
+.imported-item .item-title {
+  flex: 1;
+  color: var(--ink-800);
+  font-weight: 500;
+}
+
+.imported-item .item-vendor {
+  flex: 0 0 auto;
+  margin: 0 1rem;
+  color: var(--ink-500);
+  font-size: 0.8rem;
+}
+
+.imported-item .item-price {
+  flex: 0 0 auto;
+  color: var(--ink-700);
+  font-weight: 600;
+}
+
+.import-actions {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  gap: 0.5rem;
+}

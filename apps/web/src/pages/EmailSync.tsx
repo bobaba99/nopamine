@@ -12,6 +12,7 @@ import {
 import {
   importGmailReceipts,
   getEmailImportStats,
+  downloadMessagesMarkdown,
   type ImportResult,
 } from '../api/importGmail'
 
@@ -265,6 +266,14 @@ export default function EmailSync({ session }: EmailSyncProps) {
                   ))}
                 </div>
               )}
+              <div className="import-actions">
+                <LiquidButton
+                  className="btn-secondary"
+                  onClick={downloadMessagesMarkdown}
+                >
+                  Download Import Log
+                </LiquidButton>
+              </div>
             </div>
           )}
         </GlassCard>
