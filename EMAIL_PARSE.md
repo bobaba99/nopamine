@@ -3,141 +3,112 @@
 ## Current architecture
 
 ```markdown
-Gmail API → List Messages → Filter Pipeline → AI Parsing → Purchase Creation
-                ↓                ↓                ↓              ↓
-           gmailClient.ts    gmailClient.ts   receiptParser.ts  Supabase RPC
+importGmailReceipts()
+  → Build receipt query (sender + subject + time window)
+  → List message headers
+  → Fetch full message per header
+  → Parse/clean email body
+  → Hard receipt filter (Stage 1-3 in services/emailProcessing/receiptFilter.ts)
+  → AI extraction
+  → add_purchase RPC
+  → updateLastSync + import log summary
 ```
 
-### 1. Email Fetching (`gmailClient.ts`)
+### 1. Entry point and orchestration (`importGmail.ts`)
 
-**Gmail API Client** - REST API wrapper for Gmail:
+- Main function: `importGmailReceipts(accessToken, userId, options)`
+- Validates `accessToken` and `openaiApiKey`
+- Starts import logging and clears previous fetched-message snapshots
 
-- `listMessages(accessToken, query, maxResults)` - Lists message headers matching a search query
-- `getMessage(accessToken, messageId)` - Fetches full message content
-- `parseMessage(message)` - Extracts from, subject, date, and text content from raw message
-- `extractMessageText(message)` - Decodes base64 content, handles multipart messages, strips HTML
+### 2. Fetch candidate messages first (`gmailClient.ts`)
 
-**Query Building** (`buildReceiptQuery`):
+1. Build query with `buildReceiptQuery(sinceDays)`:
+   - Sender/vendor-like signals in `from:(noreply OR no-reply OR receipt OR order OR confirmation OR shipping OR auto-confirm)`
+   - Receipt-like subject terms in `subject:(receipt OR order OR confirmation OR invoice ...)`
+   - Time window via `newer_than:${sinceDays}d`
+2. Fetch message headers with `listMessages(accessToken, query, maxMessages * 3)`.
+3. For each header, fetch full message payload with `getMessage(accessToken, messageId)`.
 
-- Searches for receipt-like emails using sender/subject patterns
-- Time-filtered to recent emails (default: 90 days)
-- Query: `from:(noreply|receipt|order|confirmation...) subject:(receipt|order|...) newer_than:90d`
+### 3. Parse message into normalized email text (`gmailClient.ts` + `services/emailProcessing/*`)
 
-### 2. Multi-Stage Filter Pipeline (`gmailClient.ts:265-428`)
+- `parseMessage` extracts `from`, `subject`, `date`, `textContent`.
+- `extractMessageText` decodes base64, handles multipart MIME, strips HTML, and cleans text.
+- HTML/text normalization is provided by `services/emailProcessing/htmlParser.ts` and `services/emailProcessing/textCleaner.ts`.
+- This creates one normalized `ParsedEmail` record per fetched Gmail message.
 
-Pre-LLM filtering to reduce API costs and improve accuracy:
+### 4. Formal hard-filter logic (`services/emailProcessing/receiptFilter.ts`)
 
-**Stage 1: Negative Pattern Rejection** (`matchesNegativePatterns`)
+`gmailClient.ts` delegates to `services/emailProcessing/receiptFilter.ts` for Stage 1-3 logic.
+Filter runs before AI parsing so only likely receipts are sent to the LLM.
 
-- Hard reject for: refunds, returns, cancellations, shipping-only updates, promotional emails, account management
-- Regex-based pattern matching on subject + content
+1. Stage 1 `matchesNegativePatterns(email)`:
+   - Hard reject when content matches non-receipt regex groups:
+   - refunds/returns/cancellations
+   - shipping status updates (`tracking update`, `out for delivery`, `delivered to`)
+   - account/security events (`password reset`, `verify your account`, payment method updates)
+2. Stage 2 `detectPricePatterns(email)`:
+   - Price confidence scoring from price evidence:
+   - `$12.99` / comma-formatted prices
+   - `USD` / `CAD` styles
+   - `total`, `amount`, `subtotal`, tax lines (`tax|gst|hst|pst`)
+   - score: `0` (none), `0.5` (single), `1` (2+ matches)
+3. Stage 3 `calculateReceiptConfidence(email)`:
+   - Weighted keyword score:
+   - high-weight terms: `order confirmation`, `payment received`, `invoice #`, `order #`, `transaction id`
+   - medium-weight terms: `receipt`, `invoice`, `subtotal`, `total:`, `amount paid`, `billing`, `payment`
+   - low-weight terms: `order`, `confirmation`, `thank you`
+   - final keyword score capped to `1.0`
+4. Final decision `filterEmailForReceipt(email)`:
+   - `overallConfidence = stage2PriceConfidence * 0.4 + stage3KeywordConfidence * 0.6`
+   - `shouldProcess = overallConfidence >= 0.5`
+   - rejection reason is one of:
+   - `matches_negative_pattern`
+   - `no_price_patterns`
+   - `low_confidence`
 
-**Stage 2: Price Pattern Detection** (`detectPricePatterns`)
+### 5. AI extraction only for passed emails (`receiptParser.ts`)
 
-- Confidence score 0-1 based on presence of price patterns ($, USD, €, £, ¥, total:, subtotal:, etc.)
-- Rejects emails with no price patterns (confidence = 0)
+1. Truncate email text to 4000 chars.
+2. Prompt model `gpt-5-nano` with sender, subject, date, and content.
+3. Parse JSON output into item list.
+4. Validate each item (`validateAndNormalize`):
+   - required: `title`, `vendor`, `price`
+   - `price` must be `> 0`
+   - date/category normalized; strings length-limited
 
-**Stage 3: Keyword Confidence Scoring** (`calculateReceiptConfidence`)
+### 6. Create purchases and dedupe (`importGmail.ts`)
 
-- Weighted scoring: high-confidence keywords (0.4 each), medium (0.2), low (0.1)
-- Keywords: "order confirmation", "payment received", "receipt", "invoice", etc.
+- For each extracted item, call Supabase RPC `add_purchase(...)`.
+- Duplicate detection uses DB error signals (`23505`, conflict/duplicate/unique hints).
+- Duplicate rows are skipped; valid rows are appended to import results.
 
-**Combined Filter** (`filterEmailForReceipt`):
+### 7. Finalization and logging (`importGmail.ts`, `log/importLogger.ts`)
 
-- Overall confidence = priceConfidence × 0.4 + keywordConfidence × 0.6
-- Threshold: ≥ 0.5 to process with LLM
-
-### 3. AI Receipt Parsing (`receiptParser.ts`)
-
-**Model**: GPT-4o-mini (configured as `gpt-5-nano`)
-
-**Process**:
-
-1. Truncates email content to 4000 chars (token limit)
-2. Sends structured prompt with sender, subject, date, and content
-3. Receives JSON response with extracted items array
-
-**Extracted Fields** per item:
-
-- `title` - Item/product name
-- `price` - Price as number (must be > 0)
-- `vendor` - Store/merchant name
-- `category` - One of 11 categories (electronics, fashion, home goods, etc.)
-- `purchase_date` - YYYY-MM-DD format
-- `order_id` - Optional order/confirmation number
-
-**Validation** (`validateAndNormalize`):
-
-- Rejects items missing required fields (title, vendor, price)
-- Rejects items with price ≤ 0
-- Normalizes date format, truncates long strings
-
-### 4. Purchase Creation (`importGmail.ts:233-267`)
-
-**RPC Call**: `add_purchase(p_title, p_price, p_vendor, p_category, p_purchase_date, p_source, p_verdict_id, p_is_past_purchase, p_past_purchase_outcome, p_order_id)`
-
-**Deduplication**:
-
-- Unique constraint on `order_id` in database
-- Detects duplicates via PostgreSQL error code 23505 or conflict messages
-- Skips silently on duplicate
-
-### 5. Connection Management (`emailConnectionService.ts`)
-
-**Table**: `email_connections`
-
-**Operations**:
-
-- `saveEmailConnection` - Upsert OAuth tokens (access, refresh, expiry)
-- `getEmailConnection` - Retrieve active connection
-- `updateLastSync` - Update sync timestamp after import
-- `isTokenExpired` - Check token expiry with 5-minute buffer
-
-**Note**: Tokens stored as `encrypted_token` but not currently encrypted (TODO for production)
-
-### 6. Import Orchestration (`importGmail.ts`)
-
-**Main Function**: `importGmailReceipts(accessToken, userId, options)`
-
-**Options**:
-
-- `maxMessages` - Max purchases to import (default: 10)
-- `sinceDays` - Days to look back (default: 90)
-- `openaiApiKey` - Required for AI parsing
-
-**Process**:
-
-1. Validate credentials (access token, OpenAI key)
-2. Build Gmail query and fetch message headers (3× maxMessages for filtering buffer)
-3. For each message:
-   - Fetch full content
-   - Apply multi-stage filter
-   - If passed, parse with AI
-   - Create purchases for each extracted item
-   - Handle duplicates and errors
-4. Update last sync timestamp
-5. Return results with import log
-
-**Rate Limiting**: 100ms delay between API calls
-
-### 7. Logging (`log/importLogger.ts`)
-
-**In-memory logging** for debugging and auditing:
-
-**Log Types**:
-
-- `import` - Successful purchase creation
-- `skip` - Duplicate or empty LLM response
-- `error` - Processing error
-- `filter_reject` - Pre-LLM filter rejection
-
-**Features**:
-
-- Console output with table formatting
-- Markdown export for message inspection (`downloadMessagesMarkdown`)
-- Summary stats: imported, skipped, errors, filterRejected
+- Update `email_connections.last_sync` via `updateLastSync(userId)`.
+- Return `{ imported, skipped, errors, log }`.
+- Logs include:
+  - `import`
+  - `skip`
+  - `error`
+  - `filter_reject`
 
 ## Other ways to enhance parsing
 
-- Use Google's preassigned label: Reciepts to prefilter during retrieval (their shit is more robust than mine)
-- Read over the raw return from API
+- Filter by sender email patterns
+- ~~Use Google's preassigned label: Reciepts to prefilter during retrieval (their shit is more robust than mine)~~ apparently this is set by users
+- Read over the raw return after base64 decoding (debug flow implemented; can be integrated further in production service path)
+
+### Sender email matching
+
+```regex
+From:.+\>
+```
+
+This query returns both vendor and their email
+
+```markdown
+From: "Anthropic, PBC" <invoice+statements@mail.anthropic.com>
+From: Air Canada <notification@notification.aircanada.ca>
+From: Airbnb <automated@airbnb.com>
+From: "Expedia.com" <expedia@eg.expedia.com>
+```

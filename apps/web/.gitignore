@@ -6,8 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-apps/web/src/api/log/messages.original/
-apps/web/src/api/log/messages.raw.json
+apps/web/src/api/debug/
 
 node_modules
 dist
