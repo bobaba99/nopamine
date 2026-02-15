@@ -6,6 +6,7 @@ import type { Session } from '@supabase/supabase-js'
 import type {
   OnboardingAnswers,
   PurchaseRow,
+  UserPreferences,
   UserDecision,
   UserRow,
   VerdictRow,
@@ -35,6 +36,12 @@ import { GlassCard, LiquidButton, VolumetricInput } from '../components/Kinemati
 import { GmailLogo, OutlookLogo } from '../components/EmailIcons'
 import ListFilters from '../components/ListFilters'
 import { type FilterState, INITIAL_FILTERS } from '../components/ListFilters.model'
+import { useUserFormatting, useUserPreferences } from '../preferences/UserPreferencesContext'
+import {
+  CURRENCY_OPTIONS,
+  HOLD_DURATION_OPTIONS,
+  normalizeUserPreferences,
+} from '../utils/userPreferences'
 
 type ProfileProps = {
   session: Session | null
@@ -109,6 +116,11 @@ const identityStabilityOptions = [
   'Very important',
 ]
 
+const themeModeOptions: Array<{ value: UserPreferences['theme']; label: string }> = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+]
+
 const DEFAULT_ONBOARDING: OnboardingAnswers = {
   coreValues: [],
   regretPatterns: [],
@@ -150,6 +162,8 @@ const normalizeOnboardingAnswers = (
 
 export default function Profile({ session }: ProfileProps) {
   const navigate = useNavigate()
+  const { preferences, setPreferences: setGlobalPreferences } = useUserPreferences()
+  const { formatCurrency, formatDate } = useUserFormatting()
   const [, setUserRow] = useState<UserRow | null>(null)
   const [verdicts, setVerdicts] = useState<VerdictRow[]>([])
   const [purchases, setPurchases] = useState<PurchaseRow[]>([])
@@ -168,12 +182,17 @@ export default function Profile({ session }: ProfileProps) {
   const [selectedVerdict, setSelectedVerdict] = useState<VerdictRow | null>(null)
   const [profileSummary, setProfileSummary] = useState('')
   const [weeklyFunBudget, setWeeklyFunBudget] = useState('')
+  const [profilePreferences, setProfilePreferences] = useState<UserPreferences>(preferences)
   const [profileDraftSummary, setProfileDraftSummary] = useState('')
   const [profileDraftBudget, setProfileDraftBudget] = useState('')
+  const [profileDraftPreferences, setProfileDraftPreferences] =
+    useState<UserPreferences>(preferences)
   const [onboardingAnswers, setOnboardingAnswers] =
     useState<OnboardingAnswers>(DEFAULT_ONBOARDING)
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
+  const [preferencesModalOpen, setPreferencesModalOpen] = useState(false)
+  const [preferencesSaving, setPreferencesSaving] = useState(false)
   const [emailImportModalOpen, setEmailImportModalOpen] = useState(false)
 
   const materialismAverage =
@@ -190,6 +209,11 @@ export default function Profile({ session }: ProfileProps) {
   const [purchaseFiltersOpen, setPurchaseFiltersOpen] = useState(false)
   const regenerateLockMessage =
     'Another verdict is currently being regenerated. Please wait for it to finish.'
+
+  useEffect(() => {
+    setProfilePreferences(preferences)
+    setProfileDraftPreferences(preferences)
+  }, [preferences])
 
   const matchesSearch = (text: string, query: string) =>
     text.toLowerCase().includes(query.toLowerCase())
@@ -274,11 +298,17 @@ export default function Profile({ session }: ProfileProps) {
           refreshedProfile.weekly_fun_budget !== undefined
             ? String(refreshedProfile.weekly_fun_budget)
             : ''
+        const normalizedPreferences = normalizeUserPreferences(
+          refreshedProfile.preferences ?? null,
+        )
 
         setProfileSummary(summaryValue)
         setWeeklyFunBudget(budgetValue)
         setProfileDraftSummary(summaryValue)
         setProfileDraftBudget(budgetValue)
+        setProfilePreferences(normalizedPreferences)
+        setProfileDraftPreferences(normalizedPreferences)
+        setGlobalPreferences(normalizedPreferences)
         setOnboardingAnswers(
           normalizeOnboardingAnswers(refreshedProfile.onboarding_answers ?? null),
         )
@@ -292,6 +322,7 @@ export default function Profile({ session }: ProfileProps) {
         data.weekly_fun_budget !== null && data.weekly_fun_budget !== undefined
           ? String(data.weekly_fun_budget)
           : ''
+      const normalizedPreferences = normalizeUserPreferences(data.preferences ?? null)
 
       setProfileSummary(summaryValue)
       setWeeklyFunBudget(
@@ -299,13 +330,16 @@ export default function Profile({ session }: ProfileProps) {
       )
       setProfileDraftSummary(summaryValue)
       setProfileDraftBudget(budgetValue)
+      setProfilePreferences(normalizedPreferences)
+      setProfileDraftPreferences(normalizedPreferences)
+      setGlobalPreferences(normalizedPreferences)
       setOnboardingAnswers(normalizeOnboardingAnswers(data.onboarding_answers ?? null))
       setStatus('')
     } catch (err) {
       console.error('Profile load error', err)
       setStatus(`Profile load error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     }
-  }, [session])
+  }, [session, setGlobalPreferences])
 
   const loadVerdicts = useCallback(async () => {
     if (!session) return
@@ -361,6 +395,17 @@ export default function Profile({ session }: ProfileProps) {
     return [...items, value]
   }
 
+  const openProfileModal = () => {
+    setProfileDraftSummary(profileSummary)
+    setProfileDraftBudget(weeklyFunBudget)
+    setProfileModalOpen(true)
+  }
+
+  const openPreferencesModal = () => {
+    setProfileDraftPreferences(profilePreferences)
+    setPreferencesModalOpen(true)
+  }
+
   const handleProfileSave = async () => {
     if (!session) return
 
@@ -389,6 +434,30 @@ export default function Profile({ session }: ProfileProps) {
     await loadProfile()
     setProfileModalOpen(false)
     setProfileSaving(false)
+    return { error: null }
+  }
+
+  const handlePreferencesSave = async () => {
+    if (!session) return
+
+    setPreferencesSaving(true)
+    setStatus('')
+
+    const { error } = await updateUserProfile(session.user.id, {
+      preferences: profileDraftPreferences,
+    })
+
+    if (error) {
+      setStatus(error)
+      setPreferencesSaving(false)
+      return { error }
+    }
+
+    setProfilePreferences(profileDraftPreferences)
+    setGlobalPreferences(profileDraftPreferences)
+    await loadProfile()
+    setPreferencesModalOpen(false)
+    setPreferencesSaving(false)
     return { error: null }
   }
 
@@ -601,7 +670,7 @@ export default function Profile({ session }: ProfileProps) {
             <LiquidButton
               type="button"
               className="ghost"
-              onClick={() => setProfileModalOpen(true)}
+              onClick={openProfileModal}
             >
               Edit Decision Profile
             </LiquidButton>
@@ -624,7 +693,7 @@ export default function Profile({ session }: ProfileProps) {
             <span className="label">Weekly fun budget</span>
             <br></br>
             <span className="value">
-              {weeklyFunBudget ? `$${Number(weeklyFunBudget).toFixed(2)}` : 'Not set'}
+              {weeklyFunBudget ? formatCurrency(Number(weeklyFunBudget)) : 'Not set'}
             </span>
           </div>
         </div>
@@ -677,6 +746,48 @@ export default function Profile({ session }: ProfileProps) {
               {onboardingAnswers.identityStability || 'Not set'}
             </span>
           </GlassCard>
+        </div>
+      </div>
+
+      <div className="values-section">
+        <div className="section-header">
+          <h2>User preferences</h2>
+          <div className="header-actions">
+            <LiquidButton
+              type="button"
+              className="ghost"
+              onClick={openPreferencesModal}
+            >
+              Edit Preferences
+            </LiquidButton>
+          </div>
+        </div>
+        <p className="values-description">
+          Personalize theme, formatting, and hold behavior defaults.
+        </p>
+        <div className="profile-summary">
+          <div>
+            <span className="label">Theme</span>
+            <br></br>
+            <span className="value">{profilePreferences.theme}</span>
+          </div>
+          <div>
+            <span className="label">Currency</span>
+            <br></br>
+            <span className="value">{profilePreferences.currency}</span>
+          </div>
+          <div>
+            <span className="label">Hold duration</span>
+            <br></br>
+            <span className="value">{profilePreferences.hold_duration_hours}h</span>
+          </div>
+          <div>
+            <span className="label">Hold reminders</span>
+            <br></br>
+            <span className="value">
+              {profilePreferences.hold_reminders_enabled ? 'Enabled' : 'Disabled'}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -808,7 +919,7 @@ export default function Profile({ session }: ProfileProps) {
                           Price:{' '}
                           {verdict.candidate_price === null
                             ? '—'
-                            : `$${verdict.candidate_price.toFixed(2)}`}
+                            : formatCurrency(verdict.candidate_price)}
                         </span>
                         <span>Vendor: {verdict.candidate_vendor ?? '—'}</span>
                         <span>Category: {verdict.candidate_category ?? '—'}</span>
@@ -816,7 +927,7 @@ export default function Profile({ session }: ProfileProps) {
                         <span>
                           Date:{' '}
                           {verdict.created_at
-                            ? new Date(verdict.created_at).toLocaleDateString()
+                            ? formatDate(verdict.created_at)
                             : '—'}
                         </span>
                       </div>
@@ -845,7 +956,7 @@ export default function Profile({ session }: ProfileProps) {
                           onClick={() => handleVerdictDecision(verdict.id, 'hold')}
                           disabled={isBusy}
                         >
-                          Hold 24h
+                          Hold {preferences.hold_duration_hours}h
                         </LiquidButton>
                         <LiquidButton
                           type="button"
@@ -927,7 +1038,7 @@ export default function Profile({ session }: ProfileProps) {
                     </div>
                     <div className="verdict-meta">
                       <span>
-                        Price: ${Number(purchase.price).toFixed(2)}
+                        Price: {formatCurrency(Number(purchase.price))}
                       </span>
                       <span>Vendor: {purchase.vendor ?? '—'}</span>
                       <span>Category: {purchase.category ?? '—'}</span>
@@ -935,7 +1046,7 @@ export default function Profile({ session }: ProfileProps) {
                       <span>
                         Date:{' '}
                         {purchase.purchase_date
-                          ? new Date(purchase.purchase_date).toLocaleDateString()
+                          ? formatDate(purchase.purchase_date)
                           : '—'}
                       </span>
                     </div>
@@ -1395,6 +1506,163 @@ export default function Profile({ session }: ProfileProps) {
                   onClick={() => setProfileModalOpen(false)}
                 >
                   Close
+                </LiquidButton>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {preferencesModalOpen && createPortal(
+        <div
+          className="modal-backdrop"
+          onClick={(event: MouseEvent<HTMLDivElement>) => {
+            if (event.target === event.currentTarget) {
+              setPreferencesModalOpen(false)
+            }
+          }}
+          onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
+            if (event.key === 'Escape') {
+              setPreferencesModalOpen(false)
+            }
+          }}
+          role="dialog"
+          aria-modal="true"
+          tabIndex={-1}
+        >
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>User preferences</h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setPreferencesModalOpen(false)}
+                aria-label="Close modal"
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="quiz-section">
+                <h3>Theme mode</h3>
+                <p>Choose your app theme.</p>
+                <div className="quiz-options">
+                  {themeModeOptions.map((option) => (
+                    <LiquidButton
+                      key={option.value}
+                      type="button"
+                      className={`quiz-chip ${profileDraftPreferences.theme === option.value ? 'selected' : ''}`}
+                      onClick={() =>
+                        setProfileDraftPreferences((prev) => ({
+                          ...prev,
+                          theme: option.value,
+                        }))
+                      }
+                    >
+                      {option.label}
+                    </LiquidButton>
+                  ))}
+                </div>
+              </div>
+
+              <div className="quiz-section">
+                <h3>Formatting</h3>
+                <p>Set your preferred currency for amount formatting.</p>
+                <label className="modal-field">
+                  Currency
+                  <VolumetricInput
+                    as="select"
+                    className="purchase-select"
+                    value={profileDraftPreferences.currency}
+                    onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                      setProfileDraftPreferences((prev) => ({
+                        ...prev,
+                        currency: event.target.value,
+                      }))
+                    }
+                  >
+                    {CURRENCY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </VolumetricInput>
+                </label>
+              </div>
+
+              <div className="quiz-section">
+                <h3>Hold behavior</h3>
+                <p>Control your default hold window and reminder setting.</p>
+                <label className="modal-field">
+                  Hold duration
+                  <VolumetricInput
+                    as="select"
+                    className="purchase-select"
+                    value={profileDraftPreferences.hold_duration_hours}
+                    onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                      setProfileDraftPreferences((prev) => ({
+                        ...prev,
+                        hold_duration_hours: Number(event.target.value) as UserPreferences['hold_duration_hours'],
+                      }))
+                    }
+                  >
+                    {HOLD_DURATION_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </VolumetricInput>
+                </label>
+                <div className="modal-field">
+                  <span>Hold reminders</span>
+                  <div className="quiz-options">
+                    <LiquidButton
+                      type="button"
+                      className={`quiz-chip ${profileDraftPreferences.hold_reminders_enabled ? 'selected' : ''}`}
+                      onClick={() =>
+                        setProfileDraftPreferences((prev) => ({
+                          ...prev,
+                          hold_reminders_enabled: true,
+                        }))
+                      }
+                    >
+                      Enabled
+                    </LiquidButton>
+                    <LiquidButton
+                      type="button"
+                      className={`quiz-chip ${!profileDraftPreferences.hold_reminders_enabled ? 'selected' : ''}`}
+                      onClick={() =>
+                        setProfileDraftPreferences((prev) => ({
+                          ...prev,
+                          hold_reminders_enabled: false,
+                        }))
+                      }
+                    >
+                      Disabled
+                    </LiquidButton>
+                  </div>
+                </div>
+              </div>
+
+              <div className="values-actions">
+                <LiquidButton
+                  className="primary"
+                  type="button"
+                  onClick={() => {
+                    void handlePreferencesSave()
+                  }}
+                  disabled={preferencesSaving}
+                >
+                  {preferencesSaving ? 'Saving...' : 'Save preferences'}
+                </LiquidButton>
+                <LiquidButton
+                  className="ghost"
+                  type="button"
+                  onClick={() => setPreferencesModalOpen(false)}
+                  disabled={preferencesSaving}
+                >
+                  Cancel
                 </LiquidButton>
               </div>
             </div>

@@ -18,6 +18,7 @@ import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 import './styles/App.css'
 import { CustomCursor, useGSAPLoader, LiquidButton, VolumetricInput } from './components/Kinematics'
+import { UserPreferencesProvider } from './preferences/UserPreferencesContext'
 
 type AuthMode = 'sign_in' | 'sign_up'
 
@@ -309,129 +310,131 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div className="page">
-        {gsapLoaded && <CustomCursor />}
-        <header className="topbar">
-          <div className="brand">Nopamine</div>
-          <nav className="nav topbar-nav">
-            {session && (
-              <NavLink to="/" end className="nav-link">
-                Dashboard
+      <UserPreferencesProvider session={session}>
+        <div className="page">
+          {gsapLoaded && <CustomCursor />}
+          <header className="topbar">
+            <div className="brand">Nopamine</div>
+            <nav className="nav topbar-nav">
+              {session && (
+                <NavLink to="/" end className="nav-link">
+                  Dashboard
+                </NavLink>
+              )}
+              {session && (
+                <NavLink to="/swipe" className="nav-link">
+                  Swipe
+                </NavLink>
+              )}
+              {session && (
+                <NavLink to="/profile" className="nav-link">
+                  Profile
+                </NavLink>
+              )}
+              {session && isAdminUser && (
+                <NavLink to="/admin/resources" className="nav-link">
+                  Admin
+                </NavLink>
+              )}
+              <NavLink to="/resources" className="nav-link">
+                Resources
               </NavLink>
-            )}
-            {session && (
-              <NavLink to="/swipe" className="nav-link">
-                Swipe
+              <NavLink to="/about" className="nav-link">
+                About
               </NavLink>
-            )}
-            {session && (
-              <NavLink to="/profile" className="nav-link">
-                Profile
+              <NavLink to="/support" className="nav-link">
+                Support
               </NavLink>
-            )}
-            {session && isAdminUser && (
-              <NavLink to="/admin/resources" className="nav-link">
-                Admin
-              </NavLink>
-            )}
-            <NavLink to="/resources" className="nav-link">
-              Resources
-            </NavLink>
-            <NavLink to="/about" className="nav-link">
-              About
-            </NavLink>
-            <NavLink to="/support" className="nav-link">
-              Support
-            </NavLink>
-          </nav>
-          <div className="top-actions">
-            {session ? (
-              <div className="session-chip">
-                <span className="session-label">Signed in</span>
-                <span className="session-email">{session.user.email}</span>
-                <LiquidButton
-                  className="ghost"
-                  type="button"
-                  onClick={handleSignOut}
-                  disabled={loading}
-                  data-cursor="expand"
-                >
-                  Sign out
-                </LiquidButton>
-              </div>
-            ) : (
-              <span className="hint">Start with email + password</span>
-            )}
-          </div>
-        </header>
+            </nav>
+            <div className="top-actions">
+              {session ? (
+                <div className="session-chip">
+                  <span className="session-label">Signed in</span>
+                  <span className="session-email">{session.user.email}</span>
+                  <LiquidButton
+                    className="ghost"
+                    type="button"
+                    onClick={handleSignOut}
+                    disabled={loading}
+                    data-cursor="expand"
+                  >
+                    Sign out
+                  </LiquidButton>
+                </div>
+              ) : (
+                <span className="hint">Start with email + password</span>
+              )}
+            </div>
+          </header>
 
-        <main className="content">
-          <Routes>
-            <Route path="/" element={<Navigate to="/auth" replace />} />
-            <Route
-              path="/auth"
-              element={
-                <PublicOnly session={session}>
-                  <AuthRoute
-                    session={session}
-                    authMode={authMode}
-                    headline={headline}
-                    status={status}
-                    loading={loading}
-                    email={email}
-                    password={password}
-                    onAuth={handleAuth}
-                    onEmailChange={setEmail}
-                    onPasswordChange={setPassword}
-                    onToggleMode={() =>
-                      setAuthMode(authMode === 'sign_in' ? 'sign_up' : 'sign_in')
+          <main className="content">
+            <Routes>
+              <Route path="/" element={<Navigate to="/auth" replace />} />
+              <Route
+                path="/auth"
+                element={
+                  <PublicOnly session={session}>
+                    <AuthRoute
+                      session={session}
+                      authMode={authMode}
+                      headline={headline}
+                      status={status}
+                      loading={loading}
+                      email={email}
+                      password={password}
+                      onAuth={handleAuth}
+                      onEmailChange={setEmail}
+                      onPasswordChange={setPassword}
+                      onToggleMode={() =>
+                        setAuthMode(authMode === 'sign_in' ? 'sign_up' : 'sign_in')
+                      }
+                    />
+                  </PublicOnly>
+                }
+              />
+              <Route element={<AppShell />}>
+                <Route path="/resources" element={<Resources />} />
+                <Route path="/resources/:slug" element={<ResourceDetail />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/support" element={<Support />} />
+                <Route path="/faq" element={<FAQ />} />
+                <Route path="/contact-us" element={<Contact />} />
+                <Route path="/how-it-works" element={<HowItWorks />} />
+                <Route path="/email-sync" element={<EmailSync session={session} />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/terms" element={<Terms />} />
+              </Route>
+
+              <Route element={<RequireAuth session={session} />}>
+                <Route
+                  element={
+                    session ? (
+                      <AppShell />
+                    ) : null
+                  }
+                >
+                  <Route index element={<Dashboard session={session} />} />
+                  <Route path="swipe" element={<Swipe session={session} />} />
+                  <Route path="profile" element={<Profile session={session} />} />
+                  <Route
+                    path="admin/resources"
+                    element={
+                      isAdminUser
+                        ? <AdminResources session={session} />
+                        : <Navigate to="/" replace />
                     }
                   />
-                </PublicOnly>
-              }
-            />
-            <Route element={<AppShell />}>
-              <Route path="/resources" element={<Resources />} />
-              <Route path="/resources/:slug" element={<ResourceDetail />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/support" element={<Support />} />
-              <Route path="/faq" element={<FAQ />} />
-              <Route path="/contact-us" element={<Contact />} />
-              <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/email-sync" element={<EmailSync session={session} />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/terms" element={<Terms />} />
-            </Route>
-
-            <Route element={<RequireAuth session={session} />}>
-              <Route
-                element={
-                  session ? (
-                    <AppShell />
-                  ) : null
-                }
-              >
-                <Route index element={<Dashboard session={session} />} />
-                <Route path="swipe" element={<Swipe session={session} />} />
-                <Route path="profile" element={<Profile session={session} />} />
-                <Route
-                  path="admin/resources"
-                  element={
-                    isAdminUser
-                      ? <AdminResources session={session} />
-                      : <Navigate to="/" replace />
-                  }
-                />
+                </Route>
               </Route>
-            </Route>
 
-            <Route
-              path="*"
-              element={<Navigate to={session ? '/' : '/auth'} replace />}
-            />
-          </Routes>
-        </main>
-      </div>
+              <Route
+                path="*"
+                element={<Navigate to={session ? '/' : '/auth'} replace />}
+              />
+            </Routes>
+          </main>
+        </div>
+      </UserPreferencesProvider>
     </BrowserRouter>
   )
 }
