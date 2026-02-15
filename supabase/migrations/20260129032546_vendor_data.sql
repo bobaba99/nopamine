@@ -1,4 +1,4 @@
 -- NOTE: Vendor seed data moved to:
---   20260214094218_vendor_data.sql
+--   20260214095402_core_domain_tables.sql
 -- This migration file is retained as a compatibility shim so existing
 -- environments that already recorded this version keep a consistent history.

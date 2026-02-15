@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import type { SwipeOutcome, SwipeQueueItem, SwipeTiming } from '../api/core/types'
 import { getUnratedPurchases, createSwipe, deleteSwipe } from '../api/purchase/swipeService'
 import { GlassCard, LiquidButton } from '../components/Kinematics'
+import { useUserFormatting } from '../preferences/UserPreferencesContext'
 
 type SwipeProps = {
   session: Session | null
@@ -44,6 +45,7 @@ const formatOutcomeLabel = (outcome: SwipeOutcome) => {
 }
 
 export default function Swipe({ session }: SwipeProps) {
+  const { formatCurrency, formatDate } = useUserFormatting()
   const [purchases, setPurchases] = useState<SwipeQueueItem[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -157,7 +159,7 @@ export default function Swipe({ session }: SwipeProps) {
                 <span className="upcoming-title">{item.purchase.title}</span>
                 <span className="upcoming-meta">
                   {formatTimingLabel(item.timing)} •{' '}
-                  {new Date(item.scheduled_for).toLocaleDateString()}
+                  {formatDate(item.scheduled_for)}
                 </span>
               </GlassCard>
             ))}
@@ -453,7 +455,7 @@ export default function Swipe({ session }: SwipeProps) {
               )}
             </div>
             <span className="swipe-price">
-              ${Number(currentPurchase.price).toFixed(2)}
+              {formatCurrency(Number(currentPurchase.price))}
             </span>
             <div className="swipe-meta">
               {currentPurchase.vendor && (
@@ -464,12 +466,12 @@ export default function Swipe({ session }: SwipeProps) {
               )}
               <span>
                 Considered:{' '}
-                {new Date(currentPurchase.purchase_date).toLocaleDateString()}
+                {formatDate(currentPurchase.purchase_date)}
               </span>
               {currentItem && (
                 <span>
                   Scheduled:{' '}
-                  {new Date(currentItem.scheduled_for).toLocaleDateString()}
+                  {formatDate(currentItem.scheduled_for)}
                 </span>
               )}
             </div>
