@@ -198,17 +198,64 @@ Editing and publishing to `Resources` page.
 
 Publishing articles here for free resources and SEO optimization.
 
-### 4.6 Flow: Alternative accepting and swiping
+### 4.7 Flow: Alternative accepting and swiping
 
 If the users like the alternative solution offered during the verdict, they can mark the alternative solution being used and it will pop up to the swipe queue later for regret/satisfaction evaluation. This will also be integrated with LLM verdict service.
 
 - Branch A: valid purchase but optimizable
   - Suggests a budget alternative, rental or financing option
-  - Selecting this alterantive will queue it as 'alternative' for swiping
+  - Selecting this alternative will queue it as `alternative_type = 'budget'` for swiping
 - Branch B: emotionally driven purchase
   - Identifies emotional pattern behind the justification (stress relief, status seeking, boredom, retail therapy, etc.) and suggests non-purchase advices that address the same emotional needs
   - Also reframes the money in comparative terms (i.e., if you invest with an ROI of 5%, in a year it would be XXX amount)
-  - Selecting this alternative will queue this item as 'skip' and future verdict will retrieve this memory for successful or failed attempts so that it feels personalized and different each time
+  - Selecting this alternative will queue it as `alternative_type = 'emotional'` and future verdicts will retrieve this memory for successful or failed attempts so that it feels personalized and different each time
+
+#### 4.7.1 Schema
+
+Alternatives are stored in a dedicated `verdict_alternatives` table (one per verdict). Key columns:
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| `verdict_id` | uuid FK | Links back to the original verdict |
+| `alternative_type` | `'budget'` or `'emotional'` | Branch A vs Branch B |
+| `suggestion_text` | text | The alternative solution text from LLM |
+| `emotional_pattern` | text | Branch B only: stress_relief, status_seeking, boredom, retail_therapy, etc. |
+| `reframe_text` | text | Branch B only: money reframing comparison |
+| `accepted_at` | timestamp | Null until user accepts; set by `accept_alternative` RPC |
+
+Swipe integration uses the existing `swipe_schedules` and `swipes` tables with a new nullable `alternative_id` FK column (XOR constraint with `purchase_id` — exactly one target per row). This gives alternatives the same day3/week3/month3 swipe cadence as purchases.
+
+#### 4.7.2 Service logic
+
+- `accept_alternative` RPC (Supabase function):
+  1. Validates verdict ownership
+  2. Inserts into `verdict_alternatives` with `accepted_at = now()`
+  3. Schedules 3 swipes: day3, week3, month3 from `accepted_at` (same cadence as `add_purchase` for `user_decision = 'bought'`)
+  4. On conflict (re-accept same verdict): updates `accepted_at`, refreshes incomplete swipe schedules
+
+#### 4.7.3 Swipe queue integration
+
+The swipe queue query joins `verdict_alternatives` alongside `purchases`:
+- `LEFT JOIN purchases ON swipe_schedules.purchase_id = purchases.id`
+- `LEFT JOIN verdict_alternatives ON swipe_schedules.alternative_id = verdict_alternatives.id`
+- UI renders alternative cards distinctly (shows suggestion text + original verdict context instead of purchase title/price)
+
+#### 4.7.4 LLM memory integration
+
+`verdictContext.ts` queries past accepted emotional alternatives for personalization:
+```
+SELECT suggestion_text, emotional_pattern, s.outcome
+FROM verdict_alternatives va
+LEFT JOIN swipes s ON s.alternative_id = va.id
+WHERE va.user_id = ? AND va.alternative_type = 'emotional' AND va.accepted_at IS NOT NULL
+ORDER BY va.created_at DESC LIMIT 5
+```
+This enables prompts like: "Last time you were stress-shopping, you tried [X] instead and felt [outcome]."
+
+#### 4.7.5 UI changes
+
+- **VerdictDetailModal**: Add "Use this alternative" button below the existing alternative solution card. On click, calls `accept_alternative` RPC.
+- **Swipe queue**: Alternative cards show the suggestion text, the original item that was skipped, and the alternative type badge (budget/emotional). Swipe interaction is identical (satisfied/regret/not_sure).
 
 ### 4.7 Flow: Verdict sharing
 
@@ -301,6 +348,8 @@ Desktop: persistent topbar with nav links. Mobile (≤768px): hamburger menu ove
 | Free User | View purchase stats | Free User | ✅ done |
 | Free User | View verdict history | Free User | ✅ done |
 | Free User | Import purchases from email | Free User | ✅ done |
+| Free User | Accept alternative solution from verdict | Free User | ❌ not yet |
+| Free User | Swipe on accepted alternative (day3/week3/month3) | Free User | ❌ not yet |
 | Free User | Upgrade to premium | Premium User | ❌ not yet |
 | Premium User | Unlimited verdicts with full rationale | Premium User | ❌ not yet |
 | Premium User | Access spending reports and analytics | Premium User | ❌ not yet |
@@ -321,7 +370,7 @@ API calls are mapped in `BACKEND_GUIDELINES.md` Section 2.3. Key patterns:
 - **Hold reminder scheduler:** `POST /api/hold-reminders/run` — protected by `Authorization: Bearer <HOLD_REMINDER_CRON_SECRET>`; finds due `hold_timers`, sends Resend reminder emails, and marks them notified.
 - **Email import:** Gmail REST API / Microsoft Graph API + GPT-5-nano receipt parsing
 
-**Not yet implemented:** educational content API, premium tier billing/upgrade flow, Chrome Extension APIs, spending analytics endpoints, Stripe webhook for `paywall_conversion_completed`.
+**Not yet implemented:** educational content API, premium tier billing/upgrade flow, Chrome Extension APIs, spending analytics endpoints, Stripe webhook for `paywall_conversion_completed`, alternative solution acceptance (`rpc accept_alternative`), alternative swipe queue.
 
 **Recently implemented:** Daily verdict cap enforcement + PaywallModal + anonymous auth (`signInAnonymously`, `updateUser` conversion); Tier 1 PostHog telemetry (6 events); share verdict (`shared_verdicts` table, `VerdictShareModal`, `/shared/:token` public page); `waitlist` table + `/api/waitlist` endpoint.
 
