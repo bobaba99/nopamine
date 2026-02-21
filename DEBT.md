@@ -1,5 +1,10 @@
 # Debt
 
+`feat/[]`
+
+- I could add something like '85% of the users chose skip and was satisfied with their skip.'
+- Include community support from others right after receiving the verdicts.
+
 `fix/[]`
 
 - [ ] Add a loading bar during evaluation and regeneration, implement Claude-like words (e.g., fidgeting, coalescing)

@@ -150,6 +150,51 @@ Before sending emails to GPT for parsing, a 3-stage filter pipeline rejects non-
 | Uber Eats receipt            | Price patterns + "total" + "receipt"          |
 | App Store purchase           | Price patterns + "invoice" keyword            |
 
+### 4.5 Flow: User preferences
+
+#### 4.5.1 Theme
+
+Profile → Edit preferences → Theme (light or dark)
+
+#### 4.5.2 Currency
+
+Profile → Edit preferences → Currency
+
+#### 4.5.3 Verdict tone
+
+This is your key differentiator over Cleo (non-judgmental). Let users choose between something like "Direct" (straight verdict) vs. "Encouraging" (softer framing, more context).
+
+#### 4.5.4 Account management essentials
+
+Account management essentials — Email change, password change, delete account (GDPR requirement you already noted), and data export. These aren't exciting but they're non-negotiable for a product that stores personal profile data. Confidence: 9/10. Source: expert consensus (GDPR Art. 17, 20).
+
+#### 4.5.5 Hold duration and email reminder
+
+
+### 4.6 Flow: Resource articles
+
+#### 4.6.1 Admin
+
+Editing and publishing to `Resources` page.
+
+#### 4.6.2 Resources page
+
+Publishing articles here for free resources and SEO optimization.
+
+### 4.6 Flow: Alternative accepting and swiping
+
+If the users like the alternative solution offered during the verdict, they can mark the alternative solution being used and it will pop up to the swipe queue later for regret/satisfaction evaluation. This will also be integrated with LLM verdict service.
+
+- Branch A: valid purchase but optimizable
+  - Suggests a budget alternative, rental or financing option
+  - Selecting this alterantive will queue it as 'alternative' for swiping
+- Branch B: emotionally driven purchase
+  - Identifies emotional pattern behind the justification (stress relief, status seeking, boredom, retail therapy, etc.) and suggests non-purchase advices that address the same emotional needs
+  - Also reframes the money in comparative terms (i.e., if you invest with an ROI of 5%, in a year it would be XXX amount)
+  - Selecting this alternative will queue this item as 'skip' and future verdict will retrieve this memory for successful or failed attempts so that it feels personalized and different each time
+
+
+
 ---
 
 ## 5. Navigation Structure

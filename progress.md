@@ -37,19 +37,20 @@
 - [x] Added verdict algorithm option `llm_only` across UI/service/types/modal and DB schema constraint in initial migration.
 - [x] Improved auth compatibility in `supabase/seed.sql` by making seed user creation auth-backed and cleaning orphan profile rows.
 - [x] Fixed Profile empty-state alignment so verdict empty card aligns with purchase history cards.
+- [x] Implement purchase import from email route/page — **Branch:** `feat/purchase-email-import-flow`
 
 ---
 
 ## In Progress
 
-- [ ] Tighten verdict evaluation path robustness and UX messaging for LLM failure/timeout cases — **Owner:** Team — **Status:** 🟡 — **Branch:** `fix/verdict-llm-timeout-handling`
-- [ ] Refine Profile and history UX polish after recent structural updates — **Owner:** Team — **Status:** 🟡 — **Branch:** `fix/profile-history-ux-polish`
-- [ ] Implement share verdict capability (link/card) — **Owner:** Team — **Status:** 🟡 — **Branch:** `feat/verdict-share-capability`
-- [ ] Implement educational content route/page — **Owner:** Team — **Status:** 🟡 — **Branch:** `feat/resources-page`
-- [ ] Implement SEO optimization for resources page — **Owner:** Team — **Status:** 🟡 — **Branch:** `feat/resources-page-seo-optimization`
-- [ ] Implement settings route/page with language, theme, currency, etc. — **Owner:** Team — **Status:** 🟡 — **Branch:** `feat/settings-route-user-preferences`
-- [ ] Implement purchase import from email route/page — **Owner:** Team — **Status:** 🟡 — **Branch:** `feat/purchase-email-import-flow`
-- [ ] Implement behavioural responses telemetry and analytics — **Owner:** Team — **Status:** 🟡 — **Branch:** `feat/behavioral-telemetry-analytics`
+- [ ] Tighten verdict evaluation path robustness and UX messaging for LLM failure/timeout cases — **Branch:** `fix/verdict-llm-timeout-handling`
+- [ ] Refine Profile and history UX polish after recent structural updates — **Branch:** `fix/profile-history-ux-polish`
+- [ ] Implement share verdict capability (link/card) — **Branch:** `feat/verdict-share-capability`
+- [ ] Implement educational content route/page — **Branch:** `feat/resources-page`
+- [ ] Implement SEO optimization for resources page — **Branch:** `feat/resources-page-seo-optimization`
+- [ ] Implement settings route/page with language, theme, currency, etc. — **Branch:** `feat/settings-route-user-preferences`
+- [ ] Implement behavioural responses telemetry and analytics — **Branch:** `feat/behavioral-telemetry-analytics`
+- [ ] Implement swiping if alternative solution is selected and add branching logic to alternatives based on justification (budget or emotional alternative) `feat/alternative-solution`
 
 ---
 

@@ -2,7 +2,9 @@
 
 ## 1. Overview
 
-Last Updated: 2026-02-09
+Last Updated: 2026-02-20
+
+Nopamine is not a budgeting app, not a no-buy tool, not a review aggregator. It is a purchase decision therapist, it intervenes at the moment of deliberation, processes your reasoning, identifies whether the motivation is rational or emotional, and routes you to the appropriate resolution path.
 
 ---
 
@@ -58,6 +60,8 @@ Users engage with Cleo 20x more than traditional banking apps. But Cleo is a bud
 ### 4.1 Primary Users
 
 Primary users are North American adults aged 18-40 (primarily Gen Z and Millennials) who experience frequent impulse spending and post-purchase regret, are already comfortable using mobile finance/wellness apps, and are motivated by self-control and value alignment rather than strict budgeting.
+
+The pathological or clinical level of shopping addiction is not included. This is NOT a therapy tool and addiction cannot be targeted by a simple web app alone.
 
 **Core segments**
 - **Emotion-triggered impulse buyers (18-34):** users who buy under stress, boredom, or emotional distress, then feel remorse within days; they want a fast pause-and-decide system at checkout.

@@ -19,6 +19,9 @@ ENV/
 .vscode/
 .claude/
 .cursor/
+.codex/
+.gemini/
+.agents/
 .idea/
 *.swp
 *.swo
@@ -47,5 +50,6 @@ apps/web/src/api/debug/
 # Skills
 security-guidance-skill/
 code-review-skill/
-
+canonical-doc-sync/
 /docs
+.agents
