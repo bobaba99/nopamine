@@ -172,7 +172,7 @@ Secondary users are adjacent groups who may not identify as impulse spenders but
 | NFR-016 | Responsive design: fully functional on mobile (320px+), tablet, and desktop viewports. | Accessibility | No horizontal scrolling or broken layouts at 320px, 768px, 1024px, 1440px widths |
 | NFR-017 | Architecture supports 10x current traffic without re-architecture. Verdict API is stateless and horizontally scalable. | Scalability | Handles 100 concurrent verdict requests with < 5s p99 latency |
 | NFR-018 | Database schema supports future features (email sync, purchase history, swipe interface) without breaking changes. | Scalability | Schema includes nullable fields and foreign keys for iOS app features per existing SQL schema design |
-| NFR-019 | LLM model is swappable via configuration (not hardcoded). Supports rapid switching between providers/models for cost or quality optimization. | Scalability | Model change requires config update only, no code deployment. Supports Claude, GPT-4o-mini, and equivalent tier models |
+| NFR-019 | LLM model is swappable via configuration (not hardcoded). Supports rapid switching between providers/models for cost or quality optimization. | Scalability | Model change requires config update only, no code deployment. Supports Claude, gpt-5-nano, and equivalent tier models |
 | NFR-020 | Google Lighthouse overall score for verdict page. | Performance | Score >= 85 (Performance, Accessibility, Best Practices, SEO) |
 | NFR-021 | Structured verdict data log completeness: percentage of verdicts with all required schema fields populated. | Data Quality | 100% of required fields; >= 95% of optional fields (category, confidence) |
 | NFR-022 | Automated deployment pipeline with staging environment for pre-production testing. | Maintainability | CI/CD pipeline deploys to staging on PR merge; production deploy requires manual approval |
@@ -211,22 +211,28 @@ Secondary users are adjacent groups who may not identify as impulse spenders but
 
 ### External Services & APIs
 - **Supabase (core backend):** Auth, Postgres, RLS, RPC functions, and data persistence used by `apps/web/src/api/*`.
-- **OpenAI APIs:** Chat Completions (verdict reasoning) and Embeddings (semantic similarity in purchase context retrieval).
+- **OpenAI APIs:** Chat Completions API with GPT-4o-mini (verdict reasoning), Responses API with GPT-5-nano (email receipt parsing via `client.responses.parse()`), and Embeddings with text-embedding-3-small (semantic similarity in purchase context retrieval).
+- **Google Gmail API:** OAuth 2.0 (standard) + REST API for fetching purchase receipts.
+- **Microsoft Graph API (Outlook):** OAuth 2.0 with PKCE (S256 code challenge) for fetching purchase receipts.
 - **CDN-hosted GSAP scripts:** runtime animation dependencies loaded from Cloudflare CDN for UI interaction components.
 
 ### Required Runtime Configuration
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 - `VITE_OPENAI_API_KEY`
+- `VITE_GOOGLE_CLIENT_ID` (for Gmail OAuth)
+- `VITE_MICROSOFT_CLIENT_ID` (for Outlook OAuth)
 
 ### Database & Data Dependencies
 - Supabase schema and policies in `supabase/migrations/20260123050136_initial_schema.sql`.
 - Vendor dataset migration in `supabase/migrations/20260129032546_vendor_data.sql`.
+- Modular migrations in `supabase/migrations/20260214094217_modular_*.sql` (active bootstrap source of truth).
 - RPCs expected by frontend services:
   - `add_purchase`
   - `add_user_value`
+- Database trigger: `handle_new_user` fires on `auth.users` INSERT, auto-creates `public.users` row.
 - Core tables used by web app:
-  - `users`, `user_values`, `purchases`, `swipe_schedules`, `swipes`, `purchase_stats`, `verdicts`, `vendors`.
+  - `users`, `user_values`, `purchases`, `swipe_schedules`, `swipes`, `purchase_stats`, `verdicts`, `vendors`, `email_connections`, `email_processed_messages`, `email_vendors`, `hold_timers`, `ocr_jobs`, `resources`.
 
 ### Application/Platform Dependencies
 - **Web client:** React + Vite runtime in `apps/web`.

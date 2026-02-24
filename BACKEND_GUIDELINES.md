@@ -87,6 +87,10 @@ apps/web/src/api/
 - `vendors`
 - `email_connections`
 - `email_processed_messages`
+- `email_vendors` (reference data, not user-scoped)
+- `hold_timers`
+- `ocr_jobs` (schema provisioned)
+- `resources`
 
 **RPCs required by frontend services:**
 - `add_user_value`
@@ -104,12 +108,17 @@ apps/web/src/api/
 
 ### 2.4 Email Import Pipeline (Gmail + Outlook)
 - Provider modules live under `apps/web/src/api/email/`.
+- **Batch sizes:** Initial batch of 50, refill batches of 25, max 500 emails scanned per import run. 100ms rate limiting between Gmail API calls.
+- **AI model:** GPT-5-nano via OpenAI Responses API (`client.responses.parse()` with `dangerouslyAllowBrowser: true`). Email content truncated to 3,000 chars (1,400 on retry).
+- **Purchase source values:** `email:gmail` or `email:outlook` (provider-specific).
 - Import orchestration:
   - Pre-fetch dedupe by processed message ID (`email_processed_messages`)
-  - Deterministic pre-AI dedupe by extracted `order_id` candidates
+  - Deterministic pre-AI dedupe by extracted `order_id` candidates (regex-based extraction, normalized 5-100 chars, must contain digit)
   - AI extraction (`receiptParser.ts`)
-  - Post-parse duplicate protection via purchase fingerprint checks + DB uniqueness
+  - Post-parse duplicate protection via purchase fingerprint checks (title+price+date±1day) + DB uniqueness
 - Import logs and markdown export live in `apps/web/src/api/email/log/importLogger.ts`.
+- **Gmail:** Standard OAuth, direct REST API calls to `gmail.googleapis.com`.
+- **Outlook:** OAuth 2.0 with PKCE (S256 code challenge), Microsoft Graph API, `$search` KQL queries, pagination via `@odata.nextLink`.
 
 ### 2.5 Service Return Patterns (Current)
 - Read flows: throw on Supabase error (e.g. `getUserProfile`, `getPurchaseHistory`)
@@ -123,6 +132,7 @@ apps/web/src/api/
 ### 3.1 Auth Flow
 - Supabase Auth (email/password) is used from `apps/web/src/App.tsx`.
 - Session is read via `supabase.auth.getSession()` and subscribed via `onAuthStateChange`.
+- **Automatic user sync:** A database trigger (`handle_new_user`) fires on `auth.users` INSERT and auto-creates a corresponding `public.users` row with the user's ID and email. This ensures the application's users table stays in sync with Supabase Auth without manual intervention.
 
 ### 3.2 Authorization
 - Access control is enforced at DB layer with RLS.

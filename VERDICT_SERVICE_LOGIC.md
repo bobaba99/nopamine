@@ -6,7 +6,7 @@ This document describes the verdict evaluation logic across `verdictContext.ts`,
 
 ## 1. Overview
 
-The verdict service evaluates potential purchases and returns a **Buy / Hold / Skip** verdict with reasoning. The active algorithm is **LLM-only** (`llm_only`): decisions come from OpenAI's GPT-4o-mini. A heuristic fallback is used when the LLM is unavailable (no API key, parse failure, or validation failure).
+The verdict service evaluates potential purchases and returns a **Buy / Hold / Skip** verdict with reasoning. The active algorithm is **LLM-only** (`llm_only`): decisions come from OpenAI's GPT-4o-mini via Chat Completions API (direct `fetch` call to `https://api.openai.com/v1/chat/completions`). A heuristic fallback is used when the LLM is unavailable (no API key, parse failure, or validation failure). The `scoring_model` field on persisted verdicts records which path was taken: `standard`, `cost_sensitive_iso`, or `llm_only`.
 
 **Entry points:**
 - `evaluatePurchase(userId, input, openaiApiKey?)` — runs evaluation (LLM or fallback)
@@ -249,7 +249,7 @@ If no budget: `high = 800`, `medium = 400`.
 
 ### 5.2 LLM Request
 
-- **Model:** `gpt-4o-mini`
+- **Model:** `gpt-5-nano`
 - **Messages:** `buildSystemPrompt()`, `buildUserPrompt(...)` + retry context
 - **max_completion_tokens:** 4000
 
@@ -400,5 +400,5 @@ Verdict persisted in `verdicts` table
 
 | Service                  | Purpose                                   |
 |--------------------------|-------------------------------------------|
-| OpenAI Chat Completions  | LLM verdict evaluation (gpt-4o-mini)      |
-| OpenAI Embeddings        | Semantic similarity for similar purchases |
+| OpenAI Chat Completions  | LLM verdict evaluation (gpt-4o-mini, direct `fetch` call)      |
+| OpenAI Embeddings        | Semantic similarity for similar purchases (text-embedding-3-small, direct `fetch` call) |

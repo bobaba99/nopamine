@@ -14,20 +14,29 @@ importGmailReceipts()
   → updateLastSync + import log summary
 ```
 
-### 1. Entry point and orchestration (`importGmail.ts`)
+### 1. Entry point and orchestration (`importGmail.ts` / `importOutlook.ts`)
 
-- Main function: `importGmailReceipts(accessToken, userId, options)`
+- Gmail: `importGmailReceipts(accessToken, userId, options)`
+- Outlook: `importOutlookReceipts(accessToken, userId, options)`
 - Validates `accessToken` and `openaiApiKey`
+- **Batch sizes:** Initial batch of 50 messages, refill batches of 25, maximum 500 emails scanned per import run
+- 100ms rate limiting between Gmail API calls
 - Starts import logging and clears previous fetched-message snapshots
 
-### 2. Fetch candidate messages first (`gmailClient.ts`)
+### 2. Fetch candidate messages first (`gmailClient.ts` / `outlookClient.ts`)
 
+**Gmail:**
 1. Build query with `buildReceiptQuery(sinceDays)`:
    - Sender/vendor-like signals in `from:(noreply OR no-reply OR receipt OR order OR confirmation OR shipping OR auto-confirm)`
    - Receipt-like subject terms in `subject:(receipt OR order OR confirmation OR invoice ...)`
    - Time window via `newer_than:${sinceDays}d`
 2. Fetch message headers with `listMessages(accessToken, query, maxMessages * 3)`.
 3. For each header, fetch full message payload with `getMessage(accessToken, messageId)`.
+
+**Outlook:**
+1. Use KQL `$search` queries via Microsoft Graph API (`graph.microsoft.com/v1.0/me/messages`)
+2. Note: `$search` cannot be combined with `$filter` in Microsoft Graph
+3. Pagination via `@odata.nextLink`
 
 ### 3. Parse message into normalized email text (`gmailClient.ts` + `services/emailProcessing/*`)
 
@@ -68,9 +77,9 @@ Filter runs before AI parsing so only likely receipts are sent to the LLM.
 
 ### 5. AI extraction only for passed emails (`receiptParser.ts`)
 
-1. Truncate email text to 4000 chars.
-2. Prompt model `gpt-5-nano` with sender, subject, date, and content.
-3. Parse JSON output into item list.
+1. Truncate email text to 3,000 chars (1,400 chars on retry).
+2. Prompt model `gpt-5-nano` via OpenAI Responses API (`client.responses.parse()` with `dangerouslyAllowBrowser: true`) with sender, subject, date, and content.
+3. Parse structured JSON output into item list.
 4. Validate each item (`validateAndNormalize`):
    - required: `title`, `vendor`, `price`
    - `price` must be `> 0`

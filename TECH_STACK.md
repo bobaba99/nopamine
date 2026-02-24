@@ -88,10 +88,11 @@ Most backend logic runs through Supabase directly from the web client:
 
 | Service | Provider | Purpose |
 |---------|----------|---------|
-| LLM Evaluation | OpenAI (`gpt-4o-mini`) | Purchase verdict reasoning via Chat Completions API |
-| Receipt Parsing | OpenAI (`gpt-4o-mini`) | Extracting purchase data from email receipts |
-| Embeddings | OpenAI (`text-embedding-3-small`) | Semantic similarity for purchase pattern matching |
-| Gmail API | Google | OAuth2 + REST API for fetching purchase receipts |
+| LLM Evaluation | OpenAI (`gpt-4o-mini`) | Purchase verdict reasoning via Chat Completions API (direct `fetch` call) |
+| Receipt Parsing | OpenAI (`gpt-5-nano`) | Extracting purchase data from email receipts via Responses API (`client.responses.parse()`, OpenAI SDK with `dangerouslyAllowBrowser: true`) |
+| Embeddings | OpenAI (`text-embedding-3-small`) | Semantic similarity for purchase pattern matching (direct `fetch` call) |
+| Gmail API | Google | OAuth 2.0 (standard) + REST API for fetching purchase receipts |
+| Outlook API | Microsoft | OAuth 2.0 (PKCE with S256 code challenge) + Microsoft Graph API for fetching purchase receipts |
 | Email (local dev) | Inbucket | Captures outgoing auth emails locally on port 54324 |
 
 ---
@@ -118,7 +119,9 @@ Most backend logic runs through Supabase directly from the web client:
 │  apps/web (React + Vite)                                │
 │    ├─ Supabase JS Client ──► Supabase Auth / DB / RPC   │
 │    ├─ OpenAI fetch ────────► Chat Completions + Embed.  │
-│    └─ Gmail API fetch ─────► OAuth + Receipt Import     │
+│    ├─ OpenAI SDK ─────────► Responses API (receipts)    │
+│    ├─ Gmail API fetch ─────► OAuth + Receipt Import     │
+│    └─ Outlook API fetch ──► OAuth PKCE + Receipt Import │
 │                                                         │
 │  apps/mobile (Expo / React Native)                      │
 │    └─ (scaffold)                                        │

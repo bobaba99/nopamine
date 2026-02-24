@@ -105,12 +105,14 @@ The user can swipe for regret or satisfaction on the purchase. The app will upda
 User clicks "Import Gmail"
   → OAuth flow (Google consent)
   → Store encrypted tokens in email_connections
-  → Fetch recent 100 messages (gmail.users.messages.list)
+  → Fetch emails in batches (initial 50, refill 25, max 500 scanned) via gmail.users.messages.list
   → Multi-stage filter pipeline (see 4.4.2)
   → Get message content (gmail.users.messages.get) for candidates
   → Clean HTML/strip noise
-  → GPT-4o-mini extracts: {title, price, vendor, category, purchase_date}
-  → Create purchases via purchaseService (source='email')
+  → GPT-5-nano extracts via Responses API (client.responses.parse()): {title, price, vendor, category, purchase_date, order_id}
+  → Email content truncated to 3,000 chars (1,400 on retry)
+  → Fingerprint-based deduplication (title+price+date±1day) and order ID dedup
+  → Create purchases via purchaseService (source='email:gmail')
   → Update last_sync timestamp
 
 #### 4.4.1 Edge Cases
@@ -149,6 +151,24 @@ Before sending emails to GPT for parsing, a 3-stage filter pipeline rejects non-
 | Netflix subscription receipt | Price patterns + "receipt" keyword            |
 | Uber Eats receipt            | Price patterns + "total" + "receipt"          |
 | App Store purchase           | Price patterns + "invoice" keyword            |
+
+### 4.4b Flow: Import receipts from Outlook
+
+User clicks "Import Outlook"
+  → OAuth PKCE flow (Microsoft consent, S256 code challenge, scopes: Mail.Read offline_access)
+  → Store encrypted tokens + refresh_token + token_expires_at in email_connections
+  → Fetch emails in batches via Microsoft Graph API (graph.microsoft.com/v1.0/me/messages) with KQL $search queries
+  → Pagination via @odata.nextLink
+  → Same multi-stage filter pipeline as Gmail (see 4.4.2)
+  → GPT-5-nano extracts via Responses API: {title, price, vendor, category, purchase_date, order_id}
+  → Fingerprint-based deduplication and order ID dedup
+  → Create purchases via purchaseService (source='email:outlook')
+  → Update last_sync timestamp
+
+**Key differences from Gmail:**
+- Uses PKCE with S256 code challenge (stores code_verifier in sessionStorage)
+- Token refresh via `refreshOutlookToken()` for token rotation
+- Token expiry check with 5-minute buffer (`isTokenExpired`)
 
 ### 4.5 Flow: User preferences
 
@@ -268,8 +288,10 @@ If the users like the alternative solution offered during the verdict, they can 
 | Create swipe | Supabase Table | `insert swipes`, `update swipe_schedules.completed_at` | Regret/satisfied/not_sure | ✅ done |
 | Undo swipe | Supabase Table | `delete swipes`, `update swipe_schedules.completed_at = null` | 3s undo toast window | ✅ done |
 | Load dashboard stats | Supabase Table | `select swipes`, `select verdicts` (hold status) | Computes completed swipes, regret rate, active holds | ✅ done |
-| Connect Gmail | Google OAuth | `accounts.google.com/o/oauth2/v2/auth` | Implicit OAuth flow, stores token in `email_connections` | ✅ done |
-| Import Gmail receipts | Gmail API + OpenAI | `gmail.users.messages.list`, `gmail.users.messages.get`, GPT-4o-mini | Extracts purchase data from receipt emails | ✅ done |
+| Connect Gmail | Google OAuth | `accounts.google.com/o/oauth2/v2/auth` | Standard OAuth flow, stores token in `email_connections` | ✅ done |
+| Connect Outlook | Microsoft OAuth | `login.microsoftonline.com/common/oauth2/v2.0/authorize` | PKCE (S256 code challenge) OAuth flow, scopes: Mail.Read offline_access | ✅ done |
+| Import Gmail receipts | Gmail API + OpenAI | `gmail.users.messages.list`, `gmail.users.messages.get`, GPT-5-nano via Responses API | Extracts purchase data from receipt emails (batches of 50/25, max 500) | ✅ done |
+| Import Outlook receipts | Outlook API + OpenAI | `graph.microsoft.com/v1.0/me/messages`, GPT-5-nano via Responses API | Extracts purchase data from receipt emails (source='email:outlook') | ✅ done |
 | Share verdict to social media or save as image | REST API | `POST /api/share` | Share endpoint not implemented in current scripts | ❌ not yet |
 | View educational content | REST API | `GET /api/educational-content` | No educational-content API route in current scripts | ❌ not yet |
 | View settings | REST API | `GET /api/settings` | No settings API route in current scripts | ❌ not yet |

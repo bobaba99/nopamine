@@ -323,6 +323,11 @@ Updates `users`: `profile_summary`, `onboarding_answers`, `weekly_fun_budget` (c
 | `vendors` | retrieveVendorMatch, submitVerdict | — |
 | `resources` | getPublishedResources | Admin API (apps/api) |
 | `email_connections` | getEmailConnection, getEmailImportStats, isTokenExpired | saveEmailConnection, updateLastSync, deactivateEmailConnection, deleteEmailConnection |
+| `email_processed_messages` | hasProcessedEmail | markEmailAsProcessed (upsert) |
+| `email_vendors` | email import pipeline (vendor pattern matching) | — (reference data) |
+| `hold_timers` | hold reminder flow | verdict hold creation |
+| `ocr_jobs` | OCR receipt scanning (schema provisioned) | OCR receipt scanning (schema provisioned) |
+| `purchase_stats` | Dashboard stats display | aggregation jobs |
 
 ---
 
@@ -330,11 +335,14 @@ Updates `users`: `profile_summary`, `onboarding_answers`, `weekly_fun_budget` (c
 
 | API | Called by | Purpose |
 |-----|----------|---------|
-| OpenAI Chat Completions (`gpt-4o-mini`) | `evaluatePurchase`, `parseReceiptWithAI` | LLM verdict generation, receipt data extraction |
-| OpenAI Embeddings | `retrieveSimilarPurchases` | Semantic similarity for purchase matching |
+| OpenAI Chat Completions (`gpt-4o-mini`) | `evaluatePurchase` | LLM verdict generation (direct `fetch` call) |
+| OpenAI Responses API (`gpt-5-nano`) | `parseReceiptWithAI` | Receipt data extraction via `client.responses.parse()` (OpenAI SDK, `dangerouslyAllowBrowser: true`) |
+| OpenAI Embeddings (`text-embedding-3-small`) | `retrieveSimilarPurchases` | Semantic similarity for purchase matching (direct `fetch` call) |
 | Gmail API (messages.list) | `listMessages` | Search for receipt emails |
 | Gmail API (messages.get) | `getMessage` | Fetch full email content |
-| Google OAuth | EmailSync page | Obtain Gmail access token |
+| Microsoft Graph API (messages) | `listOutlookMessages`, `getOutlookMessage` | Search and fetch Outlook receipt emails |
+| Google OAuth | EmailSync page | Obtain Gmail access token (standard OAuth) |
+| Microsoft OAuth (PKCE) | EmailSync page | Obtain Outlook access token (S256 code challenge, scopes: Mail.Read offline_access) |
 
 ---
 
@@ -363,14 +371,14 @@ Updates `users`: `profile_summary`, `onboarding_answers`, `weekly_fun_budget` (c
 
 #### `parseReceiptWithAI(emailText, sender, subject, emailDate, openaiApiKey)`
 **File:** `receiptParser.ts`
-**Purpose:** Uses GPT-4o-mini to extract structured purchase data from email content.
+**Purpose:** Uses GPT-5-nano via OpenAI Responses API to extract structured purchase data from email content.
 
 | Step | Operation |
 |------|-----------|
-| 1 | Truncate email content to 4000 chars |
+| 1 | Truncate email content to 3,000 chars (1,400 on retry) |
 | 2 | Build prompt with sender, subject, date, content |
-| 3 | Call OpenAI Chat Completions API |
-| 4 | Parse JSON response |
+| 3 | Call OpenAI Responses API via `client.responses.parse()` (OpenAI SDK with `dangerouslyAllowBrowser: true`) |
+| 4 | Parse structured JSON response |
 | 5 | `validateAndNormalize(parsed, fallbackDate)` |
 
 **Returns:** `ExtractedReceipt | null`
@@ -436,11 +444,39 @@ Weighted keyword scoring:
 
 ---
 
-### 11.4 Page → Service Call Map (EmailSync)
+### 11.4 Outlook Import Pipeline
+
+#### `importOutlookReceipts(accessToken, userId, options)`
+**File:** `importOutlook.ts`
+**Purpose:** Orchestrates Outlook receipt import from OAuth token to purchase creation. Nearly identical flow to Gmail but uses Microsoft Graph API.
+
+| Step | Function Call | Source | External API |
+|------|---------------|--------|--------------|
+| 1 | `listOutlookMessages(accessToken, query)` | outlookClient | Microsoft Graph API |
+| 2 | `getOutlookMessage(accessToken, messageId)` | outlookClient | Microsoft Graph API |
+| 3 | `parseOutlookMessage(message)` | outlookClient | — |
+| 4 | `filterEmailForReceipt(parsed)` | shared emailProcessing | — |
+| 5 | `parseReceiptWithAI(text, sender, subject, date, apiKey)` | receiptParser | OpenAI Responses API |
+| 6 | `supabase.rpc('add_purchase', {...})` | direct | — |
+| 7 | `updateLastSync(userId)` | emailConnectionService | — |
+
+**Key differences from Gmail:**
+- Uses Microsoft Graph API (`graph.microsoft.com/v1.0/me/messages`) with KQL `$search` queries (no `$filter` combined)
+- Pagination via `@odata.nextLink`
+- Purchase source set to `email:outlook`
+- OAuth uses PKCE with S256 code challenge (`outlookAuth.ts`)
+
+**Returns:** `ImportResult { imported, skipped, errors }`
+
+---
+
+### 11.5 Page → Service Call Map (EmailSync)
 
 | User Action | Service Calls (in order) |
 |-------------|--------------------------|
 | Page load | `getEmailConnection` → `getEmailImportStats` |
 | Connect Gmail | Google OAuth redirect → `saveEmailConnection` |
-| Import Receipts | `importGmailReceipts` → `getEmailImportStats` |
+| Connect Outlook | Microsoft OAuth PKCE redirect → `saveEmailConnection` |
+| Import Gmail Receipts | `importGmailReceipts` → `getEmailImportStats` |
+| Import Outlook Receipts | `importOutlookReceipts` → `getEmailImportStats` |
 | Disconnect | `deactivateEmailConnection` |
