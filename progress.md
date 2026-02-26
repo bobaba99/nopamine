@@ -45,13 +45,15 @@
 
 - [ ] Tighten verdict evaluation path robustness and UX messaging for LLM failure/timeout cases — **Branch:** `fix/verdict-llm-timeout-handling`
 - [ ] Refine Profile and history UX polish after recent structural updates — **Branch:** `fix/profile-history-ux-polish`
+- [ ] Mobile viewing adaptation `ui/mobile-adaptation`
+- [ ] Implement settings route/page with language, theme, currency, etc. — **Branch:** `feat/settings-route-user-preferences`
 - [ ] Implement share verdict capability (link/card) — **Branch:** `feat/verdict-share-capability`
+- [ ] Implement swiping if alternative solution is selected and add branching logic to alternatives based on justification (budget or emotional alternative) `feat/alternative-solution`
+- [ ] Implement behavioural responses telemetry and analytics — **Branch:** `feat/behavioral-telemetry-analytics`
+- [ ] Implement user data deletion and data request `feat/account-data-request-deletion`
 - [ ] Implement educational content route/page — **Branch:** `feat/resources-page`
 - [ ] Implement SEO optimization for resources page — **Branch:** `feat/resources-page-seo-optimization`
-- [ ] Implement settings route/page with language, theme, currency, etc. — **Branch:** `feat/settings-route-user-preferences`
-- [ ] Implement behavioural responses telemetry and analytics — **Branch:** `feat/behavioral-telemetry-analytics`
-- [ ] Implement swiping if alternative solution is selected and add branching logic to alternatives based on justification (budget or emotional alternative) `feat/alternative-solution`
-- [ ] Implement user data deletion and data request `feat/account-data-request-deletion`
+
 
 ---
 

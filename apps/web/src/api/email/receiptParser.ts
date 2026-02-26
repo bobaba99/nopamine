@@ -1,6 +1,6 @@
 /**
  * Receipt Parser
- * Uses GPT-4o-mini to extract structured purchase data from email content
+ * Uses gpt-5-nano to extract structured purchase data from email content
  */
 
 import type { PurchaseCategory } from '../core/types'
@@ -62,7 +62,7 @@ const VALID_CATEGORIES: PurchaseCategory[] = [
 ]
 
 /**
- * Parse receipt email content using GPT-4o-mini
+ * Parse receipt email content using gpt-5-nano
  * Returns an array of extracted receipts (one per item in the email)
  * @throws Error if API key is missing or API call fails
  */
