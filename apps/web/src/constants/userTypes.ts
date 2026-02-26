@@ -3,7 +3,7 @@
  * Used by: userProfileService, userValueService, verdictContext, Profile page
  */
 
-export type ThemeMode = 'light' | 'dark' | 'system'
+export type ThemeMode = 'light' | 'dark'
 export type HoldDurationHours = 24 | 48 | 72
 
 export type UserPreferences = {

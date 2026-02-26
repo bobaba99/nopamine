@@ -122,7 +122,6 @@ const identityStabilityOptions = [
 ]
 
 const themeModeOptions: Array<{ value: UserPreferences['theme']; label: string }> = [
-  { value: 'system', label: 'System' },
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
 ]
@@ -414,6 +413,17 @@ export default function Profile({ session }: ProfileProps) {
   const openPreferencesModal = () => {
     setProfileDraftPreferences(profilePreferences)
     setPreferencesModalOpen(true)
+  }
+
+  const handleThemeSelection = (theme: UserPreferences['theme']) => {
+    setProfileDraftPreferences((prev) => ({
+      ...prev,
+      theme,
+    }))
+    setGlobalPreferences({
+      ...preferences,
+      theme,
+    })
   }
 
   const handleProfileSave = async () => {
@@ -993,12 +1003,7 @@ export default function Profile({ session }: ProfileProps) {
               key={option.value}
               type="button"
               className={`quiz-chip ${profileDraftPreferences.theme === option.value ? 'selected' : ''}`}
-              onClick={() =>
-                setProfileDraftPreferences((prev) => ({
-                  ...prev,
-                  theme: option.value,
-                }))
-              }
+              onClick={() => handleThemeSelection(option.value)}
             >
               {option.label}
             </LiquidButton>
@@ -1657,12 +1662,7 @@ export default function Profile({ session }: ProfileProps) {
                       key={option.value}
                       type="button"
                       className={`quiz-chip ${profileDraftPreferences.theme === option.value ? 'selected' : ''}`}
-                      onClick={() =>
-                        setProfileDraftPreferences((prev) => ({
-                          ...prev,
-                          theme: option.value,
-                        }))
-                      }
+                      onClick={() => handleThemeSelection(option.value)}
                     >
                       {option.label}
                     </LiquidButton>

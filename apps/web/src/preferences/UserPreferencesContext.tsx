@@ -21,24 +21,14 @@ import {
   formatDateValue,
 } from '../utils/formatters'
 
-type ResolvedTheme = 'light' | 'dark'
-
 type UserPreferencesContextValue = {
   preferences: UserPreferences
-  effectiveTheme: ResolvedTheme
+  effectiveTheme: UserPreferences['theme']
   setPreferences: (next: UserPreferences) => void
   refreshPreferences: () => Promise<void>
 }
 
 const UserPreferencesContext = createContext<UserPreferencesContextValue | null>(null)
-
-const getSystemTheme = (): ResolvedTheme =>
-  typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark'
-    : 'light'
-
-const resolveTheme = (theme: UserPreferences['theme']): ResolvedTheme =>
-  theme === 'system' ? getSystemTheme() : theme
 
 export function UserPreferencesProvider({
   session,
@@ -50,20 +40,15 @@ export function UserPreferencesProvider({
   const [preferences, setPreferences] = useState<UserPreferences>(() =>
     buildDefaultUserPreferences(),
   )
-  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(getSystemTheme)
+
+  const effectiveTheme = preferences.theme
 
   useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    const handler = (e: MediaQueryListEvent) => setSystemTheme(e.matches ? 'dark' : 'light')
-    mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
-  }, [])
-
-  const effectiveTheme: ResolvedTheme =
-    preferences.theme === 'system' ? systemTheme : resolveTheme(preferences.theme)
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = effectiveTheme
+    if (effectiveTheme === 'dark') {
+      document.documentElement.dataset.theme = 'dark'
+    } else {
+      delete document.documentElement.dataset.theme
+    }
     document.documentElement.style.colorScheme = effectiveTheme
   }, [effectiveTheme])
 

@@ -1,4 +1,4 @@
--- Allow 'system' theme mode and optional locale field in preferences JSONB
+-- Add optional locale field to preferences JSONB constraint
 alter table users drop constraint if exists users_preferences_shape_check;
 
 alter table users add constraint users_preferences_shape_check check (
@@ -7,7 +7,7 @@ alter table users add constraint users_preferences_shape_check check (
     jsonb_typeof(preferences) = 'object'
     and (
       not (preferences ? 'theme')
-      or (preferences ->> 'theme') in ('light', 'dark', 'system')
+      or (preferences ->> 'theme') in ('light', 'dark')
     )
     and (
       not (preferences ? 'locale')

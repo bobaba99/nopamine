@@ -4,7 +4,7 @@ import type {
   UserPreferences,
 } from '../constants/userTypes'
 
-export const DEFAULT_THEME_MODE: ThemeMode = 'system'
+export const DEFAULT_THEME_MODE: ThemeMode = 'light'
 export const DEFAULT_LOCALE = 'en-US'
 export const DEFAULT_CURRENCY = 'USD'
 export const DEFAULT_HOLD_DURATION_HOURS: HoldDurationHours = 24
@@ -73,7 +73,7 @@ const REGION_TO_CURRENCY: Record<string, string> = {
 }
 
 const isThemeMode = (value: unknown): value is ThemeMode =>
-  value === 'light' || value === 'dark' || value === 'system'
+  value === 'light' || value === 'dark'
 
 const isHoldDurationHours = (value: unknown): value is HoldDurationHours =>
   typeof value === 'number' && HOLD_DURATION_VALUES.includes(value as HoldDurationHours)

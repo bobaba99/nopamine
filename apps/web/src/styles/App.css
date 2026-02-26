@@ -74,7 +74,7 @@
   display: flex;
   justify-content: flex-start;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .brand {
@@ -120,6 +120,10 @@
   font-size: 0.9rem;
   color: var(--ink-900);
   font-weight: 600;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hint {
@@ -346,17 +350,18 @@
 
 .nav {
   display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
 }
 
 .nav-link {
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 999px;
   border: none;
   text-decoration: none;
   color: var(--ink-600);
   font-weight: 600;
+  white-space: nowrap;
   background: transparent;
   transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -636,9 +641,9 @@
 }
 
 .quiz-chip.selected {
-  background: #fff;
-  color: #000;
-  border-color: transparent;
+  background: rgba(59, 130, 246, 0.22);
+  color: var(--ink-900);
+  border-color: rgba(59, 130, 246, 0.55);
 }
 
 .quiz-range {
@@ -3344,9 +3349,14 @@
   transform: rotate(-45deg);
 }
 
-/* Session chip variants — desktop visible, mobile hidden by default */
-.session-chip--mobile {
+/* Session chip variants — always use compact avatar chip */
+.session-chip--desktop {
   display: none;
+}
+
+.session-chip--mobile {
+  display: inline-flex;
+  white-space: nowrap;
 }
 
 /* Avatar placeholder circle */
@@ -3363,6 +3373,7 @@
   font-weight: 700;
   flex-shrink: 0;
 }
+
 
 /* =============================================
    Mobile Adaptation
@@ -3438,14 +3449,6 @@
     border-radius: 12px;
   }
 
-  /* Swap session chips: show compact avatar, hide full email */
-  .session-chip--desktop {
-    display: none;
-  }
-
-  .session-chip--mobile {
-    display: inline-flex;
-  }
 }
 
 /* --- Phone (≤ 600px) --- */

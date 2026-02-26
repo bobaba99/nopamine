@@ -48,7 +48,6 @@
 
 ## In Progress
 
-- [ ] Refine Profile and history UX polish after recent structural updates — **Branch:** `fix/profile-history-ux-polish`
 - [ ] Implement share verdict capability (image export to social media) — **Branch:** `feat/verdict-share-capability`
 - [ ] Implement alternative solution branching (budget vs. emotional) and queue accepted alternatives for swiping — **Branch:** `feat/alternative-solution`
 - [ ] Implement user data deletion and data export (GDPR Art. 17, 20) — **Branch:** `feat/account-data-request-deletion`

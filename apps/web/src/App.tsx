@@ -352,11 +352,6 @@ function App() {
                   Profile
                 </NavLink>
               )}
-              {session && isAdminUser && (
-                <NavLink to="/admin/resources" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
-                  Admin
-                </NavLink>
-              )}
               <NavLink to="/resources" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
                 Resources
               </NavLink>
@@ -366,6 +361,11 @@ function App() {
               <NavLink to="/support" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
                 Support
               </NavLink>
+              {session && isAdminUser && (
+                <NavLink to="/admin/resources" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+                  Admin
+                </NavLink>
+              )}
             </nav>
             <div className="top-actions">
               {session ? (
