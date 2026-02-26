@@ -9,24 +9,18 @@ TruePick is not a budgeting app, not a no-buy tool, not a review aggregator. It 
 ---
 
 ## 2. Problem Statement
-<!-- What problem does this product solve? Who experiences it? What is the impact? -->
-This service helps clients to make purchases decisions to reduce future purchase regret and increase satisfaction. It aims to eliminate the cognitive work for the clients and generate informed reasoning process to facilitate financially healthy spendings. In some aspects, the reasoning provided may also reduce the guilt experienced with a major but necessary purchase through its reasonings.
 
-The target clients are 18-40 years old North American adults with difficulties in impulse purchases. Over 70% of North American adults aged 18–40 experience purchase regret, collectively spending an estimated $3,400 per year on impulse buys. Cultural tailwinds are strong: the no-buy movement, underconsumption core, and de-influencing have gone mainstream, with 44% of Americans planning or considering a no-buy challenge in 2025. Yet the competitive landscape reveals a striking gap — virtually no app delivers a personalized, AI-powered buy/skip verdict at the moment of purchase.
+Helps 18-40 year old North American adults make better purchase decisions to reduce regret and increase satisfaction. The app intervenes at the moment of deliberation, processes reasoning, identifies whether motivation is rational or emotional, and routes to the appropriate resolution path.
 
-Capital One Shopping data shows consumers averaged $282 per month ($3,381 annually) on impulse buys in 2024, with an average of 9.75 impulse purchases monthly at roughly $29 each.  Among Gen Z and Millennials specifically, a BadCredit.org survey of 1,002 consumers aged 18–43 found that 90.4% engage in impulse buying, with 40.8% citing emotional distress and 35.7% citing stress as primary triggers. Finder data shows that electronics purchases generate the highest per-item regret at $175.85 average, while apparel — where 77% experience remorse — averages $72 in regretted spending.
-
-"no spend challenges" Google searches hit an all-time high in early 2025, up 40% year-over-year according to the Wall Street Journal. A Chime survey found 20% of Americans participated in a no-buy challenge in 2024, and an Intuit Credit Karma survey found 44% are doing or considering one in 2025. On TikTok, 94.4 million posts carry no-buy tags, while "underconsumption core" — which originated in summer 2024 — accumulated 44.9 million posts within months. The de-influencing hashtag has surpassed 233 million views. These movements reflect deeper economic pressures on young consumers: post-pandemic inflation, rising housing costs, and growing skepticism of influencer-driven consumption. The spread of buy-now-pay-later services has compounded the problem — 46% of Gen Z used BNPL in 2024 (up from 26% in 2023), and 42% of BNPL users made at least one late payment in 2025, suggesting a cycle of regret and overextension.
+**Key market signals:** ~$3,400/year spent on impulse buys per person, 90% of Gen Z/Millennials impulse buy, 44% of Americans considering no-buy challenges (2025). No existing app delivers personalized, AI-powered buy/skip verdicts at point of purchase.
 
 ### 2.1 Competitors
 
-Stop Impulse Buying (SIB), launched January 2024 by a husband-wife team in Washington state, offers a "Buy or Don't Buy" questionnaire that walks users through generic reflective
-questions. It includes a no-spend challenge tracker and savings tracker but uses no AI, no personalization to user values or personality, and no app-blocking. It remains a small indie product with "thousands" of users.
-
-SpendPause, a recently launched app, uses AI-powered photo analysis to classify purchases as "need vs. want" and includes alternative suggestions and a cooling-off period. It is the closest competitor to TruePick's vision but lacks personality-driven personalization, values-based analysis, and shopping app blocking. It appears to have minimal traction.
-
-The biggest adjacent competitor, Cleo AI, validates that an AI-powered, personality-driven financial tool can achieve massive scale with young adults.
-Users engage with Cleo 20x more than traditional banking apps. But Cleo is a budgeting and savings tool that operates retrospectively, not a point-of-purchase decision tool.
+| Competitor | What they do | Gap vs TruePick |
+|-----------|-------------|-----------------|
+| Stop Impulse Buying (SIB) | Generic reflective questionnaire, no-spend tracker | No AI, no personalization, no values-based analysis |
+| SpendPause | AI photo analysis for need vs want | No personality-driven personalization, minimal traction |
+| Cleo AI | AI budgeting/savings with personality | Retrospective, not point-of-purchase |
 
 ---
 
@@ -152,31 +146,33 @@ Secondary users are adjacent groups who may not identify as impulse spenders but
 
 ### 5.2 Non-Functional Requirements
 
-| ID | Requirement | Category | Target |
-|----|------------|----------|--------|
-| NFR-001 | Verdict page (form + result) achieves Largest Contentful Paint under threshold on mobile 4G. | Performance | LCP < 2.5s |
-| NFR-002 | Time from verdict submission to verdict display, including LLM API round-trip. | Performance | < 3s (p95) |
-| NFR-003 | Interaction to Next Paint for all interactive elements (buttons, form fields, share actions). | Performance | INP < 200ms |
-| NFR-004 | Cumulative Layout Shift across the verdict flow (form -> loading -> result display). | Performance | CLS < 0.1 |
-| NFR-005 | Time to First Byte for initial page load and verdict API endpoint. | Performance | TTFB < 800ms |
-| NFR-006 | Web app uptime measured monthly, excluding scheduled maintenance windows. | Reliability | 99.5% uptime |
-| NFR-007 | LLM API failure graceful degradation: if primary model is unavailable, fall back to secondary model or cached generic verdict. | Reliability | Fallback activates within 5s of primary timeout; user sees verdict within 8s worst case. |
-| NFR-008 | All user data (profiles, verdicts, accounts) encrypted at rest using AES-256. | Security | AES-256 encryption at rest |
-| NFR-009 | All data in transit encrypted via TLS 1.2+. No HTTP endpoints. | Security | TLS 1.2+ enforced; HSTS enabled |
-| NFR-010 | User authentication via bcrypt-hashed passwords or OAuth 2.0. No plaintext credential storage. | Security | bcrypt (cost factor >= 12) or OAuth 2.0 |
-| NFR-011 | LLM API keys stored in environment variables or secrets manager, never in client-side code or version control. | Security | Zero API keys in frontend bundle or git history |
-| NFR-012 | Rate limiting on verdict API to prevent abuse and control LLM costs. | Security | 10 verdicts/hour per IP (anonymous); 30/hour per authenticated user |
-| NFR-013 | GDPR and CCPA compliance: user data exportable and deletable on request. | Compliance | Data export within 72 hours; full deletion (including verdict logs) within 30 days of request |
-| NFR-014 | Privacy policy and terms of service clearly explain data collection, LLM usage, and data retention. | Compliance | Published and linked from footer on all pages before public launch |
-| NFR-015 | WCAG 2.1 Level AA compliance for all user-facing pages. | Accessibility | Lighthouse Accessibility score >= 90; keyboard-navigable verdict flow; screen reader compatible |
-| NFR-016 | Responsive design: fully functional on mobile (320px+), tablet, and desktop viewports. | Accessibility | No horizontal scrolling or broken layouts at 320px, 768px, 1024px, 1440px widths |
-| NFR-017 | Architecture supports 10x current traffic without re-architecture. Verdict API is stateless and horizontally scalable. | Scalability | Handles 100 concurrent verdict requests with < 5s p99 latency |
-| NFR-018 | Database schema supports future features (email sync, purchase history, swipe interface) without breaking changes. | Scalability | Schema includes nullable fields and foreign keys for iOS app features per existing SQL schema design |
-| NFR-019 | LLM model is swappable via configuration (not hardcoded). Supports rapid switching between providers/models for cost or quality optimization. | Scalability | Model change requires config update only, no code deployment. Supports Claude, gpt-5-nano, and equivalent tier models |
-| NFR-020 | Google Lighthouse overall score for verdict page. | Performance | Score >= 85 (Performance, Accessibility, Best Practices, SEO) |
-| NFR-021 | Structured verdict data log completeness: percentage of verdicts with all required schema fields populated. | Data Quality | 100% of required fields; >= 95% of optional fields (category, confidence) |
-| NFR-022 | Automated deployment pipeline with staging environment for pre-production testing. | Maintainability | CI/CD pipeline deploys to staging on PR merge; production deploy requires manual approval |
-| NFR-023 | Error monitoring and alerting for LLM API failures, server errors, and anomalous traffic patterns. | Observability | Alerts within 5 minutes of: >5% error rate, LLM API downtime, or traffic spike >3x baseline |
+**Performance**
+- Verdict page LCP < 2.5s on mobile 4G; Lighthouse score >= 85
+- Verdict submission to display < 3s (p95); fallback verdict within 8s if LLM fails
+- INP < 200ms; CLS < 0.1; TTFB < 800ms
+
+**Reliability**
+- 99.5% uptime; LLM fallback activates within 5s of primary timeout
+
+**Security**
+- LLM API keys in env vars / secrets manager only, never in frontend bundle or git
+- Rate limiting: 10 verdicts/hour anonymous, 30/hour authenticated
+- Supabase handles encryption at rest, TLS, and auth (bcrypt/JWT)
+
+**Compliance**
+- GDPR/CCPA: data export within 72 hours, full deletion within 30 days
+- Privacy policy and ToS published before launch
+
+**Accessibility**
+- WCAG 2.1 AA; responsive from 320px to desktop
+- Keyboard-navigable verdict flow; screen reader compatible
+
+**Scalability**
+- LLM model swappable via config, no code deploy needed
+- Schema supports future features without breaking changes
+
+**Not yet implemented**
+- CI/CD pipeline, error monitoring/alerting, structured data log completeness checks
 
 ---
 

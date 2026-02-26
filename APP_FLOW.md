@@ -1,20 +1,23 @@
 # Application Flow
 
 ## 1. Overview
-<!-- High-level description of how a user moves through the application -->
 
-### Guest user
+### Free tier (web app)
 
-User completes a 5-question quiz to improve verdict accuracy, then proceeds to enter the details of their purchase at hand. The app generates the verdict for them and prompts to ask the guest if they want to sign up and save their quiz and verdict results.
+User registers, completes the onboarding quiz to profile spending tendencies, and receives up to **3 AI verdicts per week** with limited rationale depth. Educational resources are available to all free users. The free tier builds habit and trust — no analytics, no behavioral tracking, just the core decision tool.
 
-### Registered user
+### Premium tier
 
-User completes the full 10-question quiz. After entering the details of their purchase at hand, the app generates the verdict for them.
-User also has the option to import their 10-20 most recent purchases through email API. They will swipe for regret or satisfaction to generate aggregated purchase-regret trends in assisting the verdict service. If the verdict is not 'hold', it will automatically add the item to the swiping queue for future feedback on their regret/satisfaction on purchasing or not purchasing the item (regardless of the verdict decision).
+Unlocks **unlimited verdicts** with full rationale referencing the user's profile and values, plus:
+
+- **Chrome Extension** — session awareness on e-commerce sites, checkout interstitial friction, and opt-in website blocking (shipped incrementally in Phase 2).
+- **Web App analytics** — spending pattern reports, alternative recommendations, ongoing email syncing with post-purchase satisfaction tracking, and a conversational agent for querying purchase history (Phase 3).
+
+Users can import email receipts (Gmail, Outlook) and swipe on past purchases for regret/satisfaction to build aggregated spending patterns that improve verdict accuracy. If the verdict is not 'hold', the item is automatically queued for future regret/satisfaction feedback.
 
 ### Shared features
 
-The educational content is available for all users. The user can also share the verdict as an image to iMesssage, Messenger, Whatsapp, Instagram, etc.
+Educational content and verdict sharing (image export to iMessage, Messenger, WhatsApp, Instagram, etc.) are available to all users.
 
 ---
 
@@ -73,6 +76,8 @@ The user enters the details of their purchase at hand. The app generates the ver
 
 The details include the product name, price, category, vendor, justification, and a toggle to indicate if the purchase is important or not (i.e., major purchase like a laptop, a new phone, etc.). The app will use an emoji to present the item's product category as an extra UI element to help the user understand the category of the purchase.
 
+**Free tier:** 3 verdicts per week with a shorter rationale. **Premium tier:** unlimited verdicts with full rationale referencing user profile and values.
+
 ```
 [Dashboard] → [Purchase Details Entry] → [Verdict Generation] → [Verdict Result]
 ```
@@ -126,33 +131,7 @@ User clicks "Import Gmail"
 
 #### 4.4.2 Multi-Stage Receipt Filtering
 
-Before sending emails to GPT for parsing, a 3-stage filter pipeline rejects non-receipt emails:
-
-| Stage | Filter             | Rejects                                                                  |
-|-------|--------------------|--------------------------------------------------------------------------|
-| 1     | Negative patterns  | Shipping notifications, refunds, returns, promotions, account management |
-| 2     | Price detection    | Emails with no price patterns ($, €, £, total, amount)                   |
-| 3     | Keyword confidence | Emails with low receipt keyword confidence (<0.5 weighted score)         |
-
-**Emails rejected by the filter pipeline:**
-
-| Email Type                  | Rejection Reason                               |
-|-----------------------------|------------------------------------------------|
-| "Your order has shipped"    | Stage 1: negative pattern (shipping)           |
-| "Refund processed"          | Stage 1: negative pattern (refund)             |
-| "Limited time offer!"       | Stage 1: negative pattern (promotional)        |
-| "Password reset"            | Stage 1: negative pattern (account management) |
-| Newsletter with "order now" | Stage 2: no price patterns                     |
-| Generic "thank you" email   | Stage 3: low confidence                        |
-
-**Emails that pass to GPT:**
-
-| Email Type                   | Why It Passes                                 |
-|------------------------------|-----------------------------------------------|
-| Amazon order confirmation    | Price patterns + "order confirmation" keyword |
-| Netflix subscription receipt | Price patterns + "receipt" keyword            |
-| Uber Eats receipt            | Price patterns + "total" + "receipt"          |
-| App Store purchase           | Price patterns + "invoice" keyword            |
+Before sending emails to GPT, a 3-stage filter rejects non-receipts: (1) negative patterns (shipping, refunds, promos), (2) no price patterns detected, (3) low keyword confidence (<0.5). Only emails with price signals and receipt keywords (order confirmation, invoice, receipt) pass to GPT. See `apps/web/src/api/email/receiptParser.ts` for implementation.
 
 ### 4.4b Flow: Import receipts from Outlook
 
@@ -258,89 +237,45 @@ Desktop: persistent topbar with nav links. Mobile (≤768px): hamburger menu ove
 
 | Current State | Event | Next State | Implemented |
 |--------------|-------|------------|-------------|
-| Guest User | Sign up / sign in with email + password | Registered User | ✅ done |
-| Guest User | Complete the short quiz to improve verdict accuracy | Guest User | ❌ not yet |
-| Guest User | Enter purchase details for instant verdict (no account) | Guest User | ❌ not yet |
-| Guest User | Try to access protected route (`/`, `/swipe`, `/profile`) | Guest User (redirect to `/auth`) | ✅ done |
-| Registered User | Complete or edit onboarding/profile answers | Registered User | ✅ done |
-| Registered User | Submit purchase decision form and receive verdict | Registered User | ✅ done |
-| Registered User | Mark verdict decision (`bought` / `hold` / `skip`) | Registered User | ✅ done |
-| Registered User | Add / edit / delete purchases | Registered User | ✅ done |
-| Registered User | Swipe for regret/satisfaction (including undo) | Registered User | ✅ done |
-| Registered User | View purchase stats | Registered User | ✅ done |
-| Registered User | View verdict history | Registered User | ✅ done |
-| Registered User | Import purchases from email | Registered User | ✅ done |
-| Registered User | Logout | Guest User | ✅ done |
+| Unauthenticated | Sign up / sign in with email + password | Free User | ✅ done |
+| Unauthenticated | Try to access protected route (`/`, `/swipe`, `/profile`) | Unauthenticated (redirect to `/auth`) | ✅ done |
+| Free User | Complete or edit onboarding/profile answers | Free User | ✅ done |
+| Free User | Submit purchase decision form (up to 3/week) | Free User | ❌ not yet (no cap enforced) |
+| Free User | Mark verdict decision (`bought` / `hold` / `skip`) | Free User | ✅ done |
+| Free User | Add / edit / delete purchases | Free User | ✅ done |
+| Free User | Swipe for regret/satisfaction (including undo) | Free User | ✅ done |
+| Free User | View purchase stats | Free User | ✅ done |
+| Free User | View verdict history | Free User | ✅ done |
+| Free User | Import purchases from email | Free User | ✅ done |
+| Free User | Upgrade to premium | Premium User | ❌ not yet |
+| Premium User | Unlimited verdicts with full rationale | Premium User | ❌ not yet |
+| Premium User | Access spending reports and analytics | Premium User | ❌ not yet |
+| Any authenticated | Logout | Unauthenticated | ✅ done |
 
 ---
 
 ## 7. API Interaction Points
-<!-- Where does the frontend call the backend? Map UI actions to API endpoints. -->
 
-| UI Action | Method | Endpoint / Service Call | Notes | Implemented |
-|-----------|--------|--------------------------|-------|-------------|
-| Sign in | Supabase Auth | `supabase.auth.signInWithPassword` | Email/password auth in `App.tsx` | ✅ done |
-| Sign up | Supabase Auth | `supabase.auth.signUp` | Email/password signup in `App.tsx` | ✅ done |
-| Logout | Supabase Auth | `supabase.auth.signOut` | Session reset to guest | ✅ done |
-| Sync user record on auth | Supabase Table | `upsert users` via `supabase.from('users').upsert(...)` | Updates `last_active` and email | ✅ done |
-| Generate verdict | OpenAI + Supabase | `evaluatePurchase()` -> `fetch /v1/chat/completions`, then `insert verdicts` | Uses fallback scoring when API key missing/fails | ✅ done |
-| Load verdict history | Supabase Table | `select verdicts` | Used by Dashboard/Profile | ✅ done |
-| Update verdict decision | Supabase Table + RPC | `update verdicts` + `rpc add_purchase` (when bought) | Also removes verdict-linked purchase on reversal | ✅ done |
-| Create purchase | Supabase RPC | `rpc add_purchase` | Manual purchase creation flow | ✅ done |
-| Load purchases | Supabase Table | `select purchases` | Purchase history in Profile | ✅ done |
-| Update / delete purchase | Supabase Table | `update purchases`, `delete purchases` | Deletion also updates linked verdict decision | ✅ done |
-| Load swipe queue | Supabase Table | `select swipe_schedules` (+ joined purchase) | Supports due + upcoming queue | ✅ done |
-| Create swipe | Supabase Table | `insert swipes`, `update swipe_schedules.completed_at` | Regret/satisfied/not_sure | ✅ done |
-| Undo swipe | Supabase Table | `delete swipes`, `update swipe_schedules.completed_at = null` | 3s undo toast window | ✅ done |
-| Load dashboard stats | Supabase Table | `select swipes`, `select verdicts` (hold status) | Computes completed swipes, regret rate, active holds | ✅ done |
-| Connect Gmail | Google OAuth | `accounts.google.com/o/oauth2/v2/auth` | Standard OAuth flow, stores token in `email_connections` | ✅ done |
-| Connect Outlook | Microsoft OAuth | `login.microsoftonline.com/common/oauth2/v2.0/authorize` | PKCE (S256 code challenge) OAuth flow, scopes: Mail.Read offline_access | ✅ done |
-| Import Gmail receipts | Gmail API + OpenAI | `gmail.users.messages.list`, `gmail.users.messages.get`, GPT-5-nano via Responses API | Extracts purchase data from receipt emails (batches of 50/25, max 500) | ✅ done |
-| Import Outlook receipts | Outlook API + OpenAI | `graph.microsoft.com/v1.0/me/messages`, GPT-5-nano via Responses API | Extracts purchase data from receipt emails (source='email:outlook') | ✅ done |
-| Share verdict to social media or save as image | REST API | `POST /api/share` | Share endpoint not implemented in current scripts | ❌ not yet |
-| View educational content | REST API | `GET /api/educational-content` | No educational-content API route in current scripts | ❌ not yet |
-| View settings | REST API | `GET /api/settings` | No settings API route in current scripts | ❌ not yet |
+API calls are mapped in `BACKEND_GUIDELINES.md` Section 2.3. Key patterns:
+
+- **Auth:** Supabase Auth (`signInWithPassword`, `signUp`, `signOut`)
+- **CRUD:** `supabase.from('<table>')` for reads/writes
+- **Protected writes:** `supabase.rpc('add_purchase')`, `supabase.rpc('add_user_value')`
+- **LLM:** Direct `fetch` to OpenAI Chat Completions + Embeddings
+- **Email import:** Gmail REST API / Microsoft Graph API + GPT-5-nano receipt parsing
+
+**Not yet implemented:** share verdict endpoint, educational content API, settings API, verdict rate limiting (free tier cap), premium tier billing/upgrade flow, Chrome Extension APIs, spending analytics endpoints.
 
 ---
 
 ## 8. Error Handling & Edge Cases
 
-Use short, action-oriented status messages in the existing `.status` banner pattern (`error` / `success` / `info`). Prefer recoverable guidance over technical jargon.
+Error messages use inline `.status` banners (`error` / `success` / `info`). Rules:
 
-### 8.1 Implemented Error Messages (Current Scripts)
+- Keep messages under ~120 characters
+- State the problem first, then the next step
+- Never expose internal schema/table names to end users
+- Preserve user input and scroll position on recoverable errors
+- Show confirm step before irreversible actions (delete purchase/verdict)
 
-| Flow | Trigger / Edge Case | User-Facing Message | Recovery Action | Implemented |
-|------|----------------------|---------------------|-----------------|-------------|
-| Auth | Missing Supabase env vars | `Missing Supabase config. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your Vite environment.` | Add env vars and restart app | ✅ done |
-| Auth | Sign-in / sign-up failure | Supabase error message (`error.message`) | Retry credentials or sign up flow | ✅ done |
-| Auth | Sign-out success | `Signed out.` | Redirect via auth guard to `/auth` | ✅ done |
-| Dashboard | Empty title on verdict form | `Item title is required.` | Fill required input | ✅ done |
-| Dashboard/Profile | Supabase mutation errors | Raw service error string (`setStatus(error)`) | Retry action; keep form state | ✅ done |
-| Profile | Profile row missing + no email | `Profile not found and user email is missing.` | Re-authenticate or support path | ✅ done |
-| Profile | Profile creation conflict | `Profile sync issue. Please contact support or try signing out and back in.` | Re-login; admin data repair if needed | ✅ done |
-| Profile | Profile fetch catch-all | `Profile load error: <message>` | Retry and verify session | ✅ done |
-| Profile | Invalid budget input | `Weekly fun budget must be a positive number.` | Correct input and resubmit | ✅ done |
-| Profile | Invalid purchase fields | `Purchase title is required.` / `Purchase price must be a positive number.` / `Purchase date is required.` | Fix validation errors | ✅ done |
-| Profile | Failed list loads | `Unable to load verdicts from Supabase. Check RLS policies.` / `Unable to load purchases from Supabase. Check RLS policies.` | Verify DB policies/session | ✅ done |
-| Swipe | Queue fetch failure | `Failed to load purchases.` | Retry via refresh/reload | ✅ done |
-| Swipe | Undo failure | `Failed to undo.` | Retry while item remains in context | ✅ done |
-| Swipe | Swipe creation/update failure | Service error (`setStatus(error)`) | Retry swipe | ✅ done |
-
-### 8.2 Edge Cases To Handle Explicitly Next
-
-| Area | Edge Case | Recommended Message | Recommended Behavior | Implemented |
-|------|-----------|---------------------|----------------------|-------------|
-| OpenAI verdicting | API timeout / provider outage | `Verdict service is slow right now. Showing a fallback recommendation.` | Return deterministic fallback verdict; keep interaction under 8s | ⚠️ partial (fallback exists, message not explicit) |
-| Network | Offline / transient network error | `You appear offline. Check your connection and try again.` | Detect offline state; disable submit buttons temporarily | ❌ not yet |
-| Session | Expired/invalid auth session on protected actions | `Your session expired. Please sign in again.` | Force sign-out and redirect to `/auth` | ❌ not yet |
-| Data consistency | Duplicate swipe attempt | `This purchase was already rated.` | Keep current index unchanged; show non-blocking info | ⚠️ partial (duplicate handled in service, message generic) |
-| Profile bootstrap | Newly created profile not queryable immediately | `Profile created, but still syncing. Please refresh in a moment.` | Auto-retry fetch once before showing message | ⚠️ partial (message exists, no auto-retry) |
-| Feature availability | Not-yet endpoints (`/api/share`, educational content API, settings API) | `This feature is coming soon.` | Hide unsupported actions or show disabled CTA with tooltip | ❌ not yet |
-
-### 8.3 Messaging Rules
-
-- Keep messages under ~120 characters when possible.
-- State the problem first, then the next step.
-- Avoid exposing internal schema/table names to end users (replace RLS-specific wording in production UI).
-- For recoverable operations, preserve user input and scroll position.
-- For irreversible actions (delete purchase/verdict), show confirm step before mutation.
+**Still needed:** offline detection, session expiry handling, explicit fallback verdict message.
