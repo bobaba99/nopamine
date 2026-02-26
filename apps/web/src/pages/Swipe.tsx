@@ -20,6 +20,8 @@ type LastSwipe = {
 type SwipeFilterMode = 'all' | SwipeTiming
 
 const UNDO_TIMEOUT_MS = 3000
+const QUEUE_SWIPE_THRESHOLD = 60
+const QUEUE_SWIPE_DOWN_THRESHOLD = 60
 
 const formatTimingLabel = (timing: SwipeTiming) => {
   switch (timing) {
@@ -41,6 +43,101 @@ const formatOutcomeLabel = (outcome: SwipeOutcome) => {
     return 'not sure'
   }
   return outcome
+}
+
+function SwipeableQueueCard({
+  item,
+  isDue,
+  isDismissed,
+  onSwipe,
+}: {
+  item: SwipeQueueItem
+  isDue: boolean
+  isDismissed: boolean
+  onSwipe: (item: SwipeQueueItem, outcome: SwipeOutcome) => void
+}) {
+  const cardNodeRef = useRef<HTMLDivElement>(null)
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
+  const [swipeOutcome, setSwipeOutcome] = useState<SwipeOutcome | null>(null)
+
+  const onTouchStart = useCallback((e: ReactTouchEvent) => {
+    const touch = e.touches[0]
+    touchStart.current = { x: touch.clientX, y: touch.clientY }
+    if (cardNodeRef.current) {
+      cardNodeRef.current.style.transition = 'none'
+    }
+  }, [])
+
+  const onTouchEnd = useCallback((e: ReactTouchEvent) => {
+    if (!touchStart.current || !cardNodeRef.current) return
+    const touch = e.changedTouches[0]
+    const deltaX = touch.clientX - touchStart.current.x
+    const deltaY = touch.clientY - touchStart.current.y
+    touchStart.current = null
+
+    cardNodeRef.current.style.transition = ''
+    cardNodeRef.current.style.transform = ''
+    cardNodeRef.current.style.opacity = ''
+
+    if (Math.abs(deltaX) > QUEUE_SWIPE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY)) {
+      const outcome: SwipeOutcome = deltaX < 0 ? 'regret' : 'satisfied'
+      setSwipeOutcome(outcome)
+      onSwipe(item, outcome)
+    } else if (deltaY > QUEUE_SWIPE_DOWN_THRESHOLD && Math.abs(deltaY) > Math.abs(deltaX)) {
+      setSwipeOutcome('not_sure')
+      onSwipe(item, 'not_sure')
+    }
+  }, [item, onSwipe])
+
+  // Attach non-passive touchmove
+  useEffect(() => {
+    const node = cardNodeRef.current
+    if (!node) return
+
+    const handleMove = (e: globalThis.TouchEvent) => {
+      if (!touchStart.current || !cardNodeRef.current) return
+      const touch = e.touches[0]
+      const deltaX = touch.clientX - touchStart.current.x
+      const deltaY = touch.clientY - touchStart.current.y
+
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 8) {
+        e.preventDefault()
+      }
+
+      const rotation = deltaX * 0.06
+      const opacity = Math.max(0.5, 1 - Math.abs(deltaX) / 200)
+      cardNodeRef.current.style.transform = `translateX(${deltaX}px) rotate(${rotation}deg)`
+      cardNodeRef.current.style.opacity = String(opacity)
+    }
+
+    node.addEventListener('touchmove', handleMove, { passive: false })
+    return () => node.removeEventListener('touchmove', handleMove)
+  }, [])
+
+  const dismissClass = isDismissed
+    ? swipeOutcome === 'regret'
+      ? 'queue-card-dismissed-left'
+      : swipeOutcome === 'not_sure'
+        ? 'queue-card-dismissed-down'
+        : 'queue-card-dismissed-right'
+    : ''
+
+  return (
+    <div
+      ref={cardNodeRef}
+      className={`queue-card-wrapper ${dismissClass}`}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      <GlassCard className="upcoming-card glass-panel">
+        <span className="upcoming-title">{item.purchase.title}</span>
+        <span className="upcoming-meta">
+          {formatTimingLabel(item.timing)} •{' '}
+          {isDue ? 'Due now' : new Date(item.scheduled_for).toLocaleDateString()}
+        </span>
+      </GlassCard>
+    </div>
+  )
 }
 
 export default function Swipe({ session }: SwipeProps) {
@@ -67,6 +164,51 @@ export default function Swipe({ session }: SwipeProps) {
     setLastSwipe(null)
     clearUndoTimer()
   }, [clearUndoTimer])
+
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
+
+  const handleQueueSwipe = useCallback(
+    async (item: SwipeQueueItem, outcome: SwipeOutcome) => {
+      if (!session) return
+
+      // Optimistically mark as dismissed for animation
+      setDismissedIds((prev) => {
+        const next = new Set(prev)
+        next.add(item.schedule_id)
+        return next
+      })
+
+      const { error } = await createSwipe(
+        session.user.id,
+        item.purchase.id,
+        outcome,
+        item.timing,
+        item.schedule_id,
+      )
+
+      if (error) {
+        // Revert on failure
+        setDismissedIds((prev) => {
+          const next = new Set(prev)
+          next.delete(item.schedule_id)
+          return next
+        })
+        setStatus(error)
+        return
+      }
+
+      // Remove from purchases after animation completes
+      setTimeout(() => {
+        setPurchases((prev) => prev.filter((p) => p.schedule_id !== item.schedule_id))
+        setDismissedIds((prev) => {
+          const next = new Set(prev)
+          next.delete(item.schedule_id)
+          return next
+        })
+      }, 300)
+    },
+    [session],
+  )
 
   const loadUnratedPurchases = useCallback(async () => {
     if (!session) return
@@ -138,8 +280,24 @@ export default function Swipe({ session }: SwipeProps) {
 
   const [upcomingExpanded, setUpcomingExpanded] = useState(false)
 
+  const renderQueueCard = (item: SwipeQueueItem) => {
+    const isDue = item.scheduled_for <= today
+    const isDismissed = dismissedIds.has(item.schedule_id)
+
+    return (
+      <SwipeableQueueCard
+        key={item.schedule_id}
+        item={item}
+        isDue={isDue}
+        isDismissed={isDismissed}
+        onSwipe={handleQueueSwipe}
+      />
+    )
+  }
+
   const renderUpcomingSection = () => {
     const allFiltered = [...dueFiltered, ...upcomingFiltered]
+      .filter((item) => !dismissedIds.has(item.schedule_id))
 
     if (allFiltered.length === 0) {
       return (
@@ -156,18 +314,7 @@ export default function Swipe({ session }: SwipeProps) {
     return (
       <div className="upcoming-section">
         <div className="upcoming-grid">
-          {allFiltered.slice(0, 6).map((item) => {
-            const isDue = item.scheduled_for <= today
-            return (
-              <GlassCard key={item.schedule_id} className="upcoming-card glass-panel">
-                <span className="upcoming-title">{item.purchase.title}</span>
-                <span className="upcoming-meta">
-                  {formatTimingLabel(item.timing)} •{' '}
-                  {isDue ? 'Due now' : new Date(item.scheduled_for).toLocaleDateString()}
-                </span>
-              </GlassCard>
-            )
-          })}
+          {allFiltered.slice(0, 6).map(renderQueueCard)}
         </div>
       </div>
     )
@@ -322,22 +469,34 @@ export default function Swipe({ session }: SwipeProps) {
     }
   }, [swiping, currentPurchase])
 
-  const handleTouchMove = useCallback((event: ReactTouchEvent) => {
-    if (!touchStartRef.current || !cardRef.current || swiping) return
-    const touch = event.touches[0]
-    const deltaX = touch.clientX - touchStartRef.current.x
-    const deltaY = touch.clientY - touchStartRef.current.y
+  // Ref to track swiping state inside native listener without stale closure
+  const swipingRef = useRef(swiping)
+  swipingRef.current = swiping
 
-    // Only track horizontal swipes (prevent vertical scroll interference)
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
-      event.preventDefault()
+  // Attach touchmove with { passive: false } so preventDefault works on mobile
+  useEffect(() => {
+    const node = cardRef.current
+    if (!node) return
+
+    const onTouchMove = (event: globalThis.TouchEvent) => {
+      if (!touchStartRef.current || !cardRef.current || swipingRef.current) return
+      const touch = event.touches[0]
+      const deltaX = touch.clientX - touchStartRef.current.x
+      const deltaY = touch.clientY - touchStartRef.current.y
+
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+        event.preventDefault()
+      }
+
+      const rotation = deltaX * 0.08
+      const opacity = Math.max(0.4, 1 - Math.abs(deltaX) / 300)
+      cardRef.current.style.transform = `translateX(${deltaX}px) rotate(${rotation}deg)`
+      cardRef.current.style.opacity = String(opacity)
     }
 
-    const rotation = deltaX * 0.08
-    const opacity = Math.max(0.4, 1 - Math.abs(deltaX) / 300)
-    cardRef.current.style.transform = `translateX(${deltaX}px) rotate(${rotation}deg)`
-    cardRef.current.style.opacity = String(opacity)
-  }, [swiping])
+    node.addEventListener('touchmove', onTouchMove, { passive: false })
+    return () => node.removeEventListener('touchmove', onTouchMove)
+  }, [currentPurchase])
 
   const handleTouchEnd = useCallback((event: ReactTouchEvent) => {
     if (!touchStartRef.current || !cardRef.current || swiping) return
@@ -507,7 +666,6 @@ export default function Swipe({ session }: SwipeProps) {
           ref={cardRef}
           className="swipe-card-touch-wrapper"
           onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
           <GlassCard

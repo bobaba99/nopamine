@@ -3781,6 +3781,29 @@
   color: var(--ink-500);
 }
 
+/* Swipe — queue card swipe */
+.queue-card-wrapper {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.queue-card-dismissed-left {
+  transform: translateX(-120%) rotate(-8deg);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.queue-card-dismissed-right {
+  transform: translateX(120%) rotate(8deg);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.queue-card-dismissed-down {
+  transform: translateY(80px);
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Swipe — upcoming header actions */
 .upcoming-header-actions {
   display: flex;
