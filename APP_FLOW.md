@@ -96,6 +96,8 @@ The user can regenerate the verdict for the purchase. The app will regenerate th
 
 The user can swipe for regret or satisfaction on the purchase. The app will update the purchase stats. Seeding purchases will be available for swiping immediately after importing from the email API. New verdicts will be available for swiping after 3 days, then 3 weeks, and finally 3 months. The stats will be aggregated for product category, vendor, and price range, and displayed in a chart in the dashboard. It will be stored in Supabase as a table called `purchase_stats` with the following columns: `id`, `user_id`, `vendor_id`, `dimension_type` (enum: category | price_range | vendor | vendor_quality | vendor_reliability | vendor_price_tier ), `total_purchases`, `total_swipes`, `regret_count`, `satisfied_count`, `regret_rate`, `last_updated`. The dashbaord only displays the most impactful stats and the profile displays all the stats with filter enabled for each dimension type.
 
+The swipe page shows a schedule overview (filterable by timing: all, immediate, 3 days, 3 weeks, 3 months) above the main swipe queue. Schedule overview cards are swipeable on mobile (left=regret, right=satisfied, down=not sure) with optimistic dismissal animations. The main swipe queue is unaffected by timing filters.
+
 ```
 [Dashboard] → [Swipe for Regret/Satisfaction] → [Purchase Stats Update]
 ```
@@ -219,12 +221,15 @@ If the users like the alternative solution offered during the verdict, they can 
 
 ## 5. Navigation Structure
 
+Desktop: persistent topbar with nav links. Mobile (≤768px): hamburger menu overlay with auto-hiding header on scroll-down.
+
 ```
 ├── Home / Dashboard
 │   ├── Verdict Generation
 │   ├── Verdict History (up to 3 most recent verdicts)
 |   ├── Share to social media or save as an image
 ├── Home / Swipe Queue
+│   ├── Schedule Overview (filterable, swipeable cards)
 │   ├── Swiping for Regret/Satisfaction
 ├── Home / Resources
 │   ├── Educational Content

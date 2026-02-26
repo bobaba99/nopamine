@@ -55,9 +55,11 @@ src/
 - `session: Session` is threaded from `App` to page components; avoid deeper prop drilling.
 
 ### 3.3 State Management
-- **React built-ins only** — `useState`, `useEffect`, `useMemo`. No external state library.
+
+- **React built-ins only** — `useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`. No external state library.
 - Supabase is the remote source of truth; local state holds UI concerns (loading flags, form values, auth mode).
 - Auth state is managed via `supabase.auth.onAuthStateChange` in `App.tsx` and passed to routes via props.
+- `sessionLoading` state prevents premature redirects during initial auth hydration.
 
 ---
 
@@ -99,12 +101,13 @@ src/
 
 ### 4.3 Responsive Design
 
-Desktop-first with two breakpoints:
+Desktop-first with three breakpoints:
 
 | Breakpoint | Behavior |
 |-----------|----------|
 | `max-width: 900px` | Auth layout collapses to single column; dashboard grid stacks; page padding reduces |
-| `max-width: 600px` | Topbar stacks vertically; swipe buttons go horizontal/full-width; card max-width constrained |
+| `max-width: 768px` | Topbar switches to hamburger menu; header auto-hides on scroll-down, reappears on scroll-up; mobile session chip replaces desktop nav links |
+| `max-width: 600px` | Swipe buttons go horizontal/full-width; card max-width constrained |
 
 ### 4.4 Animation & Motion
 - **GSAP 3.12.5** loaded via CDN at runtime (`Kinematics.tsx`). Provides:
@@ -116,6 +119,7 @@ Desktop-first with two breakpoints:
   - `MagneticButton` — subtly attracted toward cursor via `gsap.quickTo`
 - CSS `transition` on most interactive elements (hover lift, color shifts, box-shadow).
 - CSS `@keyframes` for swipe card exit (`swipeFadeOut`), toast entrance (`slideIn`), modal entrance (`slideUp`, `fadeIn`).
+- **Touch gestures** — Mobile swipe uses native `addEventListener('touchmove', fn, { passive: false })` via `useEffect` to allow `preventDefault()`. React synthetic `onTouchMove` is passive by default and silently ignores `preventDefault()`. Use `useRef` for mutable state (`swipingRef`) to avoid stale closures in native listeners.
 
 ### 4.5 Accessibility (a11y)
 - Semantic HTML: `<nav>`, `<main>`, `<section>`, `<form>`, `<label>`.
@@ -130,10 +134,12 @@ Desktop-first with two breakpoints:
 
 - **react-router-dom v7** with `<BrowserRouter>` wrapping the app.
 - Route definitions are declared in `App.tsx` via `<Routes>` / `<Route>`.
+- `sessionLoading` blocks all route rendering until `getSession()` resolves, preventing flash redirects.
 - Auth guard: `<RequireAuth>` component redirects to `/auth` when `session` is null.
-- `<PublicOnly>` wrapper for the auth page.
+- `<PublicOnly>` wrapper redirects authenticated users from `/auth` back to `/`.
 - Authenticated routes nest inside `<AppShell>` (provides the glassmorphic route surface).
 - Active nav links styled via `<NavLink>` with the `.active` class.
+- Mobile: hamburger menu (`mobileMenuOpen` state) replaces nav links at `≤768px`; header auto-hides on scroll-down via `headerHidden` state.
 - No lazy loading configured yet.
 
 ---
@@ -506,10 +512,12 @@ import { GmailLogo, OutlookLogo } from '../components/EmailIcons'
 **Purpose:** Card-based UI for rating past purchases
 
 **Key Features:**
-- Swipe cards left (regret), right (satisfied), down (unsure)
+
+- Swipe cards left (regret), right (satisfied), down (unsure) — touch gestures on mobile, keyboard on desktop
+- Swipeable queue cards in schedule overview (same left/right/down gestures with optimistic dismissal)
 - Keyboard shortcuts: arrow keys, Ctrl/Cmd+Z for undo
 - Progress bar showing completion
-- Timing filters (immediate, 3 days, 3 weeks, 3 months)
+- Timing filters (immediate, 3 days, 3 weeks, 3 months) — control schedule overview cards, not the main swipe queue
 
 ```
 ┌─────────────────────────────────────────────────────────┐

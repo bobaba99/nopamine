@@ -38,13 +38,13 @@
 - [x] Fixed Profile empty-state alignment so verdict empty card aligns with purchase history cards.
 - [x] Implement purchase import from email route/page — **Branch:** `feat/purchase-email-import-flow`
 - [x] Tighten verdict evaluation path robustness and UX messaging for LLM failure/timeout cases — **Branch:** `fix/verdict-llm-timeout-handling`
+- [x] Mobile viewing adaptation `ui/mobile-adaptation`
 
 ---
 
 ## In Progress
 
 - [ ] Refine Profile and history UX polish after recent structural updates — **Branch:** `fix/profile-history-ux-polish`
-- [ ] Mobile viewing adaptation `ui/mobile-adaptation`
 - [ ] Implement settings route/page with language, theme, currency, etc. — **Branch:** `feat/settings-route-user-preferences`
 - [ ] Implement share verdict capability (link/card) — **Branch:** `feat/verdict-share-capability`
 - [ ] Implement swiping if alternative solution is selected and add branching logic to alternatives based on justification (budget or emotional alternative) `feat/alternative-solution`
