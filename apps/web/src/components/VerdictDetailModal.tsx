@@ -162,9 +162,11 @@ export default function VerdictDetailModal({
                 <span className="detail-value">
                   {verdict.scoring_model === 'cost_sensitive_iso'
                     ? 'Cost-sensitive isotonic'
-                    : verdict.scoring_model === 'llm_only'
-                      ? 'LLM only'
-                      : 'Standard logistic'}
+                    : verdict.scoring_model === 'heuristic_fallback'
+                      ? 'Pattern-based estimate'
+                      : verdict.scoring_model === 'llm_only'
+                        ? 'LLM only'
+                        : 'Standard logistic'}
                 </span>
               </div>
             )}

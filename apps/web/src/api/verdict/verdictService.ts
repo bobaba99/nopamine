@@ -210,7 +210,7 @@ export async function submitVerdict(
 
   const verdictPayload = {
     candidate_vendor_id: vendorMatch?.vendor_id ?? null,
-    scoring_model: 'llm_only' as const,
+    scoring_model: evaluation.reasoning.algorithm ?? 'llm_only',
     predicted_outcome: evaluation.outcome,
     confidence_score: evaluation.confidence,
     reasoning: evaluation.reasoning,

@@ -11,7 +11,7 @@ export type VerdictOutcome = 'buy' | 'hold' | 'skip'
 /**
  * Verdict algorithm version used for scoring
  */
-export type VerdictAlgorithm = 'standard' | 'cost_sensitive_iso' | 'llm_only'
+export type VerdictAlgorithm = 'standard' | 'cost_sensitive_iso' | 'llm_only' | 'heuristic_fallback'
 
 /**
  * User's final decision on the purchase
@@ -110,4 +110,5 @@ export type EvaluationResult = {
   outcome: VerdictOutcome
   confidence: number
   reasoning: LLMEvaluationReasoning
+  fallbackReason?: string
 }

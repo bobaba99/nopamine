@@ -1654,6 +1654,18 @@
   color: #dc2626;
 }
 
+.verdict-fallback-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #92400e;
+  background: rgba(251, 191, 36, 0.15);
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
 .verdict-price {
   display: block;
   font-size: 1.4rem;

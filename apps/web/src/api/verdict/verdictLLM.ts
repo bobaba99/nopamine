@@ -16,6 +16,8 @@ import { buildSystemPrompt, buildUserPrompt } from './verdictPrompts'
 import { buildScore, evaluatePurchaseFallback } from './verdictScoring'
 import type { VendorMatch } from '../core/types'
 
+const LLM_TIMEOUT_MS = 15_000
+
 const SUPPORTED_VERDICTS = ['buy', 'hold', 'skip'] as const
 
 const OUTCOME_RATIONALE_LABEL: Record<VerdictOutcome, string> = {
@@ -61,29 +63,40 @@ const attemptLlmCall = async (
   userPrompt: string,
   retryContext: string
 ): Promise<{ data: OpenAIResponse | null; error: string | null }> => {
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${openaiApiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-5-nano',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `${userPrompt}${retryContext}` },
-      ],
-      max_completion_tokens: 4000,
-    }),
-  })
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${openaiApiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-5-nano',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `${userPrompt}${retryContext}` },
+        ],
+        max_completion_tokens: 4000,
+      }),
+      signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+    })
 
-  if (!response.ok) {
-    const errorBody = await response.text()
-    return { data: null, error: `OpenAI API error: ${response.status} - ${errorBody}` }
+    if (!response.ok) {
+      const errorBody = await response.text()
+      return { data: null, error: `OpenAI API error: ${response.status} - ${errorBody}` }
+    }
+
+    const data = (await response.json()) as OpenAIResponse
+    return { data, error: null }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'TimeoutError') {
+      return { data: null, error: `LLM request timed out after ${LLM_TIMEOUT_MS / 1000} seconds` }
+    }
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      return { data: null, error: 'LLM request was aborted' }
+    }
+    throw error
   }
-
-  const data = (await response.json()) as OpenAIResponse
-  return { data, error: null }
 }
 
 const parseLlmResponse = (
@@ -309,10 +322,14 @@ export const evaluateWithLlm = async (
 
     return processLlmResponse(llmResponse, input, context)
   } catch (error) {
-    logger.error('LLM evaluation failed, using fallback', {
-      error: error instanceof Error ? error.message : String(error),
-    })
-    return evaluatePurchaseFallback(input, buildFallbackOverrides(context))
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    logger.error('LLM evaluation failed, using fallback', { error: errorMessage })
+    const fallback = evaluatePurchaseFallback(input, buildFallbackOverrides(context))
+    return {
+      ...fallback,
+      reasoning: { ...fallback.reasoning, algorithm: 'heuristic_fallback' as const },
+      fallbackReason: errorMessage,
+    }
   }
 }
 
@@ -321,5 +338,10 @@ export const evaluateWithFallback = (
   context: EvaluationContext
 ): EvaluationResult => {
   logger.warn('No OpenAI API key provided, using fallback evaluation')
-  return evaluatePurchaseFallback(input, buildFallbackOverrides(context))
+  const fallback = evaluatePurchaseFallback(input, buildFallbackOverrides(context))
+  return {
+    ...fallback,
+    reasoning: { ...fallback.reasoning, algorithm: 'heuristic_fallback' as const },
+    fallbackReason: 'No API key configured',
+  }
 }

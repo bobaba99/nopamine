@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
 import { Link } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import type { Stats, VerdictRow } from '../api/core/types'
 import { PURCHASE_CATEGORIES } from '../api/core/types'
 import { getSwipeStats } from '../api/purchase/statsService'
+import { logger } from '../api/core/logger'
 import { sanitizeVerdictRationaleHtml } from '../utils/sanitizeHtml'
 import {
   getVerdictHistory,
@@ -40,6 +41,9 @@ export default function Dashboard({ session }: DashboardProps) {
   const [importantPurchase, setImportantPurchase] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [status, setStatus] = useState<string>('')
+  const [statusType, setStatusType] = useState<'error' | 'info'>('error')
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const evalStartRef = useRef<number | null>(null)
   const generationLockMessage =
     'Another verdict is currently being generated or regenerated. Please wait for it to finish.'
 
@@ -64,6 +68,23 @@ export default function Dashboard({ session }: DashboardProps) {
     return () => window.clearTimeout(timeoutId)
   }, [loadStats, loadRecentVerdicts])
 
+  useEffect(() => {
+    if (!submitting) {
+      setElapsedSeconds(0)
+      evalStartRef.current = null
+      return
+    }
+
+    evalStartRef.current = Date.now()
+    const intervalId = window.setInterval(() => {
+      if (evalStartRef.current) {
+        setElapsedSeconds(Math.floor((Date.now() - evalStartRef.current) / 1000))
+      }
+    }, 1000)
+
+    return () => window.clearInterval(intervalId)
+  }, [submitting])
+
   const resetForm = () => {
     setTitle('')
     setPrice('')
@@ -84,11 +105,13 @@ export default function Dashboard({ session }: DashboardProps) {
     const priceValue = price ? Number(price) : null
     if (!title.trim()) {
       setStatus('Item title is required.')
+      setStatusType('error')
       return
     }
 
     setSubmitting(true)
     setStatus('')
+    setStatusType('error')
 
     const input = {
       title: title.trim(),
@@ -99,26 +122,38 @@ export default function Dashboard({ session }: DashboardProps) {
       isImportant: importantPurchase,
     }
 
-    // Get API key from environment (in production, this should be handled server-side)
-    const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
+    try {
+      const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
 
-    const evaluation = await evaluatePurchase(
-      session.user.id,
-      input,
-      openaiApiKey
-    )
-    const { error } = await submitVerdict(session.user.id, input, evaluation)
+      const evaluation = await evaluatePurchase(
+        session.user.id,
+        input,
+        openaiApiKey
+      )
 
-    if (error) {
-      setStatus(error)
+      if (evaluation.fallbackReason) {
+        setStatus(`AI analysis was unavailable — verdict based on pattern matching.`)
+        setStatusType('info')
+      }
+
+      const { error } = await submitVerdict(session.user.id, input, evaluation)
+
+      if (error) {
+        setStatus(error)
+        setStatusType('error')
+        return
+      }
+
+      resetForm()
+      await loadStats()
+      await loadRecentVerdicts()
+    } catch (error) {
+      logger.error('Evaluation failed', { error: error instanceof Error ? error.message : String(error) })
+      setStatus('Something went wrong while evaluating. Please try again.')
+      setStatusType('error')
+    } finally {
       setSubmitting(false)
-      return
     }
-
-    resetForm()
-    await loadStats()
-    await loadRecentVerdicts()
-    setSubmitting(false)
   }
 
   const handleVerdictDecision = async (
@@ -157,6 +192,12 @@ export default function Dashboard({ session }: DashboardProps) {
       const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
       const input = inputFromVerdict(verdict)
       const evaluation = await evaluatePurchase(session.user.id, input, openaiApiKey)
+
+      if (evaluation.fallbackReason) {
+        setStatus('AI analysis was unavailable — verdict based on pattern matching.')
+        setStatusType('info')
+      }
+
       const { data, error } = await submitVerdict(
         session.user.id,
         input,
@@ -166,6 +207,7 @@ export default function Dashboard({ session }: DashboardProps) {
 
       if (error || !data) {
         setStatus(error ?? 'Failed to regenerate verdict.')
+        setStatusType('error')
         return
       }
 
@@ -209,7 +251,7 @@ export default function Dashboard({ session }: DashboardProps) {
         against your patterns.
       </p>
 
-      {status && <div className="status error">{status}</div>}
+      {status && <div className={`status ${statusType}`}>{status}</div>}
 
       <div className="dashboard-grid">
         <div className="decision-section">
@@ -295,7 +337,13 @@ export default function Dashboard({ session }: DashboardProps) {
               </div>
             </div>
             <LiquidButton className="primary" type="submit" disabled={submitting}>
-              {submitting ? 'Evaluating...' : 'Evaluate'}
+              {submitting
+                ? elapsedSeconds >= 10
+                  ? `Evaluating... (${elapsedSeconds}s) — almost there`
+                  : elapsedSeconds > 0
+                    ? `Evaluating... (${elapsedSeconds}s)`
+                    : 'Evaluating...'
+                : 'Evaluate'}
             </LiquidButton>
           </form>
         </div>
@@ -330,6 +378,9 @@ export default function Dashboard({ session }: DashboardProps) {
                         {verdict.predicted_outcome === 'buy' && '✓ Buy'}
                         {verdict.predicted_outcome === 'hold' && '⏸ Hold for 24h'}
                         {verdict.predicted_outcome === 'skip' && '✗ Skip'}
+                        {verdict.scoring_model === 'heuristic_fallback' && (
+                          <span className="verdict-fallback-badge">Pattern-based</span>
+                        )}
                       </span>
                     </div>
                     {verdict.candidate_price && (

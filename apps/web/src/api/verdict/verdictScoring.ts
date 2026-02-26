@@ -309,7 +309,7 @@ export const evaluatePurchaseFallback = (
       alternativeSolution: alternativeSolution ?? undefined,
       rationale,
       importantPurchase: input.isImportant,
-      algorithm: 'llm_only',
+      algorithm: 'heuristic_fallback',
     },
   }
 }
