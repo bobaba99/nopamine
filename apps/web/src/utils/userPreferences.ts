@@ -4,7 +4,7 @@ import type {
   UserPreferences,
 } from '../constants/userTypes'
 
-export const DEFAULT_THEME_MODE: ThemeMode = 'light'
+export const DEFAULT_THEME_MODE: ThemeMode = 'system'
 export const DEFAULT_LOCALE = 'en-US'
 export const DEFAULT_CURRENCY = 'USD'
 export const DEFAULT_HOLD_DURATION_HOURS: HoldDurationHours = 24
@@ -34,6 +34,21 @@ export const CURRENCY_OPTIONS = [
   { value: 'CHF', label: 'CHF - Swiss Franc' },
 ] as const
 
+export const LOCALE_OPTIONS = [
+  { value: 'en-US', label: 'English (US)' },
+  { value: 'en-GB', label: 'English (UK)' },
+  { value: 'en-AU', label: 'English (Australia)' },
+  { value: 'en-CA', label: 'English (Canada)' },
+  { value: 'fr-FR', label: 'French (France)' },
+  { value: 'de-DE', label: 'German (Germany)' },
+  { value: 'es-ES', label: 'Spanish (Spain)' },
+  { value: 'it-IT', label: 'Italian (Italy)' },
+  { value: 'ja-JP', label: 'Japanese (Japan)' },
+  { value: 'zh-CN', label: 'Chinese (Simplified)' },
+  { value: 'pt-BR', label: 'Portuguese (Brazil)' },
+  { value: 'nl-NL', label: 'Dutch (Netherlands)' },
+] as const
+
 const REGION_TO_CURRENCY: Record<string, string> = {
   US: 'USD',
   GB: 'GBP',
@@ -58,7 +73,7 @@ const REGION_TO_CURRENCY: Record<string, string> = {
 }
 
 const isThemeMode = (value: unknown): value is ThemeMode =>
-  value === 'light' || value === 'dark'
+  value === 'light' || value === 'dark' || value === 'system'
 
 const isHoldDurationHours = (value: unknown): value is HoldDurationHours =>
   typeof value === 'number' && HOLD_DURATION_VALUES.includes(value as HoldDurationHours)
@@ -114,6 +129,7 @@ export const buildDefaultUserPreferences = (
 
   return {
     theme: DEFAULT_THEME_MODE,
+    locale,
     currency: inferCurrencyFromLocale(locale),
     hold_duration_hours: DEFAULT_HOLD_DURATION_HOURS,
     hold_reminders_enabled: DEFAULT_HOLD_REMINDERS_ENABLED,
@@ -131,17 +147,17 @@ export const normalizeUserPreferences = (
   }
 
   const source = raw as Partial<UserPreferences> & { locale?: unknown }
-  const legacyLocale =
+  const locale =
     typeof source.locale === 'string' && isValidLocale(source.locale)
       ? source.locale
-      : resolveBrowserLocale()
+      : defaults.locale
 
   const currencyCandidate =
     typeof source.currency === 'string' ? source.currency.trim().toUpperCase() : ''
   const currency =
-    currencyCandidate.length === 3 && isValidCurrency(currencyCandidate, legacyLocale)
+    currencyCandidate.length === 3 && isValidCurrency(currencyCandidate, locale)
       ? currencyCandidate
-      : inferCurrencyFromLocale(legacyLocale)
+      : inferCurrencyFromLocale(locale)
 
   const holdDurationCandidate =
     typeof source.hold_duration_hours === 'number'
@@ -160,6 +176,7 @@ export const normalizeUserPreferences = (
 
   return {
     theme: isThemeMode(source.theme) ? source.theme : defaults.theme,
+    locale,
     currency,
     hold_duration_hours: holdDuration,
     hold_reminders_enabled: holdRemindersEnabled,

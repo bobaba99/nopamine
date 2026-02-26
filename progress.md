@@ -42,13 +42,13 @@
 - [x] Trimmed canonical docs: removed ~880 lines of redundant content from PRD.md, FRONTEND_GUIDELINES.md, APP_FLOW.md
 - [x] Populated CLAUDE.md with project intelligence (architecture, patterns, gotchas, commands)
 - [x] Integrated freemium tier model into APP_FLOW.md and README.md from `freemium_features.md`
+- [x] Implement settings route/page with theme, currency, verdict tone, hold duration — **Branch:** `feat/settings-route-user-preferences`
 
 ---
 
 ## In Progress
 
 - [ ] Refine Profile and history UX polish after recent structural updates — **Branch:** `fix/profile-history-ux-polish`
-- [ ] Implement settings route/page with theme, currency, verdict tone, hold duration — **Branch:** `feat/settings-route-user-preferences`
 - [ ] Implement share verdict capability (image export to social media) — **Branch:** `feat/verdict-share-capability`
 - [ ] Implement alternative solution branching (budget vs. emotional) and queue accepted alternatives for swiping — **Branch:** `feat/alternative-solution`
 - [ ] Implement user data deletion and data export (GDPR Art. 17, 20) — **Branch:** `feat/account-data-request-deletion`

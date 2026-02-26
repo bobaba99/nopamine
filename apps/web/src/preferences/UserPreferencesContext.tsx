@@ -14,7 +14,6 @@ import { getUserProfile } from '../api/user/userProfileService'
 import {
   buildDefaultUserPreferences,
   normalizeUserPreferences,
-  resolveBrowserLocale,
 } from '../utils/userPreferences'
 import {
   formatCurrencyAmount,
@@ -22,14 +21,24 @@ import {
   formatDateValue,
 } from '../utils/formatters'
 
+type ResolvedTheme = 'light' | 'dark'
+
 type UserPreferencesContextValue = {
   preferences: UserPreferences
-  effectiveTheme: UserPreferences['theme']
+  effectiveTheme: ResolvedTheme
   setPreferences: (next: UserPreferences) => void
   refreshPreferences: () => Promise<void>
 }
 
 const UserPreferencesContext = createContext<UserPreferencesContextValue | null>(null)
+
+const getSystemTheme = (): ResolvedTheme =>
+  typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light'
+
+const resolveTheme = (theme: UserPreferences['theme']): ResolvedTheme =>
+  theme === 'system' ? getSystemTheme() : theme
 
 export function UserPreferencesProvider({
   session,
@@ -41,7 +50,17 @@ export function UserPreferencesProvider({
   const [preferences, setPreferences] = useState<UserPreferences>(() =>
     buildDefaultUserPreferences(),
   )
-  const effectiveTheme: UserPreferences['theme'] = preferences.theme
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(getSystemTheme)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const handler = (e: MediaQueryListEvent) => setSystemTheme(e.matches ? 'dark' : 'light')
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  const effectiveTheme: ResolvedTheme =
+    preferences.theme === 'system' ? systemTheme : resolveTheme(preferences.theme)
 
   useEffect(() => {
     document.documentElement.dataset.theme = effectiveTheme
@@ -98,7 +117,7 @@ export const useUserPreferences = () => {
 
 export const useUserFormatting = () => {
   const { preferences } = useUserPreferences()
-  const locale = resolveBrowserLocale()
+  const locale = preferences.locale
 
   const formatCurrency = useCallback(
     (amount: number | null | undefined, emptyValue?: string) =>

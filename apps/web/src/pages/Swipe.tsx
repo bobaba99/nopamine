@@ -51,11 +51,13 @@ function SwipeableQueueCard({
   isDue,
   isDismissed,
   onSwipe,
+  formatScheduleDate,
 }: {
   item: SwipeQueueItem
   isDue: boolean
   isDismissed: boolean
   onSwipe: (item: SwipeQueueItem, outcome: SwipeOutcome) => void
+  formatScheduleDate: (value: string) => string
 }) {
   const cardNodeRef = useRef<HTMLDivElement>(null)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
@@ -134,7 +136,7 @@ function SwipeableQueueCard({
         <span className="upcoming-title">{item.purchase.title}</span>
         <span className="upcoming-meta">
           {formatTimingLabel(item.timing)} •{' '}
-          {isDue ? 'Due now' : new Date(item.scheduled_for).toLocaleDateString()}
+          {isDue ? 'Due now' : formatScheduleDate(item.scheduled_for)}
         </span>
       </GlassCard>
     </div>
@@ -293,6 +295,7 @@ export default function Swipe({ session }: SwipeProps) {
         isDue={isDue}
         isDismissed={isDismissed}
         onSwipe={handleQueueSwipe}
+        formatScheduleDate={formatDate}
       />
     )
   }

@@ -3754,6 +3754,14 @@
   min-height: 200px;
 }
 
+/* Profile — settings tab */
+.settings-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 480px;
+}
+
 /* Profile — summary card */
 .profile-summary-card {
   padding: 1.2rem 1.4rem;

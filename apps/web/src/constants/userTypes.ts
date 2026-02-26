@@ -3,11 +3,12 @@
  * Used by: userProfileService, userValueService, verdictContext, Profile page
  */
 
-export type ThemeMode = 'light' | 'dark'
+export type ThemeMode = 'light' | 'dark' | 'system'
 export type HoldDurationHours = 24 | 48 | 72
 
 export type UserPreferences = {
   theme: ThemeMode
+  locale: string
   currency: string
   hold_duration_hours: HoldDurationHours
   hold_reminders_enabled: boolean

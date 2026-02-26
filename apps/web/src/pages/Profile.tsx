@@ -40,6 +40,7 @@ import { useUserFormatting, useUserPreferences } from '../preferences/UserPrefer
 import {
   CURRENCY_OPTIONS,
   HOLD_DURATION_OPTIONS,
+  LOCALE_OPTIONS,
   normalizeUserPreferences,
 } from '../utils/userPreferences'
 
@@ -47,7 +48,7 @@ type ProfileProps = {
   session: Session | null
 }
 
-type ProfileTab = 'profile' | 'verdicts' | 'purchases'
+type ProfileTab = 'profile' | 'verdicts' | 'purchases' | 'settings'
 
 const PURCHASE_PAGE_SIZE = 5
 
@@ -121,6 +122,7 @@ const identityStabilityOptions = [
 ]
 
 const themeModeOptions: Array<{ value: UserPreferences['theme']; label: string }> = [
+  { value: 'system', label: 'System' },
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
 ]
@@ -670,7 +672,7 @@ export default function Profile({ session }: ProfileProps) {
             <span className="label">Weekly fun budget</span>
             <br />
             <span className="value">
-              {weeklyFunBudget ? `$${Number(weeklyFunBudget).toFixed(2)}` : 'Not set'}
+              {weeklyFunBudget ? formatCurrency(Number(weeklyFunBudget)) : 'Not set'}
             </span>
           </div>
         </div>
@@ -815,18 +817,13 @@ export default function Profile({ session }: ProfileProps) {
                   <div className="verdict-meta">
                     <span>
                       Price:{' '}
-                      {verdict.candidate_price === null
-                        ? '—'
-                        : `$${verdict.candidate_price.toFixed(2)}`}
+                      {formatCurrency(verdict.candidate_price)}
                     </span>
                     <span>Vendor: {verdict.candidate_vendor ?? '—'}</span>
                     <span>Category: {verdict.candidate_category ?? '—'}</span>
                     <span>Recommendation: {verdict.predicted_outcome ?? '—'}</span>
                     <span>
-                      Date:{' '}
-                      {verdict.created_at
-                        ? new Date(verdict.created_at).toLocaleDateString()
-                        : '—'}
+                      Date: {formatDate(verdict.created_at)}
                     </span>
                   </div>
                 </div>
@@ -854,7 +851,7 @@ export default function Profile({ session }: ProfileProps) {
                       onClick={() => handleVerdictDecision(verdict.id, 'hold')}
                       disabled={isBusy}
                     >
-                      Hold 24h
+                      Hold {preferences.hold_duration_hours}h
                     </LiquidButton>
                     <LiquidButton
                       type="button"
@@ -939,16 +936,13 @@ export default function Profile({ session }: ProfileProps) {
                   </div>
                   <div className="verdict-meta">
                     <span>
-                      Price: ${Number(purchase.price).toFixed(2)}
+                      Price: {formatCurrency(Number(purchase.price))}
                     </span>
                     <span>Vendor: {purchase.vendor ?? '—'}</span>
                     <span>Category: {purchase.category ?? '—'}</span>
                     <span>Source: {purchase.source ?? '—'}</span>
                     <span>
-                      Date:{' '}
-                      {purchase.purchase_date
-                        ? new Date(purchase.purchase_date).toLocaleDateString()
-                        : '—'}
+                      Date: {formatDate(purchase.purchase_date)}
                     </span>
                   </div>
                 </div>
@@ -985,6 +979,147 @@ export default function Profile({ session }: ProfileProps) {
           )}
         </>
       )}
+    </div>
+  )
+
+  const renderSettingsTab = () => (
+    <div className="settings-tab-content">
+      <div className="quiz-section">
+        <h3>Theme</h3>
+        <p>Choose your app appearance.</p>
+        <div className="quiz-options">
+          {themeModeOptions.map((option) => (
+            <LiquidButton
+              key={option.value}
+              type="button"
+              className={`quiz-chip ${profileDraftPreferences.theme === option.value ? 'selected' : ''}`}
+              onClick={() =>
+                setProfileDraftPreferences((prev) => ({
+                  ...prev,
+                  theme: option.value,
+                }))
+              }
+            >
+              {option.label}
+            </LiquidButton>
+          ))}
+        </div>
+      </div>
+
+      <div className="quiz-section">
+        <h3>Locale</h3>
+        <p>Set your preferred locale for date and number formatting.</p>
+        <label className="modal-field">
+          <VolumetricInput
+            as="select"
+            className="purchase-select"
+            value={profileDraftPreferences.locale}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+              setProfileDraftPreferences((prev) => ({
+                ...prev,
+                locale: event.target.value,
+              }))
+            }
+          >
+            {LOCALE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </VolumetricInput>
+        </label>
+      </div>
+
+      <div className="quiz-section">
+        <h3>Currency</h3>
+        <p>Set your preferred currency for amount formatting.</p>
+        <label className="modal-field">
+          <VolumetricInput
+            as="select"
+            className="purchase-select"
+            value={profileDraftPreferences.currency}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+              setProfileDraftPreferences((prev) => ({
+                ...prev,
+                currency: event.target.value,
+              }))
+            }
+          >
+            {CURRENCY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </VolumetricInput>
+        </label>
+      </div>
+
+      <div className="quiz-section">
+        <h3>Hold behavior</h3>
+        <p>Control your default hold window and reminder setting.</p>
+        <label className="modal-field">
+          Hold duration
+          <VolumetricInput
+            as="select"
+            className="purchase-select"
+            value={profileDraftPreferences.hold_duration_hours}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+              setProfileDraftPreferences((prev) => ({
+                ...prev,
+                hold_duration_hours: Number(event.target.value) as UserPreferences['hold_duration_hours'],
+              }))
+            }
+          >
+            {HOLD_DURATION_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </VolumetricInput>
+        </label>
+        <div className="modal-field">
+          <span>Hold reminders</span>
+          <div className="quiz-options">
+            <LiquidButton
+              type="button"
+              className={`quiz-chip ${profileDraftPreferences.hold_reminders_enabled ? 'selected' : ''}`}
+              onClick={() =>
+                setProfileDraftPreferences((prev) => ({
+                  ...prev,
+                  hold_reminders_enabled: true,
+                }))
+              }
+            >
+              Enabled
+            </LiquidButton>
+            <LiquidButton
+              type="button"
+              className={`quiz-chip ${!profileDraftPreferences.hold_reminders_enabled ? 'selected' : ''}`}
+              onClick={() =>
+                setProfileDraftPreferences((prev) => ({
+                  ...prev,
+                  hold_reminders_enabled: false,
+                }))
+              }
+            >
+              Disabled
+            </LiquidButton>
+          </div>
+        </div>
+      </div>
+
+      <div className="values-actions">
+        <LiquidButton
+          className="primary"
+          type="button"
+          onClick={() => {
+            void handlePreferencesSave()
+          }}
+          disabled={preferencesSaving}
+        >
+          {preferencesSaving ? 'Saving...' : 'Save settings'}
+        </LiquidButton>
+      </div>
     </div>
   )
 
@@ -1026,13 +1161,22 @@ export default function Profile({ session }: ProfileProps) {
         >
           Purchases
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'settings'}
+          className={`profile-tab ${activeTab === 'settings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('settings')}
+        >
+          Settings
+        </button>
       </div>
 
       <div className="profile-tab-content" role="tabpanel">
         {activeTab === 'profile' && renderProfileTab()}
         {activeTab === 'verdicts' && renderVerdictsTab()}
         {activeTab === 'purchases' && renderPurchasesTab()}
-      </div>
+        {activeTab === 'settings' && renderSettingsTab()}
       </div>
 
       {selectedVerdict && createPortal(
