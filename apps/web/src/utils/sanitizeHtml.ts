@@ -40,6 +40,8 @@ export const sanitizeVerdictRationaleHtml = (input: string) => {
   return escaped
     .replace(/\r?\n/g, '<br />')
     .replace(/&lt;br\s*\/?&gt;/gi, '<br />')
+    .replace(/&lt;p&gt;/gi, '<p>')
+    .replace(/&lt;\/p&gt;/gi, '</p>')
     .replace(/&lt;strong&gt;/gi, '<strong>')
     .replace(/&lt;\/strong&gt;/gi, '</strong>')
     .replace(/&lt;em&gt;/gi, '<em>')

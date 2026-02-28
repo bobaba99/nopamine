@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import type { Stats, VerdictRow } from '../api/core/types'
@@ -281,9 +282,6 @@ export default function Dashboard({ session }: DashboardProps) {
                         {verdict.predicted_outcome === 'buy' && '✓ Buy'}
                         {verdict.predicted_outcome === 'hold' && `⏸ Hold for ${preferences.hold_duration_hours}h`}
                         {verdict.predicted_outcome === 'skip' && '✗ Skip'}
-                        {verdict.scoring_model === 'heuristic_fallback' && (
-                          <span className="verdict-fallback-badge">Pattern-based</span>
-                        )}
                       </span>
                     </div>
                     {verdict.candidate_price && (
@@ -325,7 +323,7 @@ export default function Dashboard({ session }: DashboardProps) {
                     </div>
                   </div>
                 <div className="verdict-actions">
-                  <div className="decision-buttons">
+                  <div className="verdict-action-links">
                     <LiquidButton
                       type="button"
                       className="link"
@@ -343,32 +341,34 @@ export default function Dashboard({ session }: DashboardProps) {
                     >
                       {verdictRegeneratingId === verdict.id ? 'Regenerating...' : 'Regenerate'}
                     </LiquidButton>
+                  </div>
+                  <div className="decision-buttons">
                     <LiquidButton
                       type="button"
                       className={`decision-btn bought ${verdict.user_decision === 'bought' ? 'active' : ''}`}
-                        onClick={() => handleVerdictDecision(verdict.id, 'bought')}
-                        disabled={verdictSavingId === verdict.id || verdictRegeneratingId !== null}
-                      >
-                        Bought
-                      </LiquidButton>
-                      <LiquidButton
-                        type="button"
-                        className={`decision-btn hold ${verdict.user_decision === 'hold' ? 'active' : ''}`}
-                        onClick={() => handleVerdictDecision(verdict.id, 'hold')}
-                        disabled={verdictSavingId === verdict.id || verdictRegeneratingId !== null}
-                      >
-                        Hold {preferences.hold_duration_hours}h
-                      </LiquidButton>
-                      <LiquidButton
-                        type="button"
-                        className={`decision-btn skip ${verdict.user_decision === 'skip' ? 'active' : ''}`}
-                        onClick={() => handleVerdictDecision(verdict.id, 'skip')}
-                        disabled={verdictSavingId === verdict.id || verdictRegeneratingId !== null}
-                      >
-                        Skip
-                      </LiquidButton>
-                    </div>
+                      onClick={() => handleVerdictDecision(verdict.id, 'bought')}
+                      disabled={verdictSavingId === verdict.id || verdictRegeneratingId !== null}
+                    >
+                      Bought
+                    </LiquidButton>
+                    <LiquidButton
+                      type="button"
+                      className={`decision-btn hold ${verdict.user_decision === 'hold' ? 'active' : ''}`}
+                      onClick={() => handleVerdictDecision(verdict.id, 'hold')}
+                      disabled={verdictSavingId === verdict.id || verdictRegeneratingId !== null}
+                    >
+                      Hold {preferences.hold_duration_hours}h
+                    </LiquidButton>
+                    <LiquidButton
+                      type="button"
+                      className={`decision-btn skip ${verdict.user_decision === 'skip' ? 'active' : ''}`}
+                      onClick={() => handleVerdictDecision(verdict.id, 'skip')}
+                      disabled={verdictSavingId === verdict.id || verdictRegeneratingId !== null}
+                    >
+                      Skip
+                    </LiquidButton>
                   </div>
+                </div>
                 </GlassCard>
               )
             })}
@@ -465,7 +465,7 @@ export default function Dashboard({ session }: DashboardProps) {
         </div>
       </div>
 
-      {selectedVerdict && (
+      {selectedVerdict && createPortal(
         <VerdictDetailModal
           verdict={selectedVerdict}
           isOpen={selectedVerdict !== null}
@@ -476,19 +476,24 @@ export default function Dashboard({ session }: DashboardProps) {
             setShareModalVerdict(v)
           }}
           isRegenerating={verdictRegeneratingId === selectedVerdict.id}
-        />
+        />,
+        document.body
       )}
 
-      {shareModalVerdict && session && (
+      {shareModalVerdict && session && createPortal(
         <VerdictShareModal
           verdict={shareModalVerdict}
           userId={session.user.id}
           isOpen={shareModalVerdict !== null}
           onClose={() => setShareModalVerdict(null)}
-        />
+        />,
+        document.body
       )}
 
-      <EvaluatingModal isOpen={submitting || verdictRegeneratingId !== null} />
+      {createPortal(
+        <EvaluatingModal isOpen={submitting || verdictRegeneratingId !== null} />,
+        document.body
+      )}
     </section>
   )
 }

@@ -937,16 +937,19 @@
 
 .verdict-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
   margin-top: 0.5rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--glass-border);
-  min-height: 3.5rem;
 }
 
-.verdict-actions>.link {
+.verdict-action-links {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.verdict-action-links>.link {
   padding: 0.5rem 0;
   border: 1px solid transparent;
   font-size: 0.85rem;
@@ -959,7 +962,14 @@
 
 .decision-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
+  flex: 1;
+}
+
+.decision-buttons .decision-btn {
+  flex: 1;
+  text-align: center;
 }
 
 .decision-btn {
@@ -1790,17 +1800,7 @@
   color: #dc2626;
 }
 
-.verdict-fallback-badge {
-  display: inline-block;
-  margin-left: 0.4rem;
-  padding: 0.1rem 0.4rem;
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: #92400e;
-  background: rgba(251, 191, 36, 0.15);
-  border-radius: 4px;
-  vertical-align: middle;
-}
+
 
 .verdict-price {
   display: block;
@@ -1927,9 +1927,15 @@
 
 .modal-header {
   display: flex;
+  flex-direction: column;
+  padding: 1.5rem 1.5rem 0;
+  gap: 0.75rem;
+}
+
+.modal-title-row {
+  display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 1.5rem 1.5rem 0;
   gap: 1rem;
 }
 
@@ -1937,6 +1943,7 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  margin-left: auto;
 }
 
 .modal-header h2 {
@@ -2108,34 +2115,9 @@
   margin-bottom: 0.75rem;
 }
 
-.analysis-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.9rem;
-  grid-auto-rows: 1fr;
-}
-
-.analysis-card {
-  margin-bottom: 0;
-  min-height: 200px;
-  padding: 1.1rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  text-align: left;
-  height: 100%;
-  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
-}
-
 .analysis-card--compact {
   min-height: auto;
   height: auto;
-}
-
-.analysis-card:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
 }
 
 .analysis-card--hover {
@@ -2148,42 +2130,8 @@
   transform: translateY(-1px);
 }
 
-.analysis-card .analysis-header {
-  justify-content: center;
-  margin-top: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.analysis-card .analysis-label {
-  font-size: 1.1rem;
-  letter-spacing: 0.02em;
-  text-align: center;
-}
-
-.analysis-card .analysis-score {
-  align-self: center;
-  margin: 0.7rem 0 0.7rem;
-  font-size: 1.1rem;
-}
-
-.analysis-card .analysis-explanation {
-  text-align: left;
-  margin: 0.7rem 0;
-  padding: 0 0.5rem;
-  font-size: 0.85rem;
-  line-height: 1.45;
-}
-
 .analysis-item:last-child {
   margin-bottom: 0;
-}
-
-.analysis-item--decision {
-  padding-top: 0;
-  border-top: none;
-  width: 100%;
-  padding: 1.1rem;
-  margin-top: 0.9rem;
 }
 
 .analysis-header {
@@ -2197,15 +2145,6 @@
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--ink-700);
-}
-
-.analysis-score {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--ink-900);
-  background: rgba(255, 255, 255, 0.1);
-  padding: 0.2rem 0.5rem;
-  border-radius: 6px;
 }
 
 .analysis-explanation {
@@ -3390,14 +3329,6 @@
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   }
 
-  .analysis-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .analysis-card {
-    min-height: auto;
-  }
-
   .verdict-detail-grid {
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   }
@@ -3507,8 +3438,10 @@
     font-size: 1.25rem;
   }
 
-  .verdict-meta {
-    font-size: 0.85rem;
+  .verdict-meta,
+  .verdict-outcome,
+  .verdict-hold {
+    display: none;
   }
 
   .upcoming-header {
@@ -3547,12 +3480,18 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .analysis-grid {
-    grid-template-columns: 1fr;
+  .detail-section {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
   }
 
-  .analysis-card {
-    min-height: auto;
+  .detail-section h3 {
+    margin: 0 0 0.5rem;
+  }
+
+  .analysis-item {
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.4rem;
   }
 
   .modal-content {
@@ -3562,11 +3501,16 @@
   }
 
   .modal-header {
-    padding: 1.2rem 1.2rem 0;
+    padding: 1rem 1rem 0;
+    gap: 0.5rem;
+  }
+
+  .modal-header h2 {
+    font-size: 1.2rem;
   }
 
   .modal-body {
-    padding: 1.2rem;
+    padding: 1rem;
   }
 
   .filter-group {
@@ -4114,34 +4058,46 @@
 
 /* ── Platform grid ── */
 .share-platform-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
 }
 
 .share-platform-btn {
-  height: 42px;
-  border-radius: 12px;
-  font-family: 'Outfit', 'Figtree', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
   cursor: pointer;
   background: var(--glass-bg, rgba(255,255,255,0.62));
   color: var(--ink-600);
   border: 1px solid var(--glass-border);
   transition: all 0.25s;
-  letter-spacing: 0.2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.share-platform-btn svg {
+  flex-shrink: 0;
 }
 
 .share-platform-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.85);
   color: var(--ink-900);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .share-platform-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.share-utility-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 /* ── Toast ── */
@@ -4332,10 +4288,15 @@
 .shared-verdict-footer { text-align: center; font-size: 0.9rem; color: var(--ink-500); }
 
 @media (max-width: 520px) {
-  .share-modal { padding: 20px; max-width: 100%; border-radius: 20px; }
+  .share-modal { padding: 16px; max-width: 100%; border-radius: 20px; gap: 16px; }
   .share-modal-preview { border-radius: 12px; }
   .si-product { font-size: 22px; }
   .si-outcome-badge { padding: 8px 20px; font-size: 14px; }
-  .share-platform-grid { grid-template-columns: repeat(2, 1fr); }
+  .share-platform-btn { width: 42px; height: 42px; border-radius: 12px; }
+  .share-platform-btn svg { width: 18px; height: 18px; }
+  .share-modal-actions { gap: 6px; }
+  .share-modal-btn { height: 42px; font-size: 13px; }
+  .share-bg-selector { gap: 8px; }
+  .share-bg-swatch { width: 40px; height: 40px; }
   .shared-verdict-page { padding: 2rem 1rem; }
 }
