@@ -67,6 +67,7 @@ supabase migration new <name>  # Create a new migration file
 | `supabase/config.toml` | Supabase local config |
 | `DEBT.md` | Random non-priority features and fixes I encountered or brainstormed while working on other branches |
 | `progress.md` | Progress on the current product feature implementations |
+| `FREEMIUM_FEATURES.md` | Important business model |
 
 ---
 
