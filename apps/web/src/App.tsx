@@ -16,6 +16,7 @@ import HowItWorks from './pages/HowItWorks'
 import EmailSync from './pages/EmailSync'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
+import SharedVerdict from './pages/SharedVerdict'
 import './styles/App.css'
 import { CustomCursor, useGSAPLoader, LiquidButton, VolumetricInput } from './components/Kinematics'
 import { UserPreferencesProvider } from './preferences/UserPreferencesContext'
@@ -453,6 +454,7 @@ function App() {
                 <Route path="/email-sync" element={<EmailSync session={session} />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
+                <Route path="/shared/:token" element={<SharedVerdict />} />
               </Route>
 
               <Route element={<RequireAuth session={session} />}>

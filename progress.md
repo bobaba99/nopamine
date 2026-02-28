@@ -43,17 +43,20 @@
 - [x] Populated CLAUDE.md with project intelligence (architecture, patterns, gotchas, commands)
 - [x] Integrated freemium tier model into APP_FLOW.md and README.md from `freemium_features.md`
 - [x] Implement settings route/page with theme, currency, verdict tone, hold duration — **Branch:** `feat/settings-route-user-preferences`
+- [x] Implement share verdict capability (image export to social media) — **Branch:** `feat/verdict-share-capability`
 
 ---
 
 ## In Progress
 
-- [ ] Implement share verdict capability (image export to social media) — **Branch:** `feat/verdict-share-capability`
-- [ ] Implement alternative solution branching (budget vs. emotional) and queue accepted alternatives for swiping — **Branch:** `feat/alternative-solution`
-- [ ] Implement user data deletion and data export (GDPR Art. 17, 20) — **Branch:** `feat/account-data-request-deletion`
-- [ ] Implement educational content route/page — **Branch:** `feat/resources-page`
+- [ ] Move OpenAI verdict generation to backend/Edge Functions and remove frontend key usage (required for safe free-tier launch) — **Branch:** `fix/backend-verdict-generation`
+- [ ] Enforce free tier verdict cap (3 per week) with clear cap-reached UX and reset messaging — **Branch:** `feat/free-tier-verdict-cap`
+- [ ] Implement behavioural responses telemetry and analytics for free MVP user analysis (event tracking, funnel, retention signals) — **Branch:** `feat/behavioral-telemetry-analytics`
+- [ ] Limit free-tier verdict output depth to concise rationale (one-line reason) — **Branch:** `feat/free-tier-rationale-depth`
+- [ ] Implement educational content route/page with curated consumer-psychology content — **Branch:** `feat/resources-page`
 - [ ] Implement SEO optimization for resources page (OG tags, metadata) — **Branch:** `feat/resources-page-seo-optimization`
-- [ ] Implement behavioural responses telemetry and analytics — **Branch:** `feat/behavioral-telemetry-analytics`
+- [ ] Add dashboard justification-length guidance flow (`<10` and `>100` words) to improve free-tier verdict input quality — **Branch:** `feat/dashboard-justification-guidance`
+- [ ] Implement user data deletion and data export (GDPR Art. 17, 20) — **Branch:** `feat/account-data-request-deletion`
 
 ---
 

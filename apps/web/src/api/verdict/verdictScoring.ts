@@ -243,6 +243,11 @@ export const evaluatePurchaseFallback = (
   const alternativeSolution =
     decisionResult.outcome === 'buy' ? null : buildAlternativeSolution(input)
 
+  const outcomeLabel =
+    decisionResult.outcome === 'buy' ? 'Buy' : decisionResult.outcome === 'hold' ? 'Hold' : 'Skip'
+  const reasonSnippet = reasons.length > 0 ? reasons[0].toLowerCase() : 'general assessment'
+  const rationaleOneLiner = `${outcomeLabel}: ${input.title} — ${reasonSnippet}.`.slice(0, 120)
+
   const outcomeMessage =
     decisionResult.outcome === 'buy'
       ? 'This purchase is recommended'
@@ -308,6 +313,7 @@ export const evaluatePurchaseFallback = (
       decisionScore: decisionResult.decisionScore,
       alternativeSolution: alternativeSolution ?? undefined,
       rationale,
+      rationaleOneLiner,
       importantPurchase: input.isImportant,
       algorithm: 'heuristic_fallback',
     },

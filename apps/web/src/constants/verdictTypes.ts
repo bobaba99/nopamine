@@ -62,6 +62,7 @@ export type LLMEvaluationReasoning = {
   alternativeSolution?: string
   decisionScore?: number
   rationale?: string
+  rationaleOneLiner?: string
   importantPurchase?: boolean
   algorithm?: VerdictAlgorithm
   // Legacy fields for backward compatibility
@@ -99,6 +100,7 @@ export type LLMEvaluationResponse = {
   long_term_regret: ScoreExplanation
   alternative_solution: string
   rationale: string
+  rationale_one_liner: string
   verdict?: VerdictOutcome
   confidence?: number
 }
@@ -112,3 +114,27 @@ export type EvaluationResult = {
   reasoning: LLMEvaluationReasoning
   fallbackReason?: string
 }
+
+/**
+ * Database row for a shared verdict (public snapshot)
+ */
+export type SharedVerdictRow = {
+  id: string
+  verdict_id: string
+  user_id: string
+  share_token: string
+  candidate_title: string
+  candidate_price: number | null
+  candidate_vendor: string | null
+  candidate_category: string | null
+  predicted_outcome: VerdictOutcome
+  rationale_summary: string | null
+  decision_score: number | null
+  created_at: string
+  view_count: number
+}
+
+/**
+ * Share image background theme
+ */
+export type ShareBackground = 'midnight' | 'aurora' | 'sunset' | 'nebula' | 'sunrise'

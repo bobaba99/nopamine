@@ -5,23 +5,20 @@
 ```
 src/
 ├── api/               # Supabase client, service modules, shared types
-│   ├── supabaseClient.ts
-│   ├── types.ts
-│   ├── swipeService.ts
-│   ├── verdictService.ts
-│   ├── purchaseService.ts
-│   ├── statsService.ts
-│   ├── userProfileService.ts
-│   ├── userValueService.ts
-│   ├── embeddingService.ts
-│   └── utils.ts
+│   ├── core/          # Shared client, logger, types, utils
+│   ├── purchase/      # Purchase CRUD, swipe service, stats
+│   ├── verdict/       # Verdict service, LLM calls, prompts, scoring, share service
+│   ├── email/         # Gmail + Outlook import pipeline
+│   ├── user/          # User profile, values, preferences
+│   └── resource/      # Articles/resources CRUD
 ├── assets/            # Static assets (images, SVGs)
 ├── components/        # Reusable UI components (Kinematics, ListFilters, modals)
-├── pages/             # Route-level page components (Dashboard, Swipe, Profile)
+├── constants/         # Domain-specific type files (verdictTypes, purchaseTypes, etc.)
+├── pages/             # Route-level page components (Dashboard, Swipe, Profile, SharedVerdict)
 ├── styles/            # Global CSS files
 │   ├── index.css      # Reset, fonts, root variables (light-mode base)
 │   └── App.css        # App-wide layout, component styles, dark glass theme
-└── utils/             # Pure utility / helper functions (sanitizeHtml, text)
+└── utils/             # Pure utility / helper functions (sanitizeHtml, shareHelpers, verdictImageGenerator)
 ```
 
 ---
@@ -139,6 +136,7 @@ Desktop-first with three breakpoints:
 - `<PublicOnly>` wrapper redirects authenticated users from `/auth` back to `/`.
 - Authenticated routes nest inside `<AppShell>` (provides the glassmorphic route surface).
 - Active nav links styled via `<NavLink>` with the `.active` class.
+- Public route: `/shared/:token` renders `SharedVerdict.tsx` — accessible without authentication, shows a summary-only snapshot of a shared verdict.
 - Mobile: hamburger menu (`mobileMenuOpen` state) replaces nav links at `≤768px`; header auto-hides on scroll-down via `headerHidden` state.
 - No lazy loading configured yet.
 
@@ -240,7 +238,84 @@ Not yet configured. Recommended setup:
 
 ---
 
-## 11. Component & CSS Reference
+## 11. Verdict Share Card
+
+### 11.1 Overview
+
+Users can share verdict results as branded images to social platforms. The share flow creates a public snapshot in `shared_verdicts` (separate from the private `verdicts` table) and renders a shareable card image using `html2canvas`.
+
+### 11.2 Architecture
+
+| Layer         | File                              | Responsibility                                                                                  |
+|---------------|-----------------------------------|-------------------------------------------------------------------------------------------------|
+| Service       | `api/verdict/shareService.ts`     | CRUD for `shared_verdicts` table, token generation, idempotent share creation                   |
+| Image builder | `utils/verdictImageGenerator.ts`  | Builds share card HTML string, renders to PNG blob via `html2canvas`                            |
+| Share helpers | `utils/shareHelpers.ts`           | Platform-specific share URLs (Twitter, WhatsApp, Messenger, iMessage), clipboard, Web Share API |
+| Modal         | `components/VerdictShareModal.tsx` | Share UI: background picker, live preview, platform grid, download/copy actions                 |
+| Public page   | `pages/SharedVerdict.tsx`         | Public `/shared/:token` landing page with summary-only data and CTA                            |
+
+### 11.3 Share Image Card Layout
+
+The share image (`.share-image`) is a flex column with `justify-content: space-between`:
+
+```text
+┌──────────────────────────────────────┐
+│  TruePick                    (top)   │  .si-header — pinned to top
+│                                      │
+│                                      │
+│       Product Name                   │  .si-center — natural flow, centered
+│       ┌──────────┐                   │
+│       │  VERDICT  │                  │  .si-outcome-badge
+│       └──────────┘                   │
+│   One-line rationale summary         │  .si-rationale
+│                                      │
+│                                      │
+│  🔗 gettruepick.com         (bot)   │  .si-footer — pinned to bottom
+└──────────────────────────────────────┘
+```
+
+### 11.4 Background Themes
+
+Five selectable themes, each with animated particle layers:
+
+| Theme   | Key        | Base color | Particle layer                                   |
+|---------|------------|------------|--------------------------------------------------|
+| Night   | `midnight` | `#08061a`  | Twinkling stars (`.bg-layer-midnight`)            |
+| Aurora  | `aurora`   | `#040e0a`  | Flowing wisps (`.bg-layer-aurora`)                |
+| Sunset  | `sunset`   | `#1a0a12`  | Floating warm particles (`.bg-layer-dusk`)        |
+| Nebula  | `nebula`   | `#0a0520`  | Nebula clouds + faint stars (`.bg-layer-nebula`)  |
+| Sunrise | `sunrise`  | `#0f0a04`  | Sun wash + light streaks (`.bg-layer-sunrise`)    |
+
+All themes share sparkle particles (`.sparkles`) and a film grain overlay (`.grain`). Buy verdicts additionally show confetti (`.confetti-container`).
+
+### 11.5 CSS Class Prefix Convention
+
+- Share modal classes: `share-modal-*`, `share-bg-*`, `share-platform-*`, `share-toast`
+- Share image card classes: `si-*` (e.g., `.si-header`, `.si-center`, `.si-footer`, `.si-product`, `.si-outcome-badge`, `.si-rationale`, `.si-wordmark`, `.si-url`, `.si-link-icon`)
+- Background layer classes: `bg-layer-*` (e.g., `.bg-layer-midnight`, `.bg-layer-aurora`)
+- Shared verdict public page classes: `shared-verdict-*`
+
+### 11.6 Key Design Tokens (Share Image)
+
+| Token       | Value                    | Usage                            |
+|-------------|--------------------------|----------------------------------|
+| `--si-ink`  | `#f0eee6`                | Primary text on dark backgrounds |
+| `--si-ink2` | `rgba(240,238,230,0.55)` | Secondary text (rationale)       |
+| `--si-ink3` | `rgba(240,238,230,0.25)` | Tertiary/muted text              |
+
+Outcome badge colors follow the app-wide convention: green (`#5de4a8`) for buy, yellow (`#f5c563`) for hold, red (`#f47171`) for skip.
+
+### 11.7 Rationale One-Liner
+
+The LLM generates a dedicated `rationaleOneLiner` field (under 120 characters, plain text, no HTML) at verdict creation time. This is used on the share card and in the `shared_verdicts.rationale_summary` column. A truncation fallback exists for older verdicts that lack this field.
+
+### 11.8 Dependencies
+
+- **`html2canvas`** — Client-side HTML-to-canvas rendering for share image export.
+
+---
+
+## 12. Component & CSS Reference
 
 Component APIs, prop tables, CSS class catalogs, and usage examples live in the source code itself. Refer to:
 

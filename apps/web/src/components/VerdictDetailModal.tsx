@@ -7,6 +7,7 @@ type VerdictDetailModalProps = {
   isOpen: boolean
   onClose: () => void
   onRegenerate?: (verdict: VerdictRow) => void
+  onShare?: (verdict: VerdictRow) => void
   isRegenerating?: boolean
 }
 
@@ -62,6 +63,7 @@ export default function VerdictDetailModal({
   isOpen,
   onClose,
   onRegenerate,
+  onShare,
   isRegenerating = false,
 }: VerdictDetailModalProps) {
   const { formatCurrency, formatDateTime } = useUserFormatting()
@@ -101,6 +103,15 @@ export default function VerdictDetailModal({
         <div className="modal-header">
           <h2>{verdict.candidate_title}</h2>
           <div className="modal-actions">
+            {onShare && (
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => onShare(verdict)}
+              >
+                Share
+              </button>
+            )}
             {onRegenerate && (
               <button
                 type="button"

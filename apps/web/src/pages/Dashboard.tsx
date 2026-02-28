@@ -15,6 +15,7 @@ import {
   updateVerdictDecision,
 } from '../api/verdict/verdictService'
 import VerdictDetailModal from '../components/VerdictDetailModal'
+import VerdictShareModal from '../components/VerdictShareModal'
 import EvaluatingModal from '../components/EvaluatingModal'
 import { GlassCard, LiquidButton, VolumetricInput, SplitText } from '../components/Kinematics'
 import { useUserFormatting, useUserPreferences } from '../preferences/UserPreferencesContext'
@@ -33,6 +34,7 @@ export default function Dashboard({ session }: DashboardProps) {
   })
   const [recentVerdicts, setRecentVerdicts] = useState<VerdictRow[]>([])
   const [selectedVerdict, setSelectedVerdict] = useState<VerdictRow | null>(null)
+  const [shareModalVerdict, setShareModalVerdict] = useState<VerdictRow | null>(null)
   const [verdictSavingId, setVerdictSavingId] = useState<string | null>(null)
   const [verdictRegeneratingId, setVerdictRegeneratingId] = useState<string | null>(null)
   const [expandedRationales, setExpandedRationales] = useState<Set<string>>(new Set())
@@ -47,7 +49,6 @@ export default function Dashboard({ session }: DashboardProps) {
   const [submitting, setSubmitting] = useState(false)
   const [status, setStatus] = useState<string>('')
   const [statusType, setStatusType] = useState<'error' | 'info'>('error')
-  const [formExpanded, setFormExpanded] = useState(false)
   const generationLockMessage =
     'Another verdict is currently being generated or regenerated. Please wait for it to finish.'
 
@@ -132,7 +133,6 @@ export default function Dashboard({ session }: DashboardProps) {
       }
 
       resetForm()
-      setFormExpanded(false)
       await loadStats()
       await loadRecentVerdicts()
     } catch (error) {
@@ -253,7 +253,7 @@ export default function Dashboard({ session }: DashboardProps) {
         <div className="verdict-result">
           <div className="section-header">
             <h2>Latest verdicts</h2>
-            <LiquidButton as={Link} to="/profile" className="ghost">More</LiquidButton>
+            <LiquidButton as={Link} to="/profile?tab=verdicts" className="ghost">More</LiquidButton>
           </div>
           {recentVerdicts.length > 0 ? (
             <div className="verdict-stack-vertical">
@@ -329,6 +329,13 @@ export default function Dashboard({ session }: DashboardProps) {
                     <LiquidButton
                       type="button"
                       className="link"
+                      onClick={() => setShareModalVerdict(verdict)}
+                    >
+                      Share
+                    </LiquidButton>
+                    <LiquidButton
+                      type="button"
+                      className="link"
                       onClick={() => handleVerdictRegenerate(verdict)}
                       disabled={
                         submitting || verdictRegeneratingId !== null || verdictSavingId === verdict.id
@@ -399,67 +406,57 @@ export default function Dashboard({ session }: DashboardProps) {
               </label>
             </div>
 
-            <div className={`collapsible ${formExpanded ? 'open' : ''}`}>
-              <div>
-                <div className="form-details-inner">
-                  <label>
-                    Brand / Vendor
-                    <VolumetricInput
-                      as="input"
-                      value={vendor}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => setVendor(e.target.value)}
-                      placeholder="Amazon"
-                    />
-                  </label>
-                  <label>
-                    Category
-                    <VolumetricInput
-                      as="select"
-                      value={category}
-                      onChange={(e: ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value)}
-                    >
-                      {PURCHASE_CATEGORIES.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </VolumetricInput>
-                  </label>
-                  <label>
-                    Why do you want this?
-                    <GlassCard className="textarea-wrapper">
-                      <textarea
-                        value={justification}
-                        onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setJustification(e.target.value)}
-                        placeholder="I need it for work calls..."
-                        rows={3}
-                      />
-                    </GlassCard>
-                  </label>
-                  <div className="toggle-row">
-                    <input
-                      id="important-purchase-toggle"
-                      type="checkbox"
-                      checked={importantPurchase}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => setImportantPurchase(e.target.checked)}
-                      aria-labelledby="important-purchase-label"
-                    />
-                    <span id="important-purchase-label" className="toggle-label">
-                      Important purchase
-                    </span>
-                  </div>
-                </div>
-              </div>
+            <div className="form-row">
+              <label>
+                Brand / Vendor
+                <VolumetricInput
+                  as="input"
+                  value={vendor}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setVendor(e.target.value)}
+                  placeholder="Amazon"
+                />
+              </label>
+              <label>
+                Category
+                <VolumetricInput
+                  as="select"
+                  value={category}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value)}
+                >
+                  {PURCHASE_CATEGORIES.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </VolumetricInput>
+              </label>
             </div>
 
+            <label>
+              Why do you want this?
+              <GlassCard className="textarea-wrapper">
+                <textarea
+                  value={justification}
+                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setJustification(e.target.value)}
+                  placeholder="I need it for work calls..."
+                  rows={3}
+                />
+              </GlassCard>
+            </label>
+
             <div className="form-actions-row">
-              <LiquidButton
-                className="ghost"
-                type="button"
-                onClick={() => setFormExpanded((prev) => !prev)}
-              >
-                {formExpanded ? 'Less details' : 'More details'}
-              </LiquidButton>
+              <div className="toggle-row">
+                <input
+                  id="important-purchase-toggle"
+                  type="checkbox"
+                  checked={importantPurchase}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setImportantPurchase(e.target.checked)}
+                  aria-labelledby="important-purchase-label"
+                />
+                <span id="important-purchase-label" className="toggle-label">
+                  Important purchase
+                </span>
+              </div>
               <LiquidButton className="primary" type="submit" disabled={submitting}>
                 {submitting ? 'Evaluating...' : 'Evaluate'}
               </LiquidButton>
@@ -474,7 +471,20 @@ export default function Dashboard({ session }: DashboardProps) {
           isOpen={selectedVerdict !== null}
           onClose={() => setSelectedVerdict(null)}
           onRegenerate={handleVerdictRegenerate}
+          onShare={(v) => {
+            setSelectedVerdict(null)
+            setShareModalVerdict(v)
+          }}
           isRegenerating={verdictRegeneratingId === selectedVerdict.id}
+        />
+      )}
+
+      {shareModalVerdict && session && (
+        <VerdictShareModal
+          verdict={shareModalVerdict}
+          userId={session.user.id}
+          isOpen={shareModalVerdict !== null}
+          onClose={() => setShareModalVerdict(null)}
         />
       )}
 

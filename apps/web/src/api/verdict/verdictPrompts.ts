@@ -124,6 +124,7 @@ Score constraints: all "score" fields must be a number between 0.0 and 1.0 inclu
   "verdict": "(exactly one of: buy, hold, skip -- lowercase, no other value allowed)",
   "confidence": (number 0.0-1.0: 0.5 = uncertain, 0.7 = moderate, 0.9+ = very confident),
   "alternative_solution": "(if verdict is hold or skip: 2-3 sentences offering an alternative way to meet the same need. If verdict is buy: empty string)",
-  "rationale": "(a personalized 3-4 sentence narrative. First sentence: state the recommendation and the primary reason. Second sentence: connect to user profile or values, quoting values in em tags. Third sentence: cite supporting evidence from history or vendor data. Use a warm, conversational tone. Do not include section headers, labels like Outcome, or the JSON schema instructions in this field.)"
+  "rationale": "(a personalized 3-4 sentence narrative. First sentence: state the recommendation and the primary reason. Second sentence: connect to user profile or values, quoting values in em tags. Third sentence: cite supporting evidence from history or vendor data. Use a warm, conversational tone. Do not include section headers, labels like Outcome, or the JSON schema instructions in this field.)",
+  "rationale_one_liner": "(1 sentence, under 120 characters, plain text, no HTML. A punchy summary of the verdict suitable for sharing on social media.)"
 }`
 }

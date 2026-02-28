@@ -43,6 +43,8 @@ export type {
   PatternRepetitionRisk,
   LLMEvaluationResponse,
   EvaluationResult,
+  SharedVerdictRow,
+  ShareBackground,
   // Resource types
   ResourceRow,
   ResourceListItem,

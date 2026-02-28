@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent, MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import type {
   OnboardingAnswers,
@@ -32,6 +32,7 @@ import {
   deletePurchase,
 } from '../api/purchase/purchaseService'
 import VerdictDetailModal from '../components/VerdictDetailModal'
+import VerdictShareModal from '../components/VerdictShareModal'
 import { GlassCard, LiquidButton, VolumetricInput } from '../components/Kinematics'
 import { GmailLogo, OutlookLogo } from '../components/EmailIcons'
 import ListFilters from '../components/ListFilters'
@@ -49,6 +50,9 @@ type ProfileProps = {
 }
 
 type ProfileTab = 'profile' | 'verdicts' | 'purchases' | 'settings'
+const VALID_TABS: readonly ProfileTab[] = ['profile', 'verdicts', 'purchases', 'settings'] as const
+const isProfileTab = (value: string | null): value is ProfileTab =>
+  value !== null && (VALID_TABS as readonly string[]).includes(value)
 
 const PURCHASE_PAGE_SIZE = 5
 
@@ -167,7 +171,9 @@ const normalizeOnboardingAnswers = (
 
 export default function Profile({ session }: ProfileProps) {
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState<ProfileTab>('profile')
+  const [searchParams] = useSearchParams()
+  const initialTab = searchParams.get('tab')
+  const [activeTab, setActiveTab] = useState<ProfileTab>(isProfileTab(initialTab) ? initialTab : 'profile')
   const { preferences, setPreferences: setGlobalPreferences } = useUserPreferences()
   const { formatCurrency, formatDate } = useUserFormatting()
   const [, setUserRow] = useState<UserRow | null>(null)
@@ -187,6 +193,7 @@ export default function Profile({ session }: ProfileProps) {
   const [verdictSavingId, setVerdictSavingId] = useState<string | null>(null)
   const [verdictRegeneratingId, setVerdictRegeneratingId] = useState<string | null>(null)
   const [selectedVerdict, setSelectedVerdict] = useState<VerdictRow | null>(null)
+  const [shareModalVerdict, setShareModalVerdict] = useState<VerdictRow | null>(null)
   const [profileSummary, setProfileSummary] = useState('')
   const [weeklyFunBudget, setWeeklyFunBudget] = useState('')
   const [profilePreferences, setProfilePreferences] = useState<UserPreferences>(preferences)
@@ -842,6 +849,13 @@ export default function Profile({ session }: ProfileProps) {
                     <LiquidButton
                       type="button"
                       className="link"
+                      onClick={() => setShareModalVerdict(verdict)}
+                    >
+                      Share
+                    </LiquidButton>
+                    <LiquidButton
+                      type="button"
+                      className="link"
                       onClick={() => handleVerdictRegenerate(verdict)}
                       disabled={verdictRegeneratingId !== null || isBusy}
                     >
@@ -1190,7 +1204,21 @@ export default function Profile({ session }: ProfileProps) {
           isOpen={selectedVerdict !== null}
           onClose={() => setSelectedVerdict(null)}
           onRegenerate={handleVerdictRegenerate}
+          onShare={(v) => {
+            setSelectedVerdict(null)
+            setShareModalVerdict(v)
+          }}
           isRegenerating={verdictRegeneratingId === selectedVerdict.id}
+        />,
+        document.body
+      )}
+
+      {shareModalVerdict && session && createPortal(
+        <VerdictShareModal
+          verdict={shareModalVerdict}
+          userId={session.user.id}
+          isOpen={shareModalVerdict !== null}
+          onClose={() => setShareModalVerdict(null)}
         />,
         document.body
       )}

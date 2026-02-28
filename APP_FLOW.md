@@ -194,7 +194,36 @@ If the users like the alternative solution offered during the verdict, they can 
   - Also reframes the money in comparative terms (i.e., if you invest with an ROI of 5%, in a year it would be XXX amount)
   - Selecting this alternative will queue this item as 'skip' and future verdict will retrieve this memory for successful or failed attempts so that it feels personalized and different each time
 
+### 4.7 Flow: Verdict sharing
 
+#### 4.7.1 Share modal
+
+User clicks "Share" on a verdict card (Dashboard, Profile, or VerdictDetailModal) → opens `VerdictShareModal`:
+
+1. Modal creates (or reuses) a `shared_verdicts` row via `shareService.createSharedVerdict()` → generates 10-char share token
+2. Generates share image HTML (`verdictImageGenerator.buildShareImageHtml`) with product name, outcome badge, score pill, rationale, and `gettruepick.com` watermark
+3. User selects from 5 background themes: midnight (stars), aurora (wisps), sunset (particles), nebula (clouds), sunrise (light streaks)
+4. Live preview renders in modal; image is captured to PNG via `html2canvas` on demand
+5. Platform action buttons:
+   - **iMessage** — `sms:&body=...` URI scheme
+   - **Messenger** — Facebook dialog share URL
+   - **Instagram** — downloads image + toast "Image saved — open Instagram to share"
+   - **TikTok** — downloads image + toast "Image saved — open TikTok to share"
+   - **WhatsApp** — `wa.me/?text=...` deep link
+   - **X/Twitter** — tweet intent URL
+   - **Save Image** — downloads PNG directly
+   - **Copy Link** — copies share URL to clipboard
+   - **Share** (mobile only) — native Web Share API
+
+#### 4.7.2 Public shared verdict page
+
+Route: `/shared/:token` (no auth required, public `AppShell` route)
+
+1. Fetches `shared_verdicts` by token via `shareService.getSharedVerdict()`
+2. Increments `view_count` via `increment_share_view_count` RPC (security definer)
+3. Displays summary only: outcome badge, product title, price, vendor, 1-line rationale
+4. CTA: "Want clarity on your next purchase?" → "Get your own verdict" button → `/auth`
+5. Invalid/expired token → "This verdict link is invalid or has expired" + "Get started" CTA
 
 ---
 
@@ -206,7 +235,7 @@ Desktop: persistent topbar with nav links. Mobile (≤768px): hamburger menu ove
 ├── Home / Dashboard
 │   ├── Verdict Generation
 │   ├── Verdict History (up to 3 most recent verdicts)
-|   ├── Share to social media or save as an image
+│   ├── Share verdict (opens VerdictShareModal with image preview + platform buttons)
 ├── Home / Swipe Queue
 │   ├── Schedule Overview (filterable, swipeable cards)
 │   ├── Swiping for Regret/Satisfaction
@@ -215,12 +244,15 @@ Desktop: persistent topbar with nav links. Mobile (≤768px): hamburger menu ove
 ├── Home / Profile
 │   ├── Profile Summary
 │   ├── Full Purchase History
-│   ├── Full Verdict History
+│   ├── Full Verdict History (with share button per verdict)
 │   ├── Onboarding Quiz
 │   ├── Email Syncing
 │   ├── Tour of the app
 │   ├── Preferences (language, theme, currency, etc.)
 │   └── Logout
+├── /shared/:token (public, no auth required)
+│   ├── Shared verdict summary (outcome, title, price, vendor, rationale)
+│   └── "Get your own verdict" CTA → /auth
 ├── Home / About
 │   ├── About the app
 │   ├── Privacy Policy
@@ -264,7 +296,9 @@ API calls are mapped in `BACKEND_GUIDELINES.md` Section 2.3. Key patterns:
 - **LLM:** Direct `fetch` to OpenAI Chat Completions + Embeddings
 - **Email import:** Gmail REST API / Microsoft Graph API + GPT-5-nano receipt parsing
 
-**Not yet implemented:** share verdict endpoint, educational content API, settings API, verdict rate limiting (free tier cap), premium tier billing/upgrade flow, Chrome Extension APIs, spending analytics endpoints.
+**Not yet implemented:** educational content API, verdict rate limiting (free tier cap), premium tier billing/upgrade flow, Chrome Extension APIs, spending analytics endpoints.
+
+**Recently implemented:** Share verdict (`shared_verdicts` table with `shareService.ts` — create, get, increment view count; `VerdictShareModal` for image generation and platform sharing; `/shared/:token` public landing page).
 
 ---
 

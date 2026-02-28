@@ -44,6 +44,8 @@ export type {
   PatternRepetitionRisk,
   LLMEvaluationResponse,
   EvaluationResult,
+  SharedVerdictRow,
+  ShareBackground,
 } from './verdictTypes'
 
 // Resource types

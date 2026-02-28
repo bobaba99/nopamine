@@ -287,6 +287,7 @@ const processLlmResponse = (
       longTermRegret,
       alternativeSolution: llmResponse.alternative_solution,
       rationale: alignRationaleWithOutcome(overriddenVerdict, overriddenRationale),
+      rationaleOneLiner: llmResponse.rationale_one_liner,
       importantPurchase: input.isImportant,
       algorithm: 'llm_only',
     },
