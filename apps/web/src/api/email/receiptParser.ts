@@ -1,10 +1,10 @@
 /**
  * Receipt Parser
- * Uses gpt-5-nano to extract structured purchase data from email content
+ * Calls server-side Express proxy which uses gpt-5-nano for receipt extraction
  */
 
 import type { PurchaseCategory } from '../core/types'
-import OpenAI from "openai";
+import { supabase } from '../core/supabaseClient'
 
 export type ExtractedReceipt = {
   title: string
@@ -15,37 +15,7 @@ export type ExtractedReceipt = {
   order_id: string | null
 }
 
-const EXTRACTION_PROMPT = `You are a receipt parser that extracts purchase information from email content.
-
-Extract the following fields for EACH item purchased:
-- title: The item/product name (be specific but concise)
-- price: The item price as a number (no currency symbols). Must be the actual price paid, not 0.
-- vendor: The store/merchant name
-- category: One of: electronics, fashion, home goods, health & wellness, travel, entertainment, subscriptions, food & beverage, services, education, other
-- purchase_date: The date of purchase in YYYY-MM-DD format
-- order_id: The order/confirmation number if present, otherwise null
-
-Rules:
-- If multiple items are purchased, return EACH item as a separate object in a JSON array
-- For subscriptions, include the period in the title (e.g., "Netflix 1 Month")
-- SKIP any item where the price cannot be determined - do not include items with price 0 or unknown price
-- If date cannot be determined, use the email date
-- Return valid JSON only, no markdown
-
-Email sender: {sender}
-Email subject: {subject}
-Email date: {email_date}
-
-Email content:
-{content}
-
-If this is NOT a purchase receipt (e.g., promotional email, newsletter, shipping update without purchase details), respond with exactly: {"not_a_receipt": true}
-
-For a SINGLE item, respond with:
-{"items": [{"title": "...", "price": 12.99, "vendor": "...", "category": "...", "purchase_date": "YYYY-MM-DD", "order_id": "..." or null}]}
-
-For MULTIPLE items, respond with:
-{"items": [{"title": "Item 1", "price": 12.99, "vendor": "...", "category": "...", "purchase_date": "YYYY-MM-DD", "order_id": "..."}, {"title": "Item 2", "price": 8.50, "vendor": "...", "category": "...", "purchase_date": "YYYY-MM-DD", "order_id": "..."}]}`
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
 
 const VALID_CATEGORIES: PurchaseCategory[] = [
   'electronics',
@@ -61,153 +31,110 @@ const VALID_CATEGORIES: PurchaseCategory[] = [
   'other',
 ]
 
+const getAuthToken = async (): Promise<string> => {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) {
+    throw new Error('No active session')
+  }
+  return session.access_token
+}
+
+const callParseEndpoint = async (
+  token: string,
+  emailText: string,
+  sender: string,
+  subject: string,
+  emailDate: string,
+  contentLimit: number,
+  maxOutputTokens: number
+): Promise<string> => {
+  const response = await fetch(`${API_BASE_URL}/api/email/parse-receipt`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      emailText,
+      sender,
+      subject,
+      emailDate,
+      contentLimit,
+      maxOutputTokens,
+    }),
+  })
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+    const detail = (body as { details?: string }).details ?? ''
+    if (response.status === 422 && detail.includes('max_output_tokens')) {
+      throw new Error(`OpenAI response incomplete: max_output_tokens`)
+    }
+    throw new Error((body as { error?: string }).error ?? `API error: ${response.status}`)
+  }
+
+  const data = (await response.json()) as { content: string }
+  return data.content ?? ''
+}
+
+const parseContent = (content: string, emailDate: string): ExtractedReceipt[] => {
+  if (!content) {
+    return []
+  }
+
+  const parsed = JSON.parse(content)
+
+  if (parsed.not_a_receipt) {
+    return []
+  }
+
+  const items = Array.isArray(parsed.items)
+    ? parsed.items
+    : Array.isArray(parsed)
+      ? parsed
+      : [parsed]
+
+  const results: ExtractedReceipt[] = []
+  for (const item of items) {
+    const validated = validateAndNormalize(item, emailDate)
+    if (validated) {
+      results.push(validated)
+    }
+  }
+
+  return results
+}
+
 /**
- * Parse receipt email content using gpt-5-nano
+ * Parse receipt email content via server-side gpt-5-nano proxy
  * Returns an array of extracted receipts (one per item in the email)
- * @throws Error if API key is missing or API call fails
  */
 export async function parseReceiptWithAI(
   emailText: string,
   sender: string,
   subject: string,
-  emailDate: string,
-  openaiApiKey: string
+  emailDate: string
 ): Promise<ExtractedReceipt[]> {
-  const buildPrompt = (contentLimit: number): string => {
-    const truncatedContent =
-      emailText.length > contentLimit ? emailText.slice(0, contentLimit) + '...' : emailText
-
-    return EXTRACTION_PROMPT.replace('{sender}', sender)
-      .replace('{subject}', subject)
-      .replace('{email_date}', emailDate)
-      .replace('{content}', truncatedContent)
-  }
-
   try {
-    // Validate API key before making request
-    if (!openaiApiKey || openaiApiKey.trim() === '') {
-      throw new Error('OpenAI API key is missing or empty')
-    }
+    const token = await getAuthToken()
 
-    const client = new OpenAI({
-      apiKey: openaiApiKey,
-      dangerouslyAllowBrowser: true,
-    })
-
-    const parseAttempt = async (contentLimit: number, maxOutputTokens: number): Promise<string> => {
-      const response = await client.responses.parse({
-        model: 'gpt-5-nano',
-        text: { format: { type: 'json_object' } },
-        input: [{ role: 'user', content: buildPrompt(contentLimit) }],
-        max_output_tokens: maxOutputTokens,
-      })
-
-      if (response.error) {
-        throw new Error(response.error.message)
-      }
-
-      if (response.incomplete_details?.reason) {
-        throw new Error(`OpenAI response incomplete: ${response.incomplete_details.reason}`)
-      }
-
-      return response.output_text?.trim() ?? ''
-    }
-
-    const content = await parseAttempt(3000, 1500)
-    if (!content) {
-      return []
-    }
-
-    // Parse JSON response
-    const parsed = JSON.parse(content)
-
-    // Check if it's not a receipt
-    if (parsed.not_a_receipt) {
-      return []
-    }
-
-    // Handle both array format and legacy single object format
-    const items = Array.isArray(parsed.items)
-      ? parsed.items
-      : Array.isArray(parsed)
-        ? parsed
-        : [parsed]
-
-    // Validate and normalize each item, filtering out invalid ones
-    const results: ExtractedReceipt[] = []
-    for (const item of items) {
-      const validated = validateAndNormalize(item, emailDate)
-      if (validated) {
-        results.push(validated)
-      }
-    }
-
-    return results
-  } catch (error) {
-    if (error instanceof OpenAI.APIError) {
-      const errorMessage = error.message || 'OpenAI API request failed'
-      if (error.status === 401 || error.status === 400) {
-        throw new Error(
-          `OpenAI authentication failed: ${errorMessage}. Check VITE_OPENAI_API_KEY.`
-        )
-      }
-      throw new Error(errorMessage)
-    }
-    if (
-      error instanceof Error &&
-      error.message.includes('OpenAI response incomplete: max_output_tokens')
-    ) {
-      try {
-        const client = new OpenAI({
-          apiKey: openaiApiKey,
-          dangerouslyAllowBrowser: true,
-        })
-
-        const retryResponse = await client.responses.parse({
-          model: 'gpt-5-nano',
-          text: { format: { type: 'json_object' } },
-          input: [{ role: 'user', content: buildPrompt(1400) }],
-          max_output_tokens: 700,
-        })
-
-        if (retryResponse.error) {
-          throw new Error(retryResponse.error.message)
-        }
-        if (retryResponse.incomplete_details?.reason) {
-          throw new Error(`OpenAI response incomplete: ${retryResponse.incomplete_details.reason}`)
-        }
-
-        const retryContent = retryResponse.output_text?.trim()
-        if (!retryContent) {
-          return []
-        }
-
-        const parsed = JSON.parse(retryContent)
-        if (parsed.not_a_receipt) {
-          return []
-        }
-
-        const items = Array.isArray(parsed.items)
-          ? parsed.items
-          : Array.isArray(parsed)
-            ? parsed
-            : [parsed]
-
-        const results: ExtractedReceipt[] = []
-        for (const item of items) {
-          const validated = validateAndNormalize(item, emailDate)
-          if (validated) {
-            results.push(validated)
-          }
-        }
-
-        return results
-      } catch {
+    let content: string
+    try {
+      content = await callParseEndpoint(token, emailText, sender, subject, emailDate, 3000, 1500)
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes('OpenAI response incomplete: max_output_tokens')
+      ) {
+        content = await callParseEndpoint(token, emailText, sender, subject, emailDate, 1400, 700)
+      } else {
         throw error
       }
     }
+
+    return parseContent(content, emailDate)
+  } catch (error) {
     if (error instanceof SyntaxError) {
-      // JSON parse error - not a valid receipt response
       return []
     }
     throw error
@@ -222,12 +149,10 @@ function validateAndNormalize(
   data: Record<string, unknown>,
   fallbackDate: string
 ): ExtractedReceipt | null {
-  // Title is required
   if (typeof data.title !== 'string' || !data.title.trim()) {
     return null
   }
 
-  // Parse and validate price - must be a positive number
   let price = 0
   if (typeof data.price === 'number') {
     price = data.price
@@ -235,17 +160,14 @@ function validateAndNormalize(
     price = parseFloat(data.price.replace(/[^0-9.]/g, '')) || 0
   }
 
-  // Skip items without valid price (price must be > 0)
   if (price <= 0) {
     return null
   }
 
-  // Vendor is required
   if (typeof data.vendor !== 'string' || !data.vendor.trim()) {
     return null
   }
 
-  // Validate category
   let category: PurchaseCategory | null = null
   if (
     typeof data.category === 'string' &&
@@ -254,7 +176,6 @@ function validateAndNormalize(
     category = data.category as PurchaseCategory
   }
 
-  // Validate and normalize date
   let purchaseDate = fallbackDate
   if (typeof data.purchase_date === 'string') {
     const dateMatch = data.purchase_date.match(/^\d{4}-\d{2}-\d{2}$/)
@@ -263,7 +184,6 @@ function validateAndNormalize(
     }
   }
 
-  // Order ID is optional
   const orderId =
     typeof data.order_id === 'string' && data.order_id.trim()
       ? data.order_id.trim()
@@ -290,7 +210,6 @@ export async function parseReceiptsBatch(
     subject: string
     date: string
   }>,
-  openaiApiKey: string,
   delayMs: number = 200
 ): Promise<ExtractedReceipt[]> {
   const results: ExtractedReceipt[] = []
@@ -301,15 +220,13 @@ export async function parseReceiptsBatch(
         email.text,
         email.sender,
         email.subject,
-        email.date,
-        openaiApiKey
+        email.date
       )
       results.push(...receipts)
-    } catch (error) {
-      console.error('Failed to parse email:', email.subject, error)
+    } catch {
+      // Skip emails that fail to parse
     }
 
-    // Rate limiting delay between API calls
     if (delayMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, delayMs))
     }
