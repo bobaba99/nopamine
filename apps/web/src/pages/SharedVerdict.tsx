@@ -3,10 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import type { SharedVerdictRow } from '../constants/verdictTypes'
 import { getSharedVerdict, incrementShareViewCount } from '../api/verdict/shareService'
 import { GlassCard, LiquidButton } from '../components/Kinematics'
+import { useAnalytics } from '../hooks/useAnalytics'
 
 export default function SharedVerdict() {
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
+  const analytics = useAnalytics()
   const [sharedVerdict, setSharedVerdict] = useState<SharedVerdictRow | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -28,6 +30,7 @@ export default function SharedVerdict() {
         setNotFound(true)
       } else {
         setSharedVerdict(data)
+        analytics.trackSharedVerdictViewed()
         void incrementShareViewCount(token)
       }
       setLoading(false)
@@ -98,7 +101,10 @@ export default function SharedVerdict() {
       <div className="shared-verdict-cta">
         <h2>Want clarity on your next purchase?</h2>
         <p>TruePick uses AI to give you an honest verdict based on your spending patterns.</p>
-        <LiquidButton className="primary" type="button" onClick={() => navigate('/auth')}>
+        <LiquidButton className="primary" type="button" onClick={() => {
+          analytics.trackSharedVerdictCtaClicked()
+          navigate('/auth')
+        }}>
           Get your own verdict
         </LiquidButton>
       </div>

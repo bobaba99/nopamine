@@ -11,6 +11,7 @@ import {
   buildMessengerShareUrl,
   buildIMessageUrl,
 } from '../utils/shareHelpers'
+import { useAnalytics } from '../hooks/useAnalytics'
 
 type VerdictShareModalProps = {
   verdict: VerdictRow
@@ -50,6 +51,8 @@ export default function VerdictShareModal({
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const previewRef = useRef<HTMLDivElement>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const analytics = useAnalytics()
+  const shareLinkStartRef = useRef<number>(0)
 
   const outcome = verdict.predicted_outcome ?? 'hold'
   const rationale = extractRationalePlain(verdict.reasoning)
@@ -65,9 +68,11 @@ export default function VerdictShareModal({
     let cancelled = false
     const prepare = async () => {
       setPreparing(true)
+      shareLinkStartRef.current = Date.now()
       const result = await createSharedVerdict(verdict, userId)
       if (cancelled) return
       if (result.token) {
+        analytics.trackShareLinkCreated(Date.now() - shareLinkStartRef.current)
         setShareUrl(buildShareUrl(result.token))
       } else {
         showToast(result.error ?? 'Could not create share link')
@@ -96,14 +101,17 @@ export default function VerdictShareModal({
   const getImageElement = (): HTMLElement | null =>
     previewRef.current?.querySelector('#shareImageInner') ?? null
 
-  const renderAndDownload = async (filename: string): Promise<Blob | null> => {
+  const renderAndDownload = async (_filename: string): Promise<Blob | null> => {
     const el = getImageElement()
     if (!el) {
       showToast('Preview not ready')
       return null
     }
     try {
-      return await renderShareImageToBlob(el, 1080)
+      const renderStart = Date.now()
+      const blob = await renderShareImageToBlob(el, 1080)
+      analytics.trackShareImageRenderDuration(Date.now() - renderStart)
+      return blob
     } catch {
       showToast('Image render failed')
       return null
@@ -115,6 +123,7 @@ export default function VerdictShareModal({
     const blob = await renderAndDownload(`truepick-${outcome}.png`)
     if (blob) {
       downloadBlob(blob, `truepick-${outcome}.png`)
+      analytics.trackVerdictShared('download')
       showToast('Image saved')
     }
     setActionLoading(null)
@@ -137,6 +146,8 @@ export default function VerdictShareModal({
     if (!ok) {
       downloadBlob(blob, `truepick-${outcome}.png`)
       showToast('Downloaded — share manually')
+    } else {
+      analytics.trackVerdictShared('native')
     }
     setActionLoading(null)
   }
@@ -145,29 +156,34 @@ export default function VerdictShareModal({
     if (!shareUrl) { showToast('Link not ready'); return }
     setActionLoading('copy')
     const ok = await copyToClipboard(shareUrl)
+    if (ok) analytics.trackVerdictShared('copy_link')
     showToast(ok ? 'Link copied' : 'Copy failed')
     setActionLoading(null)
   }
 
   const handleTwitter = () => {
     if (!shareUrl) return
+    analytics.trackVerdictShared('twitter')
     const text = `I asked @TruePick about "${verdict.candidate_title}" — verdict: ${outcome.toUpperCase()}`
     window.open(buildTwitterShareUrl(text, shareUrl), '_blank', 'noopener')
   }
 
   const handleWhatsApp = () => {
     if (!shareUrl) return
+    analytics.trackVerdictShared('whatsapp')
     const text = `Check out my TruePick verdict for "${verdict.candidate_title}": ${shareUrl}`
     window.open(buildWhatsAppShareUrl(text), '_blank', 'noopener')
   }
 
   const handleMessenger = () => {
     if (!shareUrl) return
+    analytics.trackVerdictShared('messenger')
     window.open(buildMessengerShareUrl(shareUrl), '_blank', 'noopener')
   }
 
   const handleIMessage = () => {
     if (!shareUrl) return
+    analytics.trackVerdictShared('imessage')
     const text = `Check out my TruePick verdict for "${verdict.candidate_title}": ${shareUrl}`
     window.location.href = buildIMessageUrl(text)
   }
@@ -177,6 +193,7 @@ export default function VerdictShareModal({
     const blob = await renderAndDownload(`truepick-${outcome}.png`)
     if (blob) {
       downloadBlob(blob, `truepick-${outcome}.png`)
+      analytics.trackVerdictShared('instagram')
       showToast('Image saved — open Instagram to share')
     }
     setActionLoading(null)
@@ -187,6 +204,7 @@ export default function VerdictShareModal({
     const blob = await renderAndDownload(`truepick-${outcome}.png`)
     if (blob) {
       downloadBlob(blob, `truepick-${outcome}.png`)
+      analytics.trackVerdictShared('tiktok')
       showToast('Image saved — open TikTok to share')
     }
     setActionLoading(null)
