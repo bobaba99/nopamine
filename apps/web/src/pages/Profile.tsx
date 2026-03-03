@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent, MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -44,6 +44,7 @@ import {
   LOCALE_OPTIONS,
   normalizeUserPreferences,
 } from '../utils/userPreferences'
+import { useAnalytics } from '../hooks/useAnalytics'
 
 type ProfileProps = {
   session: Session | null
@@ -176,6 +177,9 @@ export default function Profile({ session }: ProfileProps) {
   const [activeTab, setActiveTab] = useState<ProfileTab>(isProfileTab(initialTab) ? initialTab : 'profile')
   const { preferences, setPreferences: setGlobalPreferences } = useUserPreferences()
   const { formatCurrency, formatDate } = useUserFormatting()
+  const analytics = useAnalytics()
+  const profileModalOpenTimeRef = useRef<number>(0)
+  const regenStartRef = useRef<number>(0)
   const [, setUserRow] = useState<UserRow | null>(null)
   const [verdicts, setVerdicts] = useState<VerdictRow[]>([])
   const [purchases, setPurchases] = useState<PurchaseRow[]>([])
@@ -411,7 +415,14 @@ export default function Profile({ session }: ProfileProps) {
     return [...items, value]
   }
 
+  const handleTabSwitch = (tab: ProfileTab) => {
+    analytics.trackProfileTabSwitched(tab)
+    setActiveTab(tab)
+  }
+
   const openProfileModal = () => {
+    analytics.trackProfileModalOpened()
+    profileModalOpenTimeRef.current = Date.now()
     setProfileDraftSummary(profileSummary)
     setProfileDraftBudget(weeklyFunBudget)
     setProfileModalOpen(true)
@@ -458,6 +469,10 @@ export default function Profile({ session }: ProfileProps) {
       return { error }
     }
 
+    analytics.trackProfileUpdated(
+      budgetValue !== null,
+      onboardingAnswers.coreValues.length > 0 ? 1 : 0,
+    )
     await loadProfile()
     setProfileModalOpen(false)
     setProfileSaving(false)
@@ -478,6 +493,23 @@ export default function Profile({ session }: ProfileProps) {
       setStatus(error)
       setPreferencesSaving(false)
       return { error }
+    }
+
+    // Track each changed setting
+    if (profileDraftPreferences.theme !== profilePreferences.theme) {
+      analytics.trackSettingsChanged('theme', profileDraftPreferences.theme)
+    }
+    if (profileDraftPreferences.currency !== profilePreferences.currency) {
+      analytics.trackSettingsChanged('currency', profileDraftPreferences.currency)
+    }
+    if (profileDraftPreferences.locale !== profilePreferences.locale) {
+      analytics.trackSettingsChanged('locale', profileDraftPreferences.locale)
+    }
+    if (profileDraftPreferences.hold_duration_hours !== profilePreferences.hold_duration_hours) {
+      analytics.trackSettingsChanged('hold_duration_hours', String(profileDraftPreferences.hold_duration_hours))
+    }
+    if (profileDraftPreferences.hold_reminders_enabled !== profilePreferences.hold_reminders_enabled) {
+      analytics.trackSettingsChanged('hold_reminders_enabled', String(profileDraftPreferences.hold_reminders_enabled))
     }
 
     setProfilePreferences(profileDraftPreferences)
@@ -560,6 +592,9 @@ export default function Profile({ session }: ProfileProps) {
       return
     }
 
+    if (!purchaseEditingId) {
+      analytics.trackPurchaseAdded('manual')
+    }
     await loadPurchases()
     resetPurchaseForm()
     setPurchaseSaving(false)
@@ -590,6 +625,7 @@ export default function Profile({ session }: ProfileProps) {
       return
     }
 
+    analytics.trackPurchaseDeleted()
     await loadPurchases()
     await loadVerdicts()
     setPurchaseSaving(false)
@@ -601,6 +637,11 @@ export default function Profile({ session }: ProfileProps) {
     setVerdictSavingId(verdictId)
     setStatus('')
 
+    const verdict = verdicts.find((v) => v.id === verdictId)
+    const verdictAgeSeconds = verdict?.created_at
+      ? (Date.now() - new Date(verdict.created_at).getTime()) / 1000
+      : 0
+
     const { error } = await updateVerdictDecision(session.user.id, verdictId, decision)
 
     if (error) {
@@ -609,6 +650,7 @@ export default function Profile({ session }: ProfileProps) {
       return
     }
 
+    analytics.trackVerdictDecision(decision, verdictAgeSeconds)
     await loadVerdicts()
     await loadPurchases()
     setVerdictSavingId(null)
@@ -642,6 +684,7 @@ export default function Profile({ session }: ProfileProps) {
 
     setVerdictRegeneratingId(verdict.id)
     setStatus('')
+    regenStartRef.current = Date.now()
 
     try {
       const input = inputFromVerdict(verdict)
@@ -657,6 +700,9 @@ export default function Profile({ session }: ProfileProps) {
         setStatus(error ?? 'Failed to regenerate verdict.')
         return
       }
+
+      analytics.trackVerdictRegenDuration(Date.now() - regenStartRef.current)
+      analytics.trackVerdictRegenerated()
 
       setVerdicts((previousVerdicts) =>
         previousVerdicts.map((previousVerdict) =>
@@ -696,7 +742,7 @@ export default function Profile({ session }: ProfileProps) {
           <LiquidButton
             type="button"
             className="ghost"
-            onClick={() => setProfileModalOpen(true)}
+            onClick={openProfileModal}
           >
             Edit Decision Profile
           </LiquidButton>
@@ -917,7 +963,10 @@ export default function Profile({ session }: ProfileProps) {
           <LiquidButton
             type="button"
             className="ghost"
-            onClick={() => setEmailImportModalOpen(true)}
+            onClick={() => {
+              analytics.trackEmailImportModalOpened()
+              setEmailImportModalOpen(true)
+            }}
           >
             Import from email
           </LiquidButton>
@@ -1157,7 +1206,7 @@ export default function Profile({ session }: ProfileProps) {
           role="tab"
           aria-selected={activeTab === 'profile'}
           className={`profile-tab ${activeTab === 'profile' ? 'active' : ''}`}
-          onClick={() => setActiveTab('profile')}
+          onClick={() => handleTabSwitch('profile')}
         >
           Profile
         </button>
@@ -1166,7 +1215,7 @@ export default function Profile({ session }: ProfileProps) {
           role="tab"
           aria-selected={activeTab === 'verdicts'}
           className={`profile-tab ${activeTab === 'verdicts' ? 'active' : ''}`}
-          onClick={() => setActiveTab('verdicts')}
+          onClick={() => handleTabSwitch('verdicts')}
         >
           Verdicts
         </button>
@@ -1175,7 +1224,7 @@ export default function Profile({ session }: ProfileProps) {
           role="tab"
           aria-selected={activeTab === 'purchases'}
           className={`profile-tab ${activeTab === 'purchases' ? 'active' : ''}`}
-          onClick={() => setActiveTab('purchases')}
+          onClick={() => handleTabSwitch('purchases')}
         >
           Purchases
         </button>
@@ -1184,7 +1233,7 @@ export default function Profile({ session }: ProfileProps) {
           role="tab"
           aria-selected={activeTab === 'settings'}
           className={`profile-tab ${activeTab === 'settings' ? 'active' : ''}`}
-          onClick={() => setActiveTab('settings')}
+          onClick={() => handleTabSwitch('settings')}
         >
           Settings
         </button>
@@ -1365,7 +1414,13 @@ export default function Profile({ session }: ProfileProps) {
               <button
                 type="button"
                 className="modal-close"
-                onClick={() => setProfileModalOpen(false)}
+                onClick={() => {
+                  analytics.trackProfileModalAbandoned(
+                    (Date.now() - profileModalOpenTimeRef.current) / 1000,
+                    0,
+                  )
+                  setProfileModalOpen(false)
+                }}
                 aria-label="Close modal"
               >
                 ×
