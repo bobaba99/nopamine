@@ -20,6 +20,8 @@ import SharedVerdict from './pages/SharedVerdict'
 import './styles/App.css'
 import { CustomCursor, useGSAPLoader, LiquidButton, VolumetricInput } from './components/Kinematics'
 import { UserPreferencesProvider } from './preferences/UserPreferencesContext'
+import AnalyticsProvider from './components/AnalyticsProvider'
+import { useAnalytics } from './hooks/useAnalytics'
 
 type AuthMode = 'sign_in' | 'sign_up'
 
@@ -219,6 +221,7 @@ function App() {
   const [headerHidden, setHeaderHidden] = useState(false)
   const lastScrollY = useRef(0)
   const gsapLoaded = useGSAPLoader()
+  const analytics = useAnalytics()
 
   const handleScroll = useCallback(() => {
     const currentY = window.scrollY
@@ -307,6 +310,11 @@ function App() {
           'Check your inbox to confirm your account, then sign in with your password.',
       })
     } else {
+      if (authMode === 'sign_up') {
+        analytics.trackSignUp()
+      } else {
+        analytics.trackLogin()
+      }
       setStatus({
         type: 'success',
         message: authMode === 'sign_in' ? 'Signed in.' : 'Account created.',
@@ -332,6 +340,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <AnalyticsProvider session={session} sessionLoading={sessionLoading}>
       <UserPreferencesProvider session={session}>
         <div className="page">
           {gsapLoaded && <CustomCursor />}
@@ -408,7 +417,12 @@ function App() {
               type="button"
               aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileMenuOpen}
-              onClick={() => setMobileMenuOpen((open) => !open)}
+              onClick={() => {
+                setMobileMenuOpen((open) => {
+                  if (!open) analytics.trackNavMenuOpened()
+                  return !open
+                })
+              }}
             >
               <span className={`hamburger${mobileMenuOpen ? ' hamburger--open' : ''}`} />
             </button>
@@ -482,6 +496,7 @@ function App() {
           </main>
         </div>
       </UserPreferencesProvider>
+      </AnalyticsProvider>
     </BrowserRouter>
   )
 }
