@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
@@ -20,6 +20,7 @@ import VerdictShareModal from '../components/VerdictShareModal'
 import EvaluatingModal from '../components/EvaluatingModal'
 import { GlassCard, LiquidButton, VolumetricInput, SplitText } from '../components/Kinematics'
 import { useUserFormatting, useUserPreferences } from '../preferences/UserPreferencesContext'
+import { useAnalytics } from '../hooks/useAnalytics'
 
 type DashboardProps = {
   session: Session | null
@@ -28,6 +29,12 @@ type DashboardProps = {
 export default function Dashboard({ session }: DashboardProps) {
   const { preferences } = useUserPreferences()
   const { formatCurrency, formatDateTime } = useUserFormatting()
+  const analytics = useAnalytics()
+  const formStartRef = useRef<number | null>(null)
+  const formFieldsRef = useRef<Set<string>>(new Set())
+  const formSubmittedRef = useRef(false)
+  const evalStartRef = useRef<number>(0)
+  const regenStartRef = useRef<number>(0)
   const [stats, setStats] = useState<Stats>({
     swipesCompleted: 0,
     regretRate: 0,
@@ -75,6 +82,32 @@ export default function Dashboard({ session }: DashboardProps) {
     return () => window.clearTimeout(timeoutId)
   }, [loadStats, loadRecentVerdicts])
 
+  const trackFieldFocus = useCallback((fieldName: string) => {
+    if (!formFieldsRef.current.has(fieldName)) {
+      formFieldsRef.current.add(fieldName)
+      analytics.trackFormFieldFocused(fieldName)
+    }
+    if (formStartRef.current === null) {
+      formStartRef.current = Date.now()
+    }
+  }, [analytics])
+
+  // Track form abandonment on unmount
+  useEffect(() => {
+    return () => {
+      if (
+        formFieldsRef.current.size > 0 &&
+        !formSubmittedRef.current &&
+        formStartRef.current !== null
+      ) {
+        analytics.trackFormAbandoned(
+          formFieldsRef.current.size,
+          (Date.now() - formStartRef.current) / 1000,
+        )
+      }
+    }
+  }, [analytics])
+
   const resetForm = () => {
     setTitle('')
     setPrice('')
@@ -82,6 +115,9 @@ export default function Dashboard({ session }: DashboardProps) {
     setJustification('')
     setMotivation(null)
     setImportantPurchase(false)
+    formStartRef.current = null
+    formFieldsRef.current = new Set()
+    formSubmittedRef.current = false
   }
 
   const handleEvaluate = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -96,12 +132,15 @@ export default function Dashboard({ session }: DashboardProps) {
     if (!title.trim()) {
       setStatus('Item title is required.')
       setStatusType('error')
+      analytics.trackFormValidationError('title', 'required')
       return
     }
 
     setSubmitting(true)
     setStatus('')
     setStatusType('error')
+    analytics.trackVerdictEvalStarted()
+    evalStartRef.current = Date.now()
 
     const input = {
       title: title.trim(),
@@ -119,6 +158,11 @@ export default function Dashboard({ session }: DashboardProps) {
         input
       )
 
+      analytics.trackVerdictEvalDuration(
+        Date.now() - evalStartRef.current,
+        !!evaluation.fallbackReason,
+      )
+
       if (evaluation.fallbackReason) {
         setStatus(`AI analysis was unavailable — verdict based on pattern matching.`)
         setStatusType('info')
@@ -132,11 +176,22 @@ export default function Dashboard({ session }: DashboardProps) {
         return
       }
 
+      const decisionTimeSeconds = formStartRef.current
+        ? (Date.now() - formStartRef.current) / 1000
+        : 0
+      analytics.trackVerdictSubmitted({
+        verdictValue: evaluation.outcome ?? 'unknown',
+        category: input.category ?? 'other',
+        price: priceValue,
+        decisionTimeSeconds,
+      })
+      formSubmittedRef.current = true
       resetForm()
       await loadStats()
       await loadRecentVerdicts()
     } catch (error) {
       logger.error('Evaluation failed', { error: error instanceof Error ? error.message : String(error) })
+      analytics.trackVerdictEvalError(error instanceof Error ? error.message : 'unknown')
       setStatus('Something went wrong while evaluating. Please try again.')
       setStatusType('error')
     } finally {
@@ -153,6 +208,11 @@ export default function Dashboard({ session }: DashboardProps) {
     setVerdictSavingId(verdictId)
     setStatus('')
 
+    const verdict = recentVerdicts.find((v) => v.id === verdictId)
+    const verdictAgeSeconds = verdict?.created_at
+      ? (Date.now() - new Date(verdict.created_at).getTime()) / 1000
+      : 0
+
     const { error } = await updateVerdictDecision(session.user.id, verdictId, decision)
 
     if (error) {
@@ -161,6 +221,7 @@ export default function Dashboard({ session }: DashboardProps) {
       return
     }
 
+    analytics.trackVerdictDecision(decision, verdictAgeSeconds)
     await loadStats()
     await loadRecentVerdicts()
     setVerdictSavingId(null)
@@ -175,6 +236,7 @@ export default function Dashboard({ session }: DashboardProps) {
 
     setVerdictRegeneratingId(verdict.id)
     setStatus('')
+    regenStartRef.current = Date.now()
 
     try {
       const input = inputFromVerdict(verdict)
@@ -197,6 +259,9 @@ export default function Dashboard({ session }: DashboardProps) {
         setStatusType('error')
         return
       }
+
+      analytics.trackVerdictRegenDuration(Date.now() - regenStartRef.current)
+      analytics.trackVerdictRegenerated()
 
       setRecentVerdicts((previousVerdicts) =>
         previousVerdicts.map((previousVerdict) =>
@@ -223,10 +288,19 @@ export default function Dashboard({ session }: DashboardProps) {
         next.delete(verdictId)
       } else {
         next.add(verdictId)
+        analytics.trackVerdictRationaleExpanded()
       }
       return next
     })
   }
+
+  const emptyStateTrackedRef = useRef(false)
+  useEffect(() => {
+    if (recentVerdicts.length === 0 && !emptyStateTrackedRef.current && session) {
+      emptyStateTrackedRef.current = true
+      analytics.trackEmptyStateShown('dashboard', 'no_verdicts')
+    }
+  }, [recentVerdicts.length, session, analytics])
 
   const outcomeLabel = (outcome: string | null) => {
     if (outcome === 'buy') return 'Buy'
@@ -319,10 +393,16 @@ export default function Dashboard({ session }: DashboardProps) {
                 >
                     <div
                       className="verdict-card-clickable"
-                      onClick={() => setSelectedVerdict(verdict)}
-                      onKeyDown={(e: KeyboardEvent<HTMLDivElement>) =>
-                        e.key === 'Enter' && setSelectedVerdict(verdict)
-                      }
+                      onClick={() => {
+                        analytics.trackVerdictDetailOpened(verdict.predicted_outcome ?? 'unknown')
+                        setSelectedVerdict(verdict)
+                      }}
+                      onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
+                        if (e.key === 'Enter') {
+                          analytics.trackVerdictDetailOpened(verdict.predicted_outcome ?? 'unknown')
+                          setSelectedVerdict(verdict)
+                        }
+                      }}
                       role="button"
                       tabIndex={0}
                     >
@@ -437,6 +517,7 @@ export default function Dashboard({ session }: DashboardProps) {
                 as="input"
                 value={title}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
+                onFocus={() => trackFieldFocus('title')}
                 placeholder="e.g. Sony WH-1000XM5 from Amazon"
                 required
               />
@@ -452,6 +533,7 @@ export default function Dashboard({ session }: DashboardProps) {
                   step="0.01"
                   value={price}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setPrice(e.target.value)}
+                  onFocus={() => trackFieldFocus('price')}
                   placeholder="299.00"
                 />
               </label>
@@ -461,6 +543,7 @@ export default function Dashboard({ session }: DashboardProps) {
                   as="select"
                   value={category}
                   onChange={(e: ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value)}
+                  onFocus={() => trackFieldFocus('category')}
                 >
                   {PURCHASE_CATEGORIES.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -489,6 +572,7 @@ export default function Dashboard({ session }: DashboardProps) {
                 <textarea
                   value={justification}
                   onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setJustification(e.target.value)}
+                  onFocus={() => trackFieldFocus('justification')}
                   placeholder="I need it for work calls..."
                   rows={3}
                 />
