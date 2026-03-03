@@ -267,7 +267,6 @@ export async function retrieveSimilarPurchases(
   userId: string,
   input: PurchaseInput,
   limit = 5,
-  openaiApiKey?: string,
   options?: { ratingWindow?: RatingWindow }
 ): Promise<string> {
   const purchases = filterPurchasesByRatingWindow(
@@ -279,24 +278,10 @@ export async function retrieveSimilarPurchases(
     return getSimilarPurchasesEmptyMessage(options?.ratingWindow)
   }
 
-  if (!openaiApiKey) {
-    if (!input.category) {
-      return 'No category specified for comparison.'
-    }
-    const categoryMatches = purchases.filter(
-      (purchase) => purchase.category === input.category
-    )
-    if (categoryMatches.length === 0) {
-      return 'No similar purchases found.'
-    }
-    const lines = categoryMatches.slice(0, limit).map(formatPurchaseString)
-    return `Similar purchases in "${input.category}":\n${lines.join('\n')}`
-  }
-
   try {
     const queryText = buildQueryEmbeddingText(input)
     const purchaseTexts = purchases.map(buildPurchaseEmbeddingText)
-    const embeddings = await getEmbeddings(openaiApiKey, [queryText, ...purchaseTexts])
+    const embeddings = await getEmbeddings([queryText, ...purchaseTexts])
     const queryEmbedding = embeddings[0]
     const scored = purchases.map((purchase, index) => ({
       purchase,

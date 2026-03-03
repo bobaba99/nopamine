@@ -114,12 +114,9 @@ export default function Dashboard({ session }: DashboardProps) {
     }
 
     try {
-      const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
-
       const evaluation = await evaluatePurchase(
         session.user.id,
-        input,
-        openaiApiKey
+        input
       )
 
       if (evaluation.fallbackReason) {
@@ -180,9 +177,8 @@ export default function Dashboard({ session }: DashboardProps) {
     setStatus('')
 
     try {
-      const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
       const input = inputFromVerdict(verdict)
-      const evaluation = await evaluatePurchase(session.user.id, input, openaiApiKey)
+      const evaluation = await evaluatePurchase(session.user.id, input)
 
       if (evaluation.fallbackReason) {
         setStatus('AI analysis was unavailable — verdict based on pattern matching.')

@@ -34,7 +34,6 @@ type Status = {
 const GMAIL_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
 const GMAIL_SCOPES = 'https://www.googleapis.com/auth/gmail.readonly'
 const MICROSOFT_CLIENT_ID = import.meta.env.VITE_MICROSOFT_CLIENT_ID ?? ''
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY ?? ''
 const IMPORT_RESULT_STORAGE_PREFIX = 'email-sync-import-result'
 
 type EmailProvider = 'gmail' | 'outlook'
@@ -300,11 +299,6 @@ export default function EmailSync({ session }: EmailSyncProps) {
       }
     }
 
-    if (!OPENAI_API_KEY) {
-      setStatus({ type: 'error', message: 'OpenAI API key not configured' })
-      return
-    }
-
     setIsImporting(true)
     setStatus({ type: 'loading', message: 'Scanning emails for receipts...' })
 
@@ -320,7 +314,6 @@ export default function EmailSync({ session }: EmailSyncProps) {
         {
           maxMessages: 10,
           sinceDays: 90,
-          openaiApiKey: OPENAI_API_KEY,
         }
       )
 

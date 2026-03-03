@@ -40,7 +40,6 @@ export { downloadMessagesMarkdown, previewMessagesMarkdown }
 export type ImportOptions = {
   maxMessages?: number
   sinceDays?: number
-  openaiApiKey: string
 }
 
 export type ImportedPurchase = ExtractedReceipt & {
@@ -68,14 +67,10 @@ export async function importGmailReceipts(
   userId: string,
   options: ImportOptions
 ): Promise<ImportResult> {
-  const { maxMessages = 10, sinceDays = 90, openaiApiKey } = options
+  const { maxMessages = 10, sinceDays = 90 } = options
 
-  // Validate required credentials
   if (!accessToken) {
     throw new Error('Gmail access token is required')
-  }
-  if (!openaiApiKey) {
-    throw new Error('OpenAI API key is required. Set VITE_OPENAI_API_KEY in .env')
   }
 
   // Start logging session
@@ -221,8 +216,7 @@ export async function importGmailReceipts(
         parsed.textContent,
         parsed.from,
         parsed.subject,
-        parsed.date,
-        openaiApiKey
+        parsed.date
       )
 
       // Log fetched message with extracted receipts for markdown export

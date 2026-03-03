@@ -644,9 +644,8 @@ export default function Profile({ session }: ProfileProps) {
     setStatus('')
 
     try {
-      const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
       const input = inputFromVerdict(verdict)
-      const evaluation = await evaluatePurchase(session.user.id, input, openaiApiKey)
+      const evaluation = await evaluatePurchase(session.user.id, input)
       const { data, error } = await submitVerdict(
         session.user.id,
         input,

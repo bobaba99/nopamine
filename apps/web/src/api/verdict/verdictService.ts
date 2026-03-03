@@ -17,7 +17,7 @@ import {
 } from './verdictContext'
 import { buildScore, computeFinancialStrain } from './verdictScoring'
 import { clamp01 } from '../core/utils'
-import { evaluateWithFallback, evaluateWithLlm, type EvaluationContext } from './verdictLLM'
+import { evaluateWithLlm, type EvaluationContext } from './verdictLLM'
 import { logger } from '../core/logger'
 import { normalizeUserPreferences } from '../../utils/userPreferences'
 import { formatCurrencyAmount } from '../../utils/formatters'
@@ -406,8 +406,7 @@ const gatherEvaluationContext = async (
   input: PurchaseInput,
   weeklyBudget: number | null,
   onboardingAnswers: OnboardingAnswers | null,
-  preferences: UserPreferences,
-  openaiApiKey?: string
+  preferences: UserPreferences
 ): Promise<EvaluationContext> => {
   const vendorMatch = await retrieveVendorMatch(input)
   const psychScores = computePsychScores(onboardingAnswers)
@@ -431,9 +430,9 @@ const gatherEvaluationContext = async (
   ] = await Promise.all([
     retrieveUserProfileContext(userId),
     retrieveRecentPurchases(userId, 5, { ratingWindow: 'recent' }),
-    retrieveSimilarPurchases(userId, input, 5, openaiApiKey, { ratingWindow: 'recent' }),
+    retrieveSimilarPurchases(userId, input, 5, { ratingWindow: 'recent' }),
     retrieveRecentPurchases(userId, 5, { ratingWindow: 'long_term' }),
-    retrieveSimilarPurchases(userId, input, 5, openaiApiKey, { ratingWindow: 'long_term' }),
+    retrieveSimilarPurchases(userId, input, 5, { ratingWindow: 'long_term' }),
   ])
 
   return {
@@ -452,8 +451,7 @@ const gatherEvaluationContext = async (
 
 export async function evaluatePurchase(
   userId: string,
-  input: PurchaseInput,
-  openaiApiKey?: string
+  input: PurchaseInput
 ): Promise<EvaluationResult> {
   const { weeklyBudget, onboardingAnswers, preferences } = await fetchUserProfile(userId)
 
@@ -462,15 +460,10 @@ export async function evaluatePurchase(
     input,
     weeklyBudget,
     onboardingAnswers,
-    preferences,
-    openaiApiKey
+    preferences
   )
 
-  if (!openaiApiKey) {
-    return evaluateWithFallback(input, context)
-  }
-
-  return evaluateWithLlm(openaiApiKey, input, context)
+  return evaluateWithLlm(input, context)
 }
 
 export type { VerdictOutcome }
