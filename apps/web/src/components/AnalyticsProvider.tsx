@@ -14,10 +14,10 @@ import { useLocation } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import ReactGA from 'react-ga4'
 import {
+  analytics,
   initializeGA4,
   isAnalyticsEnabled,
   setAnalyticsUserId,
-  useAnalytics,
 } from '../hooks/useAnalytics'
 
 type AnalyticsProviderProps = {
@@ -32,7 +32,7 @@ export default function AnalyticsProvider({
   children,
 }: AnalyticsProviderProps) {
   const location = useLocation()
-  const { trackSessionLoadDuration } = useAnalytics()
+  const { trackSessionLoadDuration } = analytics
   const initializedRef = useRef(false)
   const mountTimeRef = useRef(Date.now())
   const sessionMeasuredRef = useRef(false)

@@ -21,7 +21,7 @@ import './styles/App.css'
 import { CustomCursor, useGSAPLoader, LiquidButton, VolumetricInput } from './components/Kinematics'
 import { UserPreferencesProvider } from './preferences/UserPreferencesContext'
 import AnalyticsProvider from './components/AnalyticsProvider'
-import { useAnalytics } from './hooks/useAnalytics'
+import { analytics } from './hooks/useAnalytics'
 
 type AuthMode = 'sign_in' | 'sign_up'
 
@@ -221,7 +221,6 @@ function App() {
   const [headerHidden, setHeaderHidden] = useState(false)
   const lastScrollY = useRef(0)
   const gsapLoaded = useGSAPLoader()
-  const analytics = useAnalytics()
 
   const handleScroll = useCallback(() => {
     const currentY = window.scrollY

@@ -44,7 +44,7 @@ import {
   LOCALE_OPTIONS,
   normalizeUserPreferences,
 } from '../utils/userPreferences'
-import { useAnalytics } from '../hooks/useAnalytics'
+import { analytics } from '../hooks/useAnalytics'
 
 type ProfileProps = {
   session: Session | null
@@ -177,7 +177,7 @@ export default function Profile({ session }: ProfileProps) {
   const [activeTab, setActiveTab] = useState<ProfileTab>(isProfileTab(initialTab) ? initialTab : 'profile')
   const { preferences, setPreferences: setGlobalPreferences } = useUserPreferences()
   const { formatCurrency, formatDate } = useUserFormatting()
-  const analytics = useAnalytics()
+
   const profileModalOpenTimeRef = useRef<number>(0)
   const regenStartRef = useRef<number>(0)
   const [, setUserRow] = useState<UserRow | null>(null)

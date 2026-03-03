@@ -4,7 +4,7 @@ import type { SwipeOutcome, SwipeQueueItem, SwipeTiming } from '../api/core/type
 import { getUnratedPurchases, createSwipe, deleteSwipe } from '../api/purchase/swipeService'
 import { GlassCard, LiquidButton } from '../components/Kinematics'
 import { useUserFormatting } from '../preferences/UserPreferencesContext'
-import { useAnalytics } from '../hooks/useAnalytics'
+import { analytics } from '../hooks/useAnalytics'
 
 type SwipeProps = {
   session: Session | null
@@ -146,7 +146,7 @@ function SwipeableQueueCard({
 
 export default function Swipe({ session }: SwipeProps) {
   const { formatCurrency, formatDate } = useUserFormatting()
-  const analytics = useAnalytics()
+
   const loadStartRef = useRef<number>(0)
   const [purchases, setPurchases] = useState<SwipeQueueItem[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -250,7 +250,7 @@ export default function Swipe({ session }: SwipeProps) {
     } finally {
       setLoading(false)
     }
-  }, [session, clearLastSwipe, analytics])
+  }, [session, clearLastSwipe])
 
   useEffect(() => {
     void loadUnratedPurchases()
@@ -363,7 +363,7 @@ export default function Swipe({ session }: SwipeProps) {
     setCurrentIndex((prev) => Math.max(0, prev - 1))
     setLastSwipe(null)
     setUndoing(false)
-  }, [session, lastSwipe, undoing, clearUndoTimer, analytics])
+  }, [session, lastSwipe, undoing, clearUndoTimer])
 
   const handleSwipe = useCallback(
     async (outcome: SwipeOutcome) => {
@@ -576,7 +576,7 @@ export default function Swipe({ session }: SwipeProps) {
       emptyStateTrackedRef.current = stateType
       analytics.trackEmptyStateShown('swipe', stateType)
     }
-  }, [loading, purchases.length, currentPurchase, analytics])
+  }, [loading, purchases.length, currentPurchase])
 
   // Cleanup timer on unmount
   useEffect(() => {

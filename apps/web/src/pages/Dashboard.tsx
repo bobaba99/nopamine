@@ -20,7 +20,7 @@ import VerdictShareModal from '../components/VerdictShareModal'
 import EvaluatingModal from '../components/EvaluatingModal'
 import { GlassCard, LiquidButton, VolumetricInput, SplitText } from '../components/Kinematics'
 import { useUserFormatting, useUserPreferences } from '../preferences/UserPreferencesContext'
-import { useAnalytics } from '../hooks/useAnalytics'
+import { analytics } from '../hooks/useAnalytics'
 
 type DashboardProps = {
   session: Session | null
@@ -29,7 +29,7 @@ type DashboardProps = {
 export default function Dashboard({ session }: DashboardProps) {
   const { preferences } = useUserPreferences()
   const { formatCurrency, formatDateTime } = useUserFormatting()
-  const analytics = useAnalytics()
+
   const formStartRef = useRef<number | null>(null)
   const formFieldsRef = useRef<Set<string>>(new Set())
   const formSubmittedRef = useRef(false)
@@ -90,7 +90,7 @@ export default function Dashboard({ session }: DashboardProps) {
     if (formStartRef.current === null) {
       formStartRef.current = Date.now()
     }
-  }, [analytics])
+  }, [])
 
   // Track form abandonment on unmount
   useEffect(() => {
@@ -106,7 +106,7 @@ export default function Dashboard({ session }: DashboardProps) {
         )
       }
     }
-  }, [analytics])
+  }, [])
 
   const resetForm = () => {
     setTitle('')
@@ -300,7 +300,7 @@ export default function Dashboard({ session }: DashboardProps) {
       emptyStateTrackedRef.current = true
       analytics.trackEmptyStateShown('dashboard', 'no_verdicts')
     }
-  }, [recentVerdicts.length, session, analytics])
+  }, [recentVerdicts.length, session])
 
   const outcomeLabel = (outcome: string | null) => {
     if (outcome === 'buy') return 'Buy'

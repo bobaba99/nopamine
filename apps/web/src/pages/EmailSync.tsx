@@ -20,7 +20,7 @@ import {
 import { importOutlookReceipts } from '../api/email/importOutlook'
 import { startOutlookOAuth, exchangeCodeForTokens, refreshOutlookToken } from '../api/email/outlookAuth'
 import { useUserFormatting } from '../preferences/UserPreferencesContext'
-import { useAnalytics } from '../hooks/useAnalytics'
+import { analytics } from '../hooks/useAnalytics'
 
 type EmailSyncProps = {
   session: Session | null
@@ -51,7 +51,7 @@ const getProviderFromSource = (source: string): EmailProvider | null => {
 
 export default function EmailSync({ session }: EmailSyncProps) {
   const { formatCurrency, formatDate } = useUserFormatting()
-  const analytics = useAnalytics()
+
   const importStartRef = useRef<number>(0)
   const [connection, setConnection] = useState<EmailConnectionRow | null>(null)
   const [status, setStatus] = useState<Status>({ type: 'idle' })
@@ -159,7 +159,7 @@ export default function EmailSync({ session }: EmailSyncProps) {
       analytics.trackEmailOauthError('outlook', message)
       setStatus({ type: 'error', message })
     }
-  }, [analytics])
+  }, [])
 
   // Handle OAuth callback (access token in URL hash)
   useEffect(() => {

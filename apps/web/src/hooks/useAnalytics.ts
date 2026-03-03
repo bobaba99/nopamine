@@ -1,5 +1,5 @@
 /**
- * Google Analytics 4 telemetry hook
+ * Google Analytics 4 telemetry module
  *
  * Three event tiers:
  *   Tier 1 — Core actions (what users do)
@@ -216,10 +216,10 @@ const trackSharedVerdictViewed = () => trackEvent('shared_verdict_viewed')
 const trackSharedVerdictCtaClicked = () => trackEvent('shared_verdict_cta_clicked')
 
 // ---------------------------------------------------------------------------
-// Hook
+// Public API
 // ---------------------------------------------------------------------------
 
-export const useAnalytics = () => ({
+const analytics = {
   // Tier 1
   trackSignUp,
   trackLogin,
@@ -267,4 +267,6 @@ export const useAnalytics = () => ({
   trackNavMenuOpened,
   trackSharedVerdictViewed,
   trackSharedVerdictCtaClicked,
-})
+}
+
+export { analytics }

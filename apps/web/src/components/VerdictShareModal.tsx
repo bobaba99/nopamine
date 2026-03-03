@@ -11,7 +11,7 @@ import {
   buildMessengerShareUrl,
   buildIMessageUrl,
 } from '../utils/shareHelpers'
-import { useAnalytics } from '../hooks/useAnalytics'
+import { analytics } from '../hooks/useAnalytics'
 
 type VerdictShareModalProps = {
   verdict: VerdictRow
@@ -51,7 +51,7 @@ export default function VerdictShareModal({
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const previewRef = useRef<HTMLDivElement>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const analytics = useAnalytics()
+
   const shareLinkStartRef = useRef<number>(0)
 
   const outcome = verdict.predicted_outcome ?? 'hold'
@@ -101,7 +101,7 @@ export default function VerdictShareModal({
   const getImageElement = (): HTMLElement | null =>
     previewRef.current?.querySelector('#shareImageInner') ?? null
 
-  const renderAndDownload = async (_filename: string): Promise<Blob | null> => {
+  const renderAndDownload = async (filename: string): Promise<Blob | null> => {
     const el = getImageElement()
     if (!el) {
       showToast('Preview not ready')

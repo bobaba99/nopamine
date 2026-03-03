@@ -3,12 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import type { SharedVerdictRow } from '../constants/verdictTypes'
 import { getSharedVerdict, incrementShareViewCount } from '../api/verdict/shareService'
 import { GlassCard, LiquidButton } from '../components/Kinematics'
-import { useAnalytics } from '../hooks/useAnalytics'
+import { analytics } from '../hooks/useAnalytics'
 
 export default function SharedVerdict() {
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
-  const analytics = useAnalytics()
+
   const [sharedVerdict, setSharedVerdict] = useState<SharedVerdictRow | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)

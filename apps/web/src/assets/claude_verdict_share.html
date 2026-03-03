@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TruePick – Share Your Verdict</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  /* ═══════════════════════════════════════
+     TOKENS
+     ═══════════════════════════════════════ */
+  [data-theme="dark"] {
+    --ink-primary: #f0eee6;
+    --ink-secondary: rgba(240,238,230,0.55);
+    --ink-tertiary: rgba(240,238,230,0.3);
+    --ink-ghost: rgba(240,238,230,0.1);
+    --glass-bg: rgba(255,255,255,0.04);
+    --glass-bg-hover: rgba(255,255,255,0.07);
+    --glass-border: rgba(255,255,255,0.08);
+    --glass-border-hover: rgba(255,255,255,0.14);
+    --glass-blur: 24px;
+    --glass-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    --page-bg: #0c0c10;
+    --page-surface: #111116;
+    --page-orb-1: rgba(120,100,200,0.07);
+    --page-orb-2: rgba(80,140,200,0.05);
+    --accent-liquid: rgba(160,140,255,0.5);
+    --accent-liquid-hover: rgba(160,140,255,0.7);
+    --modal-bg: rgba(12,12,16,0.85);
+    --buy: #5de4a8; --buy-dim: rgba(93,228,168,0.12);
+    --skip: #f47171; --skip-dim: rgba(244,113,113,0.12);
+    --hold: #f5c563; --hold-dim: rgba(245,197,99,0.12);
+  }
+  [data-theme="light"] {
+    --ink-primary: #1a1a20;
+    --ink-secondary: rgba(26,26,32,0.55);
+    --ink-tertiary: rgba(26,26,32,0.3);
+    --ink-ghost: rgba(26,26,32,0.08);
+    --glass-bg: rgba(255,255,255,0.55);
+    --glass-bg-hover: rgba(255,255,255,0.7);
+    --glass-border: rgba(255,255,255,0.6);
+    --glass-border-hover: rgba(255,255,255,0.8);
+    --glass-blur: 20px;
+    --glass-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    --page-bg: #edeae2;
+    --page-surface: #f5f3ed;
+    --page-orb-1: rgba(140,120,220,0.08);
+    --page-orb-2: rgba(100,160,220,0.06);
+    --accent-liquid: rgba(120,100,220,0.35);
+    --accent-liquid-hover: rgba(120,100,220,0.55);
+    --modal-bg: rgba(237,234,226,0.85);
+    --buy: #16a367; --buy-dim: rgba(22,163,103,0.1);
+    --skip: #dc4545; --skip-dim: rgba(220,69,69,0.1);
+    --hold: #b8860b; --hold-dim: rgba(184,134,11,0.1);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    min-height: 100vh;
+    background: var(--page-bg);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--ink-primary);
+    transition: background 0.5s;
+  }
+  body::before, body::after {
+    content:''; position:fixed; border-radius:50%;
+    pointer-events:none; filter:blur(100px); z-index:0;
+  }
+  body::before { width:600px;height:500px;top:-10%;left:-5%;background:var(--page-orb-1); }
+  body::after { width:500px;height:400px;bottom:-10%;right:-5%;background:var(--page-orb-2); }
+
+  /* ── Demo page layout ── */
+  .demo-page {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 48px 20px;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+  .demo-header { text-align: center; }
+  .demo-header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    margin-bottom: 8px;
+  }
+  .demo-header p { font-size: 14px; color: var(--ink-secondary); }
+
+  .demo-verdict-card {
+    width: 100%; max-width: 400px;
+    border-radius: 20px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    padding: 28px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .dvc-header { display:flex; align-items:center; justify-content:space-between; }
+  .dvc-product { font-family:'Instrument Serif',serif; font-size:20px; }
+  .dvc-pill {
+    font-size:11px; font-weight:700; letter-spacing:1.5px;
+    text-transform:uppercase; padding:5px 14px; border-radius:100px;
+  }
+  .dvc-pill.buy { color:var(--buy); background:var(--buy-dim); }
+  .dvc-pill.skip { color:var(--skip); background:var(--skip-dim); }
+  .dvc-pill.hold { color:var(--hold); background:var(--hold-dim); }
+
+  .dvc-reasons {
+    display:flex; flex-direction:column; gap:6px;
+    font-size:13px; color:var(--ink-secondary); line-height:1.5;
+  }
+  .dvc-reasons span::before {
+    content:''; display:inline-block;
+    width:5px;height:5px;border-radius:50%;margin-right:8px;
+    vertical-align:middle;
+  }
+  .dvc-reasons.buy span::before { background:var(--buy); }
+  .dvc-reasons.skip span::before { background:var(--skip); }
+  .dvc-reasons.hold span::before { background:var(--hold); }
+
+  .btn-share-trigger {
+    width:100%; height:48px; border:none; border-radius:14px;
+    font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600;
+    cursor:pointer; color:var(--ink-primary); background:var(--accent-liquid);
+    transition:all 0.3s; letter-spacing:0.3px;
+  }
+  .btn-share-trigger:hover {
+    background:var(--accent-liquid-hover);
+    transform:translateY(-2px);
+    box-shadow:0 6px 20px rgba(160,140,255,0.12);
+  }
+
+  .btn-theme {
+    position:fixed;top:16px;right:16px;z-index:200;
+    width:36px;height:36px;border-radius:10px;
+    background:var(--glass-bg);border:1px solid var(--glass-border);
+    color:var(--ink-secondary);font-size:15px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    backdrop-filter:blur(var(--glass-blur));transition:all 0.3s;
+  }
+  .btn-theme:hover { background:var(--glass-bg-hover); }
+
+  /* ═══════════════════════════════════════
+     SHARE MODAL
+     ═══════════════════════════════════════ */
+  .modal-overlay {
+    position:fixed; inset:0; z-index:100;
+    background:var(--modal-bg);
+    backdrop-filter:blur(16px);
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none;
+    transition: opacity 0.35s ease;
+  }
+  .modal-overlay.open { opacity:1; pointer-events:all; }
+
+  .modal {
+    width: 90%; max-width: 480px;
+    max-height: 90vh; overflow-y: auto;
+    border-radius: 24px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    padding: 28px;
+    display: flex; flex-direction: column; gap: 24px;
+    transform: translateY(20px) scale(0.97);
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .modal-overlay.open .modal { transform: translateY(0) scale(1); }
+
+  .modal-header { display:flex; align-items:center; justify-content:space-between; }
+  .modal-title { font-family:'DM Serif Display',serif; font-size:20px; }
+  .modal-close {
+    width:32px;height:32px;border-radius:10px;
+    background:var(--glass-bg);border:1px solid var(--glass-border);
+    color:var(--ink-tertiary);font-size:18px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:all 0.2s;
+  }
+  .modal-close:hover { background:var(--glass-bg-hover); color:var(--ink-primary); }
+
+  .modal-preview {
+    width: 100%; aspect-ratio: 1 / 1;
+    border-radius: 16px; overflow: hidden;
+    position: relative;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  }
+
+  /* ── Background selector ── */
+  .bg-selector-label {
+    font-size:11px; font-weight:600; color:var(--ink-tertiary);
+    letter-spacing:2px; text-transform:uppercase;
+  }
+  .bg-options { display:flex; gap:12px; margin-top:10px; }
+  .bg-opt-wrap {
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    cursor:pointer;
+  }
+  .bg-opt-wrap .bg-swatch {
+    width:52px; height:52px; border-radius:12px;
+    border:2px solid rgba(255,255,255,0.15);
+    transition:all 0.25s; position:relative; overflow:hidden;
+    flex-shrink:0;
+  }
+  .bg-opt-wrap:hover .bg-swatch { transform:scale(1.08); }
+  .bg-opt-wrap.active .bg-swatch { border-color: rgba(255,255,255,0.45); }
+  .bg-opt-wrap .bg-label {
+    font-size:9px; font-weight:600; letter-spacing:1px;
+    text-transform:uppercase; color:var(--ink-tertiary);
+    transition:color 0.25s;
+  }
+  .bg-opt-wrap.active .bg-label { color:var(--ink-primary); }
+
+  /* Swatch fills — vivid linear gradients for thumbnail readability */
+  .bg-swatch[data-bg="midnight"] {
+    background: linear-gradient(135deg, #1a1260 0%, #3a30a0 50%, #1a1860 100%);
+  }
+  .bg-swatch[data-bg="aurora"] {
+    background: linear-gradient(135deg, #0a3a25 0%, #2a1850 50%, #103848 100%);
+  }
+  .bg-swatch[data-bg="sunset"] {
+    background: linear-gradient(135deg, #6a1845 0%, #b83838 50%, #d8a030 100%);
+  }
+  .bg-swatch[data-bg="nebula"] {
+    background: linear-gradient(135deg, #401888 0%, #185060 50%, #6a2060 100%);
+  }
+  .bg-swatch[data-bg="sunrise"] {
+    background: linear-gradient(135deg, #481870 0%, #d08030 50%, #1a1050 100%);
+  }
+
+  /* ═══════════════════════════════════════
+     SHARE IMAGE (rendered to canvas)
+     ═══════════════════════════════════════ */
+  .share-image {
+    width:100%; height:100%;
+    position:relative;
+    display:flex; flex-direction:column;
+    justify-content:space-between;
+    padding:48px 40px;
+    overflow:hidden;
+    --si-ink:#f0eee6;
+    --si-ink2:rgba(240,238,230,0.55);
+    --si-ink3:rgba(240,238,230,0.25);
+  }
+
+  /* ── 5 Backgrounds ── */
+  .share-image[data-bg="midnight"] {
+    background-color: #08061a;
+    background-image:
+      radial-gradient(ellipse 70% 60% at 20% 15%, rgba(30,20,80,0.9) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 50% at 75% 30%, rgba(48,43,99,0.8) 0%, transparent 65%),
+      radial-gradient(ellipse 50% 70% at 40% 80%, rgba(40,30,100,0.7) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 40% at 85% 75%, rgba(20,15,60,0.6) 0%, transparent 55%);
+  }
+  .share-image[data-bg="aurora"] {
+    background-color: #040e0a;
+    background-image:
+      radial-gradient(ellipse 65% 55% at 15% 25%, rgba(10,46,30,0.9) 0%, transparent 70%),
+      radial-gradient(ellipse 55% 60% at 70% 20%, rgba(26,13,46,0.85) 0%, transparent 65%),
+      radial-gradient(ellipse 60% 50% at 50% 70%, rgba(10,40,56,0.8) 0%, transparent 60%),
+      radial-gradient(ellipse 45% 45% at 85% 80%, rgba(15,50,35,0.6) 0%, transparent 55%);
+  }
+  .share-image[data-bg="sunset"] {
+    background-color: #1a0818;
+    background-image:
+      radial-gradient(ellipse 60% 55% at 25% 20%, rgba(74,16,53,0.9) 0%, transparent 65%),
+      radial-gradient(ellipse 55% 50% at 65% 45%, rgba(138,40,48,0.8) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 60% at 80% 75%, rgba(212,138,48,0.7) 0%, transparent 55%),
+      radial-gradient(ellipse 45% 40% at 15% 80%, rgba(100,20,60,0.5) 0%, transparent 50%);
+  }
+  .share-image[data-bg="nebula"] {
+    background-color: #0a0418;
+    background-image:
+      radial-gradient(ellipse 60% 50% at 30% 15%, rgba(48,16,96,0.9) 0%, transparent 65%),
+      radial-gradient(ellipse 50% 55% at 75% 40%, rgba(10,48,56,0.8) 0%, transparent 60%),
+      radial-gradient(ellipse 55% 50% at 40% 75%, rgba(64,24,72,0.75) 0%, transparent 55%),
+      radial-gradient(ellipse 40% 45% at 85% 85%, rgba(30,60,80,0.5) 0%, transparent 50%),
+      radial-gradient(ellipse 35% 35% at 55% 45%, rgba(80,30,100,0.4) 0%, transparent 50%);
+  }
+  .share-image[data-bg="sunrise"] {
+    background-color: #120620;
+    background-image:
+      radial-gradient(ellipse 55% 50% at 20% 20%, rgba(58,18,72,0.9) 0%, transparent 65%),
+      radial-gradient(ellipse 60% 55% at 55% 40%, rgba(212,120,48,0.75) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 45% at 75% 55%, rgba(232,168,64,0.65) 0%, transparent 55%),
+      radial-gradient(ellipse 55% 50% at 30% 80%, rgba(18,8,40,0.8) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 40% at 80% 15%, rgba(80,25,60,0.5) 0%, transparent 50%);
+  }
+
+  /* ── Animated background layers ── */
+
+  /* MIDNIGHT — twinkling stars */
+  .share-image[data-bg="midnight"] .bg-layer-midnight { display:block; }
+  .bg-layer-midnight { display:none; position:absolute;inset:0;pointer-events:none;z-index:0; }
+  .star {
+    position:absolute; border-radius:50%;
+    background:rgba(255,255,255,0.6);
+    animation: twinkle 2s ease-in-out infinite;
+  }
+  @keyframes twinkle {
+    0%,100% { opacity:0.2; transform:scale(0.7); }
+    50% { opacity:1; transform:scale(1.3); }
+  }
+
+  /* AURORA — drifting wisps */
+  .share-image[data-bg="aurora"] .bg-layer-aurora { display:block; }
+  .bg-layer-aurora { display:none; position:absolute;inset:0;pointer-events:none;z-index:0;overflow:hidden; }
+  .wisp {
+    position:absolute; height:2px; border-radius:1px; opacity:0.15;
+    animation: wispDrift 8s ease-in-out infinite;
+  }
+  .wisp-1 { width:220px;top:18%;left:8%;background:linear-gradient(90deg,transparent,#5de4a8,transparent);animation-delay:0s; }
+  .wisp-2 { width:300px;top:42%;left:-5%;background:linear-gradient(90deg,transparent,#60a5fa,transparent);animation-delay:-3s; }
+  .wisp-3 { width:180px;top:68%;left:15%;background:linear-gradient(90deg,transparent,#a78bfa,transparent);animation-delay:-5s; }
+  .wisp-4 { width:240px;top:85%;left:5%;background:linear-gradient(90deg,transparent,#34d399,transparent);animation-delay:-7s; }
+  @keyframes wispDrift {
+    0%,100% { transform:translateX(0) scaleX(1); opacity:0.08; }
+    50% { transform:translateX(50px) scaleX(1.3); opacity:0.2; }
+  }
+
+  /* DUSK — rising warm particles */
+  .share-image[data-bg="sunset"] .bg-layer-dusk { display:block; }
+  .bg-layer-dusk { display:none; position:absolute;inset:0;pointer-events:none;z-index:0; }
+  .particle {
+    position:absolute; border-radius:50%;
+    animation: particleRise 5s ease-in-out infinite;
+  }
+  @keyframes particleRise {
+    0% { transform:translateY(0) scale(1); opacity:0; }
+    20% { opacity:0.6; }
+    80% { opacity:0.6; }
+    100% { transform:translateY(-70px) scale(0.4); opacity:0; }
+  }
+
+  /* NEBULA — visible cloud formations with color */
+  .share-image[data-bg="nebula"] .bg-layer-nebula { display:block; }
+  .bg-layer-nebula { display:none; position:absolute;inset:0;pointer-events:none;z-index:0;overflow:hidden; }
+
+  .nebula-cloud {
+    position:absolute; filter:blur(35px);
+    border-radius:40% 60% 55% 45% / 50% 40% 60% 50%;
+    animation: nebulaBreath 8s ease-in-out infinite;
+  }
+  /* Main purple arm — large, diagonal */
+  .neb-1 {
+    width:320px; height:180px;
+    top:8%; left:5%;
+    background:radial-gradient(ellipse at 40% 50%, rgba(130,60,200,0.25), rgba(80,40,160,0.08) 60%, transparent 100%);
+    transform:rotate(-15deg);
+    animation-delay:0s;
+  }
+  /* Teal wisp — crossing the purple */
+  .neb-2 {
+    width:250px; height:120px;
+    top:25%; right:5%;
+    background:radial-gradient(ellipse at 50% 50%, rgba(40,180,180,0.2), rgba(30,120,140,0.06) 65%, transparent 100%);
+    transform:rotate(20deg);
+    animation-delay:-3s;
+    border-radius:55% 45% 50% 50% / 40% 60% 40% 60%;
+  }
+  /* Rose/pink pocket */
+  .neb-3 {
+    width:200px; height:160px;
+    bottom:15%; left:20%;
+    background:radial-gradient(ellipse at 50% 40%, rgba(200,60,120,0.18), rgba(160,40,100,0.05) 60%, transparent 100%);
+    transform:rotate(-8deg);
+    animation-delay:-5.5s;
+    border-radius:45% 55% 60% 40% / 55% 45% 50% 50%;
+  }
+  /* Secondary purple filament */
+  .neb-4 {
+    width:280px; height:100px;
+    bottom:30%; right:10%;
+    background:radial-gradient(ellipse at 60% 50%, rgba(100,50,180,0.15), transparent 70%);
+    transform:rotate(12deg);
+    animation-delay:-2s;
+    border-radius:50% 50% 45% 55% / 35% 65% 35% 65%;
+  }
+  /* Bright core knot */
+  .neb-5 {
+    width:100px; height:90px;
+    top:35%; left:35%;
+    background:radial-gradient(ellipse at 50% 50%, rgba(180,140,255,0.2), rgba(60,200,200,0.1) 50%, transparent 100%);
+    filter:blur(25px);
+    animation-delay:-4s;
+  }
+
+  @keyframes nebulaBreath {
+    0%,100% { transform:scale(1) rotate(var(--neb-rot, 0deg)); opacity:0.7; }
+    33% { transform:scale(1.08) rotate(var(--neb-rot, 0deg)) translate(6px,-4px); opacity:1; }
+    66% { transform:scale(0.95) rotate(var(--neb-rot, 0deg)) translate(-4px,3px); opacity:0.6; }
+  }
+  .neb-1 { --neb-rot:-15deg; }
+  .neb-2 { --neb-rot:20deg; }
+  .neb-3 { --neb-rot:-8deg; }
+  .neb-4 { --neb-rot:12deg; }
+  .neb-5 { --neb-rot:0deg; }
+
+  /* Nebula also gets faint stars */
+  .share-image[data-bg="nebula"] .bg-layer-midnight { display:block; }
+  .share-image[data-bg="nebula"] .bg-layer-midnight .star { opacity:0.3; }
+
+  /* SUNRISE — warm radiant washes + light streaks */
+  .share-image[data-bg="sunrise"] .bg-layer-sunrise { display:block; }
+  .bg-layer-sunrise { display:none; position:absolute;inset:0;pointer-events:none;z-index:0;overflow:hidden; }
+
+  .sun-wash {
+    position:absolute; border-radius:50%; filter:blur(50px);
+    animation: washPulse 6s ease-in-out infinite;
+  }
+  .wash-1 {
+    width:300px; height:250px;
+    top:15%; left:20%;
+    background:radial-gradient(ellipse at 50% 50%, rgba(232,168,64,0.2), transparent 70%);
+    animation-delay:0s;
+  }
+  .wash-2 {
+    width:250px; height:200px;
+    top:40%; right:10%;
+    background:radial-gradient(ellipse at 50% 50%, rgba(200,80,40,0.15), transparent 70%);
+    animation-delay:-2s;
+  }
+  .wash-3 {
+    width:280px; height:220px;
+    bottom:10%; left:5%;
+    background:radial-gradient(ellipse at 50% 50%, rgba(100,40,120,0.12), transparent 70%);
+    animation-delay:-4s;
+  }
+
+  @keyframes washPulse {
+    0%,100% { transform:scale(1); opacity:0.5; }
+    50% { transform:scale(1.15); opacity:0.9; }
+  }
+
+  .light-streak {
+    position:absolute; height:1px; border-radius:1px; opacity:0.12;
+    animation: streakGlide 7s ease-in-out infinite;
+  }
+  .streak-1 { width:200px;top:30%;left:10%;background:linear-gradient(90deg,transparent,rgba(232,168,64,0.4),transparent);animation-delay:0s; }
+  .streak-2 { width:260px;top:50%;left:20%;background:linear-gradient(90deg,transparent,rgba(200,80,40,0.35),transparent);animation-delay:-2.5s; }
+  .streak-3 { width:180px;top:65%;left:5%;background:linear-gradient(90deg,transparent,rgba(180,100,200,0.3),transparent);animation-delay:-5s; }
+
+  @keyframes streakGlide {
+    0%,100% { transform:translateX(0) scaleX(1); opacity:0.08; }
+    50% { transform:translateX(30px) scaleX(1.2); opacity:0.2; }
+  }
+
+  /* ── Sparkles (all backgrounds) ── */
+  .sparkles { position:absolute;inset:0;pointer-events:none;z-index:1; }
+  .sparkle {
+    position:absolute; width:4px;height:4px;
+    background:rgba(255,255,255,0.7);
+    border-radius:50%;
+    animation: sparkleAnim 3s ease-in-out infinite;
+  }
+  @keyframes sparkleAnim {
+    0%,100% { opacity:0; transform:scale(0) rotate(0deg); }
+    50% { opacity:1; transform:scale(1) rotate(180deg); }
+  }
+
+  /* ── Confetti (buy outcome) ── */
+  .confetti-container { position:absolute;inset:0;pointer-events:none;z-index:1;overflow:hidden; }
+  .confetti {
+    position:absolute; border-radius:1px; opacity:0;
+    animation: confettiFall 4s ease-in-out infinite;
+  }
+  @keyframes confettiFall {
+    0% { transform:translateY(-20px) rotate(0deg); opacity:0; }
+    10% { opacity:0.8; }
+    100% { transform:translateY(120px) rotate(720deg); opacity:0; }
+  }
+
+  /* ── Card content ── */
+  .si-header {
+    display:flex; align-items:center; justify-content:space-between;
+    position:relative; z-index:5;
+  }
+  .si-wordmark {
+    font-family:'DM Serif Display',serif; font-size:22px;
+    color:var(--si-ink); letter-spacing:0.5px;
+  }
+  .si-score-pill {
+    font-size:12px; font-weight:600; letter-spacing:1px;
+    padding:5px 14px; border-radius:100px;
+    color:var(--si-ink2);
+    background:rgba(255,255,255,0.08);
+  }
+
+  .si-center {
+    flex:1; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    text-align:center; position:relative; z-index:5;
+    gap:20px;
+  }
+
+  .si-product {
+    font-family:'DM Serif Display',serif; font-size:26px;
+    color:var(--si-ink); line-height:1.3;
+    max-width:320px;
+    display:-webkit-box; -webkit-line-clamp:2;
+    -webkit-box-orient:vertical; overflow:hidden;
+  }
+
+  /* Outcome badge with glow */
+  .si-outcome-badge {
+    display:inline-flex; align-items:center; gap:10px;
+    padding:14px 36px; border-radius:100px;
+    font-size:20px; font-weight:700; letter-spacing:3px;
+    text-transform:uppercase; position:relative;
+  }
+  .si-outcome-badge .badge-icon { font-size:22px; }
+
+  .si-outcome-badge[data-outcome="buy"] {
+    color:#5de4a8; background:rgba(93,228,168,0.12);
+    border:1px solid rgba(93,228,168,0.25);
+    box-shadow:0 0 30px rgba(93,228,168,0.1), 0 0 60px rgba(93,228,168,0.05);
+  }
+  .si-outcome-badge[data-outcome="skip"] {
+    color:#f47171; background:rgba(244,113,113,0.12);
+    border:1px solid rgba(244,113,113,0.25);
+    box-shadow:0 0 30px rgba(244,113,113,0.1), 0 0 60px rgba(244,113,113,0.05);
+  }
+  .si-outcome-badge[data-outcome="hold"] {
+    color:#f5c563; background:rgba(245,197,99,0.12);
+    border:1px solid rgba(245,197,99,0.25);
+    box-shadow:0 0 30px rgba(245,197,99,0.1), 0 0 60px rgba(245,197,99,0.05);
+  }
+
+  /* Badge glow pulse */
+  .si-outcome-badge::before {
+    content:''; position:absolute; inset:-3px;
+    border-radius:100px; opacity:0;
+    animation: badgeGlow 2.5s ease-in-out infinite;
+  }
+  .si-outcome-badge[data-outcome="buy"]::before { border:1px solid rgba(93,228,168,0.3); }
+  .si-outcome-badge[data-outcome="skip"]::before { border:1px solid rgba(244,113,113,0.3); }
+  .si-outcome-badge[data-outcome="hold"]::before { border:1px solid rgba(245,197,99,0.3); }
+  @keyframes badgeGlow {
+    0%,100% { opacity:0; transform:scale(1); }
+    50% { opacity:1; transform:scale(1.04); }
+  }
+
+  .si-rationale {
+    font-size:14px; color:var(--si-ink2); line-height:1.5;
+    max-width:300px;
+    display:-webkit-box; -webkit-line-clamp:2;
+    -webkit-box-orient:vertical; overflow:hidden;
+  }
+
+  .si-footer {
+    display:flex; align-items:center; justify-content:center;
+    position:relative; z-index:5;
+  }
+  .si-url { font-size:13px; color:var(--si-ink3); letter-spacing:2px; }
+
+  /* Grain */
+  .grain {
+    position:absolute;inset:0;pointer-events:none;z-index:4;opacity:0.03;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  }
+
+  /* ═══════════════════════════════════════
+     MODAL ACTIONS
+     ═══════════════════════════════════════ */
+  .modal-actions { display:flex; flex-direction:column; gap:8px; }
+  .modal-btn {
+    height:48px; border-radius:14px;
+    font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600;
+    cursor:pointer; display:flex; align-items:center;
+    justify-content:center; gap:8px; transition:all 0.3s;
+    letter-spacing:0.3px; border:none;
+  }
+  .modal-btn--primary {
+    background:var(--accent-liquid); color:var(--ink-primary);
+  }
+  .modal-btn--primary:hover {
+    background:var(--accent-liquid-hover); transform:translateY(-2px);
+    box-shadow:0 6px 20px rgba(160,140,255,0.12);
+  }
+  .modal-btn--glass {
+    background:var(--glass-bg); color:var(--ink-secondary);
+    border:1px solid var(--glass-border) !important;
+    backdrop-filter:blur(8px);
+  }
+  .modal-btn--glass:hover {
+    background:var(--glass-bg-hover);
+    border-color:var(--glass-border-hover) !important;
+    color:var(--ink-primary); transform:translateY(-2px);
+  }
+  .modal-btn.success {
+    border-color:rgba(93,228,168,0.3) !important;
+    color:var(--buy);
+  }
+  .modal-btn--share { display:none; }
+  @media (hover:none) and (pointer:coarse) {
+    .modal-btn--share { display:flex; }
+  }
+
+  /* Toast */
+  .toast {
+    position:fixed;bottom:24px;left:50%;
+    transform:translateX(-50%) translateY(80px);
+    padding:12px 24px;border-radius:14px;
+    background:var(--glass-bg);backdrop-filter:blur(var(--glass-blur));
+    border:1px solid var(--glass-border);
+    color:var(--ink-primary);font-size:13px;font-weight:500;
+    z-index:200;opacity:0;
+    transition:all 0.4s cubic-bezier(0.22,1,0.36,1);
+    pointer-events:none;
+  }
+  .toast.show { transform:translateX(-50%) translateY(0);opacity:1; }
+
+  @media (max-width:520px) {
+    .modal { padding:20px; }
+    .modal-preview { border-radius:12px; }
+    .si-product { font-size:22px; }
+    .si-outcome-badge { padding:12px 28px; font-size:18px; }
+  }
+</style>
+</head>
+<body>
+
+<button class="btn-theme" onclick="toggleTheme()">◑</button>
+
+<div class="demo-page">
+  <div class="demo-header">
+    <h1>Your Verdict</h1>
+    <p>TruePick analyzed this product for you</p>
+  </div>
+
+  <div class="demo-verdict-card">
+    <div class="dvc-header">
+      <div class="dvc-product">Sony WH-1000XM5</div>
+      <div class="dvc-pill buy">Score 92</div>
+    </div>
+    <div class="dvc-reasons buy">
+      <span>Best-in-class ANC with proven track record</span>
+      <span>Aligns with your "quality audio" spending priority</span>
+      <span>94% satisfaction rate among repeat buyers</span>
+    </div>
+    <button class="btn-share-trigger" onclick="openModal('buy','Sony WH-1000XM5 Wireless Headphones',92,'Best-in-class ANC — aligns with your quality audio priority')">Share Your Verdict</button>
+  </div>
+
+  <div class="demo-verdict-card">
+    <div class="dvc-header">
+      <div class="dvc-product">Generic Smart Watch</div>
+      <div class="dvc-pill skip">Score 31</div>
+    </div>
+    <div class="dvc-reasons skip">
+      <span>68% of 5-star reviews are unverified</span>
+      <span>No warranty — high risk write-off</span>
+      <span>Better alternative: Amazfit GTS 4 at $120</span>
+    </div>
+    <button class="btn-share-trigger" onclick="openModal('skip','Generic Smart Watch Pro Ultra Max',31,'68% fake reviews detected — better alternatives exist')">Share Your Verdict</button>
+  </div>
+
+  <div class="demo-verdict-card">
+    <div class="dvc-header">
+      <div class="dvc-product">Apple Vision Pro</div>
+      <div class="dvc-pill hold">Score 58</div>
+    </div>
+    <div class="dvc-reasons hold">
+      <span>Impressive technology, genuinely novel</span>
+      <span>Gen 2 expected with major price drop</span>
+      <span>App ecosystem still maturing</span>
+    </div>
+    <button class="btn-share-trigger" onclick="openModal('hold','Apple Vision Pro 256GB',58,'Great tech — but wait for Gen 2 price drop')">Share Your Verdict</button>
+  </div>
+</div>
+
+<!-- ═══ SHARE MODAL ═══ -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Share Verdict</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-preview" id="modalPreview"></div>
+    <div>
+      <div class="bg-selector-label">Background</div>
+      <div class="bg-options">
+        <div class="bg-opt-wrap active" onclick="setBg('midnight',this)">
+          <div class="bg-swatch" data-bg="midnight"></div>
+          <span class="bg-label">Night</span>
+        </div>
+        <div class="bg-opt-wrap" onclick="setBg('aurora',this)">
+          <div class="bg-swatch" data-bg="aurora"></div>
+          <span class="bg-label">Aurora</span>
+        </div>
+        <div class="bg-opt-wrap" onclick="setBg('sunset',this)">
+          <div class="bg-swatch" data-bg="sunset"></div>
+          <span class="bg-label">Sunset</span>
+        </div>
+        <div class="bg-opt-wrap" onclick="setBg('nebula',this)">
+          <div class="bg-swatch" data-bg="nebula"></div>
+          <span class="bg-label">Nebula</span>
+        </div>
+        <div class="bg-opt-wrap" onclick="setBg('sunrise',this)">
+          <div class="bg-swatch" data-bg="sunrise"></div>
+          <span class="bg-label">Sunrise</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn--primary modal-btn--share" id="btnShare" onclick="doShare()">↗ Share</button>
+      <button class="modal-btn modal-btn--glass" id="btnDownload" onclick="doDownload()">↓ Download Image</button>
+      <button class="modal-btn modal-btn--glass" id="btnCopy" onclick="doCopyLink()">⊡ Copy Link</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let currentOutcome='buy', currentProduct='', currentScore=0, currentRationale='', currentBg='midnight';
+
+function buildShareImage(outcome, product, score, rationale, bg) {
+  const labels = {buy:'Buy',skip:'Skip',hold:'Hold'};
+  const icons = {buy:'✓',skip:'✗',hold:'⏸'};
+
+  // Sparkles
+  let sparkles = '';
+  for(let i=0;i<14;i++){
+    const x=5+Math.random()*90, y=5+Math.random()*90;
+    const d=(Math.random()*3).toFixed(1), s=2+Math.random()*4;
+    sparkles+=`<div class="sparkle" style="left:${x}%;top:${y}%;width:${s}px;height:${s}px;animation-delay:-${d}s"></div>`;
+  }
+
+  // Confetti for buy
+  let confetti='';
+  if(outcome==='buy'){
+    const cc=['rgba(93,228,168,0.6)','rgba(167,139,250,0.5)','rgba(96,165,250,0.5)','rgba(244,114,182,0.4)','rgba(245,197,99,0.5)'];
+    for(let i=0;i<22;i++){
+      const x=Math.random()*100, d=(Math.random()*4).toFixed(1);
+      const dur=(3+Math.random()*2).toFixed(1);
+      const c=cc[Math.floor(Math.random()*cc.length)];
+      const w=4+Math.random()*5, h=6+Math.random()*8;
+      confetti+=`<div class="confetti" style="left:${x}%;top:-5%;width:${w}px;height:${h}px;background:${c};animation-delay:-${d}s;animation-duration:${dur}s"></div>`;
+    }
+  }
+
+  // Midnight stars (used by midnight + nebula)
+  let stars='<div class="bg-layer-midnight">';
+  for(let i=0;i<35;i++){
+    const x=Math.random()*100, y=Math.random()*100;
+    const d=(Math.random()*2).toFixed(1), s=1+Math.random()*3;
+    stars+=`<div class="star" style="left:${x}%;top:${y}%;width:${s}px;height:${s}px;animation-delay:-${d}s"></div>`;
+  }
+  stars+='</div>';
+
+  // Aurora wisps
+  const aurora=`<div class="bg-layer-aurora">
+    <div class="wisp wisp-1"></div><div class="wisp wisp-2"></div>
+    <div class="wisp wisp-3"></div><div class="wisp wisp-4"></div>
+  </div>`;
+
+  // Sunset particles
+  let sunset='<div class="bg-layer-dusk">';
+  const pc=['rgba(244,114,182,0.4)','rgba(245,197,99,0.35)','rgba(220,69,69,0.3)','rgba(167,139,250,0.3)'];
+  for(let i=0;i<18;i++){
+    const x=10+Math.random()*80, y=30+Math.random()*60;
+    const d=(Math.random()*5).toFixed(1), s=3+Math.random()*5;
+    const c=pc[Math.floor(Math.random()*pc.length)];
+    sunset+=`<div class="particle" style="left:${x}%;top:${y}%;width:${s}px;height:${s}px;background:${c};animation-delay:-${d}s"></div>`;
+  }
+  sunset+='</div>';
+
+  // Nebula — structured cloud shapes
+  const nebula=`<div class="bg-layer-nebula">
+    <div class="nebula-cloud neb-1"></div>
+    <div class="nebula-cloud neb-2"></div>
+    <div class="nebula-cloud neb-3"></div>
+    <div class="nebula-cloud neb-4"></div>
+    <div class="nebula-cloud neb-5"></div>
+  </div>`;
+
+  // Sunrise — warm color washes + light streaks
+  const sunrise=`<div class="bg-layer-sunrise">
+    <div class="sun-wash wash-1"></div>
+    <div class="sun-wash wash-2"></div>
+    <div class="sun-wash wash-3"></div>
+    <div class="light-streak streak-1"></div>
+    <div class="light-streak streak-2"></div>
+    <div class="light-streak streak-3"></div>
+  </div>`;
+
+  return `
+    <div class="share-image" data-bg="${bg}" data-outcome="${outcome}" id="shareImageInner">
+      ${stars}${aurora}${sunset}${nebula}${sunrise}
+      <div class="sparkles">${sparkles}</div>
+      <div class="confetti-container">${confetti}</div>
+      <div class="grain"></div>
+      <div class="si-header">
+        <span class="si-wordmark">TruePick</span>
+        <span class="si-score-pill">Score ${score}</span>
+      </div>
+      <div class="si-center">
+        <div class="si-product">${product}</div>
+        <div class="si-outcome-badge" data-outcome="${outcome}">
+          <span class="badge-icon">${icons[outcome]}</span>
+          ${labels[outcome]}
+        </div>
+        <div class="si-rationale">${rationale}</div>
+      </div>
+      <div class="si-footer">
+        <span class="si-url">gettruepick.com</span>
+      </div>
+    </div>`;
+}
+
+// ═══ Modal ═══
+function openModal(outcome,product,score,rationale){
+  currentOutcome=outcome; currentProduct=product;
+  currentScore=score; currentRationale=rationale;
+  currentBg='midnight';
+  document.querySelectorAll('.bg-opt-wrap').forEach(o=>o.classList.remove('active'));
+  document.querySelector('.bg-opt-wrap').classList.add('active');
+  document.getElementById('modalPreview').innerHTML=buildShareImage(outcome,product,score,rationale,currentBg);
+  document.getElementById('modalOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+function setBg(bg,el){
+  currentBg=bg;
+  document.querySelectorAll('.bg-opt-wrap').forEach(o=>o.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('modalPreview').innerHTML=
+    buildShareImage(currentOutcome,currentProduct,currentScore,currentRationale,bg);
+}
+
+// ═══ Share utilities ═══
+async function copyToClipboard(t){
+  try{
+    if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(t);return true;}
+    const a=document.createElement('textarea');a.value=t;
+    a.style.cssText='position:fixed;left:-9999px;top:-9999px';
+    document.body.appendChild(a);a.focus();a.select();
+    const ok=document.execCommand('copy');document.body.removeChild(a);return ok;
+  }catch{return false;}
+}
+async function shareViaWebShare(d){
+  if(!navigator.share)return false;
+  try{
+    if(d.files?.length>0&&(!navigator.canShare||!navigator.canShare({files:d.files}))){
+      const{files,...r}=d;await navigator.share(r);return true;
+    }
+    await navigator.share(d);return true;
+  }catch(e){return e.name!=='AbortError'?false:false;}
+}
+function downloadBlob(b,f){
+  const u=URL.createObjectURL(b),a=document.createElement('a');
+  a.href=u;a.download=f;document.body.appendChild(a);a.click();
+  document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(u),5e3);
+}
+async function renderToBlob(el,tw,th){
+  const dw=el.offsetWidth,s=tw/dw;
+  const c=await html2canvas(el,{scale:s,useCORS:true,backgroundColor:null,logging:false,width:dw,height:el.offsetHeight});
+  return new Promise(r=>c.toBlob(b=>r(b),'image/png',1.0));
+}
+
+// ═══ Actions ═══
+async function doDownload(){
+  const btn=document.getElementById('btnDownload'),el=document.getElementById('shareImageInner');
+  btn.disabled=true;btn.style.opacity='0.5';
+  try{const b=await renderToBlob(el,1080,1080);downloadBlob(b,`truepick-${currentOutcome}.png`);flashBtn(btn,'✓ Saved');}
+  catch(e){showToast('Render failed');console.error(e);}
+  finally{btn.disabled=false;btn.style.opacity='';}
+}
+async function doShare(){
+  const el=document.getElementById('shareImageInner');
+  try{
+    const b=await renderToBlob(el,1080,1080);
+    const f=new File([b],`truepick-${currentOutcome}.png`,{type:'image/png'});
+    const ok=await shareViaWebShare({title:'TruePick Verdict',text:'I asked TruePick if I should buy this',url:`https://gettruepick.com/shared/${currentOutcome}-${Date.now().toString(36)}`,files:[f]});
+    if(!ok){downloadBlob(b,`truepick-${currentOutcome}.png`);showToast('Downloaded — share manually');}
+  }catch(e){showToast('Share failed');console.error(e);}
+}
+async function doCopyLink(){
+  const token=`${currentOutcome}-${Date.now().toString(36)}`;
+  const url=`https://gettruepick.com/shared/${token}`;
+  const btn=document.getElementById('btnCopy');
+  if(await copyToClipboard(url)){flashBtn(btn,'✓ Copied');showToast('Link copied');}
+  else showToast('Copy failed');
+}
+
+function flashBtn(b,l){const o=b.innerHTML;b.innerHTML=l;b.classList.add('success');setTimeout(()=>{b.innerHTML=o;b.classList.remove('success');},2e3);}
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2500);}
+function toggleTheme(){const h=document.documentElement;h.setAttribute('data-theme',h.getAttribute('data-theme')==='dark'?'light':'dark');}
+</script>
+</body>
+</html>
