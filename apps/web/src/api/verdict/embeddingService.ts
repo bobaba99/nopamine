@@ -1,25 +1,35 @@
+import { supabase } from '../core/supabaseClient'
+
 type EmbeddingResponse = {
   data: { embedding: number[] }[]
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
+
+const getAuthToken = async (): Promise<string> => {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) {
+    throw new Error('No active session')
+  }
+  return session.access_token
+}
+
 export const getEmbeddings = async (
-  apiKey: string,
   inputs: string[]
 ): Promise<number[][]> => {
-  const response = await fetch('https://api.openai.com/v1/embeddings', {
+  const token = await getAuthToken()
+
+  const response = await fetch(`${API_BASE_URL}/api/embeddings/search`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({
-      model: 'text-embedding-3-small',
-      input: inputs,
-    }),
+    body: JSON.stringify({ inputs }),
   })
 
   if (!response.ok) {
-    throw new Error(`OpenAI embeddings error: ${response.status}`)
+    throw new Error(`Embeddings API error: ${response.status}`)
   }
 
   const data = (await response.json()) as EmbeddingResponse
