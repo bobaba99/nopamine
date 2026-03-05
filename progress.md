@@ -32,6 +32,7 @@
 
 - [x] Rewrote core project docs to reflect actual implementation: `TECH_STACK.md`, `FRONTEND_GUIDELINES.md`, `BACKEND_GUIDELINES.md`.
 - [x] Updated product docs with concrete content and tables: `PRD.md` and `APP_FLOW.md`.
+- [x] Updated `PRD.md`, `APP_FLOW.md` to reflect `feat/daily-limit` implementation (anonymous auth flow §3.0, daily cap enforcement §4.1, state table §6, API proxy architecture §7)
 - [x] Implemented and lint-fixed major web flows in `apps/web`: Dashboard, Swipe, Profile, verdict detail modal, filters, and kinematics-related issues.
 - [x] Added verdict algorithm option `llm_only` across UI/service/types/modal and DB schema constraint in initial migration.
 - [x] Improved auth compatibility in `supabase/seed.sql` by making seed user creation auth-backed and cleaning orphan profile rows.
@@ -60,7 +61,7 @@
 
 ## In Progress
 
-- [ ] PaywallModal CSS — add styles for `.paywall-modal*` classes — **Branch:** `feat/daily-limit`
+- [ ] PaywallModal CSS — add styles for `.paywall-modal*` classes — **Branch:** `feat/paywall`
 - [ ] Refine Profile and history UX polish after recent structural updates — **Branch:** `fix/profile-history-ux-polish`
 - [ ] Implement user data deletion and data export (GDPR Art. 17, 20) — **Branch:** `feat/account-data-request-deletion`
 - [ ] Implement SEO optimization for resources page (OG tags, metadata) — **Branch:** `feat/resources-page-seo-optimization`

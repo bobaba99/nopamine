@@ -285,20 +285,9 @@ analytics.trackPaywallConversionStarted({
 
 ### D2. Waitlist submission
 
-Simple approach for MVP: submit to a Supabase table `waitlist(id, email, created_at, verdicts_at_signup)` or use a third-party form (Tally, Typeform). The modal email input posts to a new API endpoint:
+Simple approach for MVP: use Resend to manage clients who signed up for waitlist. The modal email input posts to a new API endpoint:
 
-**New route:** `POST /api/waitlist`
-```typescript
-app.post('/api/waitlist', async (req, res) => {
-  const { email } = req.body
-  // Insert into waitlist table (upsert on email to avoid dupes)
-  const { error } = await supabase().from('waitlist').upsert({ email }, { onConflict: 'email' })
-  if (error) { res.status(500).json({ error: 'Failed to join waitlist' }); return }
-  res.json({ success: true })
-})
-```
-
-**New migration:** `supabase/migrations/<timestamp>_add_waitlist.sql`
+**New migration:** `supabase migrations new add_waitlist.sql`
 ```sql
 CREATE TABLE waitlist (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
