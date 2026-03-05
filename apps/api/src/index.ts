@@ -122,6 +122,61 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000)
 
+const DAILY_VERDICT_LIMIT_FREE = 3
+
+const checkDailyVerdictLimit = async (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+): Promise<void> => {
+  const user = (req as AuthenticatedRequest).authUser
+  const sb = supabase()
+  const { data: userRow } = await sb
+    .from('users')
+    .select('tier')
+    .eq('id', user.id)
+    .single()
+
+  // Anonymous users (no row in users table) default to free
+  const tier = userRow?.tier ?? 'free'
+  if (tier === 'premium') {
+    next()
+    return
+  }
+
+  // Count today's verdicts (UTC day boundary)
+  const todayUtc = new Date()
+  todayUtc.setUTCHours(0, 0, 0, 0)
+  const { count } = await sb
+    .from('verdicts')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .gte('created_at', todayUtc.toISOString())
+
+  const usedToday = count ?? 0
+  if (usedToday >= DAILY_VERDICT_LIMIT_FREE) {
+    posthog.capture({
+      distinctId: user.id,
+      event: 'paywall_hit',
+      properties: {
+        verdicts_used_today: usedToday,
+        time_of_day: new Date().getUTCHours(),
+        day_of_week: new Date().getUTCDay(),
+      },
+    })
+    res.status(429).json({
+      error: 'daily_limit_reached',
+      verdicts_remaining: 0,
+      verdicts_used_today: usedToday,
+      daily_limit: DAILY_VERDICT_LIMIT_FREE,
+    })
+    return
+  }
+
+  res.locals.verdictsUsedToday = usedToday
+  next()
+}
+
 const requireAdmin = async (
   req: express.Request,
   res: express.Response,
@@ -445,7 +500,7 @@ app.post(
 
 const LLM_TIMEOUT_MS = 60_000
 
-app.post('/api/verdict/evaluate', requireAuth, rateLimitLLM, async (req, res) => {
+app.post('/api/verdict/evaluate', requireAuth, checkDailyVerdictLimit, rateLimitLLM, async (req, res) => {
   if (!openaiApiKey) {
     res.status(500).json({ error: 'OpenAI API key not configured on server.' })
     return
@@ -502,7 +557,9 @@ app.post('/api/verdict/evaluate', requireAuth, rateLimitLLM, async (req, res) =>
       event: 'verdict_evaluated',
       properties: { model: model ?? 'gpt-5-nano', max_tokens: maxTokens ?? 4000 },
     })
-    res.json(data)
+    const usedToday = (res.locals.verdictsUsedToday as number | undefined) ?? 0
+    const verdicts_remaining = Math.max(0, DAILY_VERDICT_LIMIT_FREE - (usedToday + 1))
+    res.json({ ...data, verdicts_remaining })
   } catch (error) {
     if (error instanceof Error && error.name === 'TimeoutError') {
       posthog.capture({
@@ -524,6 +581,49 @@ app.post('/api/verdict/evaluate', requireAuth, rateLimitLLM, async (req, res) =>
       details: error instanceof Error ? error.message : String(error),
     })
   }
+})
+
+// FUTURE: POST /api/webhooks/stripe
+// On event 'checkout.session.completed':
+//   posthog.capture({
+//     distinctId: event.data.object.metadata.user_id,
+//     event: 'paywall_conversion_completed',
+//     properties: {
+//       trigger_context: event.data.object.metadata.trigger_context ?? 'unknown',
+//       verdicts_at_conversion: Number(event.data.object.metadata.verdicts_at_conversion) || null,
+//     },
+//   })
+// Requires: trigger_context + verdicts_at_conversion in Stripe checkout metadata.
+
+app.post('/api/waitlist', async (req, res) => {
+  const { email, verdicts_at_signup } = req.body as { email?: string; verdicts_at_signup?: number }
+
+  if (!email?.trim()) {
+    res.status(400).json({ error: 'email is required.' })
+    return
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email.trim())) {
+    res.status(400).json({ error: 'Invalid email address.' })
+    return
+  }
+
+  const { error } = await supabase()
+    .from('waitlist')
+    .insert({ email: email.trim().toLowerCase(), verdicts_at_signup: verdicts_at_signup ?? null })
+
+  if (error) {
+    if (error.code === '23505') {
+      // Already on waitlist — treat as success to avoid enumeration
+      res.json({ success: true })
+      return
+    }
+    res.status(500).json({ error: error.message })
+    return
+  }
+
+  res.json({ success: true })
 })
 
 app.post('/api/embeddings/search', requireAuth, rateLimitLLM, async (req, res) => {
