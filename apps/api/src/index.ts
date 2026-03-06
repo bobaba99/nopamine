@@ -133,6 +133,22 @@ const checkDailyVerdictLimit = async (
 ): Promise<void> => {
   const user = (req as AuthenticatedRequest).authUser
   const sb = supabase()
+
+  // Regenerating an existing verdict doesn't consume a new daily slot.
+  // Verify the ID belongs to this user before trusting it.
+  const existingVerdictId = (req.body as Record<string, unknown>).existingVerdictId
+  if (typeof existingVerdictId === 'string' && existingVerdictId.length > 0) {
+    const { count } = await sb
+      .from('verdicts')
+      .select('id', { count: 'exact', head: true })
+      .eq('id', existingVerdictId)
+      .eq('user_id', user.id)
+    if ((count ?? 0) > 0) {
+      next()
+      return
+    }
+  }
+
   const { data: userRow } = await sb
     .from('users')
     .select('tier')
@@ -154,6 +170,7 @@ const checkDailyVerdictLimit = async (
     .select('id', { count: 'exact', head: true })
     .eq('user_id', user.id)
     .gte('created_at', todayUtc.toISOString())
+    .is('deleted_at', null)
 
   const usedToday = count ?? 0
   if (usedToday >= DAILY_VERDICT_LIMIT_FREE) {

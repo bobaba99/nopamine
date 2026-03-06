@@ -56,15 +56,27 @@
   - Dashboard: paywall modal wired, `verdict_override` event, `verdict_delivered` event
   - Profile: `verdict_override` event mirrored
   - VerdictShareModal: `share_card_generated` event
+- [x] PaywallModal CSS — add styles for `.paywall-modal*` classes — **Branch:** `feat/paywall`
+- [x] Add loading bar during evaluation/regeneration with generative loading words — **Branch:** `fix/[]`
+- [x] Adapt for mobile web browser size and layout — **Branch:** `ui/mobile-adaptation`
+- [x] Resend waitlist confirmation email — branded dark HTML email sent to user on signup; deduplication via `isDuplicate` flag — **Branch:** `feat/resend-waitlist`
+- [x] Wire `verdicts_remaining` from API success response into Dashboard state and show counter UI — **Branch:** `feat/verdicts-remaining-counter`
+- [x] Soft-delete verdicts — `deleted_at` column + migration; `deleteVerdict` now soft-deletes; daily limit count and history queries exclude soft-deleted rows — **Branch:** `feat/verdicts-remaining-counter`
+- [x] Regeneration bypasses daily limit — `existingVerdictId` threaded from `handleVerdictRegenerate` through `evaluatePurchase` → `evaluateWithLlm` → request body; backend verifies ownership before skipping count — **Branch:** `feat/verdicts-remaining-counter`
 
 ---
 
 ## In Progress
 
-- [ ] PaywallModal CSS — add styles for `.paywall-modal*` classes — **Branch:** `feat/paywall`
 - [ ] Refine Profile and history UX polish after recent structural updates — **Branch:** `fix/profile-history-ux-polish`
 - [ ] Implement user data deletion and data export (GDPR Art. 17, 20) — **Branch:** `feat/account-data-request-deletion`
 - [ ] Implement SEO optimization for resources page (OG tags, metadata) — **Branch:** `feat/resources-page-seo-optimization`
+- [ ] Refine prompt engineering `feat/refine-prompt`
+- [ ] Mobile view: Resources
+- [ ] Mobile view: Profiles/Verdicts
+- [ ] Mobile view: Profiles/Purchases
+- [ ] Mobile view: Swipes, add drop down for the schedule
+
 
 ---
 
@@ -78,12 +90,16 @@ _(none currently)_
 
 ### Free Tier (Phase 1 — current)
 
-- [ ] Wire `verdicts_remaining` from API success response back into Dashboard state — **Priority:** High
-- [ ] Show verdicts remaining counter in Dashboard UI — **Priority:** Medium
 - [ ] Add justification-length guidance flow in Dashboard (`<10` and `>100` words) — **Priority:** Medium
+- [ ] Add warning modal if justification is too short — **Priority:** Medium
 - [ ] Add confidence indicator in verdict cards/modal from stored `confidence_score` — **Priority:** Medium
 - [ ] Implement `purchase_stats` aggregation population and surface segmented regret insights — **Priority:** High
 - [ ] Add hold duration and email reminder for "hold" verdicts (4.5.5) — **Priority:** Medium
+- [ ] Enable anonymous auth in Supabase dashboard: Authentication > Providers > Anonymous — **Priority:** High
+- [ ] Wire real `user_tier` into `trackVerdictRequested` (currently hardcoded `'free'`) — **Priority:** Low
+- [ ] Write content for About page — **Priority:** Low
+- [ ] Write content for Support page — **Priority:** Low
+- [ ] Community verdict stats ("85% of users who skipped were satisfied") — **Priority:** Low
 
 ### Premium Tier (Phase 2 — after web app traction)
 
@@ -107,6 +123,7 @@ _(none currently)_
 
 | Date | Change | Reason | Impact |
 |------|--------|--------|--------|
+| 2026-03-05 | Soft-delete verdicts, regeneration limit bypass, verdicts remaining counter, Resend waitlist email | Prevent daily limit bypass via deletion; exempt regeneration; surface remaining count to user | Daily limit integrity enforced end-to-end; UX counter visible after first verdict |
 | 2026-03-04 | Daily limit enforcement, PaywallModal, anonymous auth, Tier 1 PostHog telemetry | Freemium launch readiness — enforce 3/day cap, capture conversion funnel | Verdict gate live; 6 new PostHog events; guest users tracked |
 | 2026-02-25 | Integrated freemium tier model into APP_FLOW.md, README.md, progress.md | Align docs with `freemium_features.md` product strategy | State transitions, verdict flow, and roadmap now reflect free/premium split |
 | 2026-02-25 | Trimmed ~880 lines from PRD.md, FRONTEND_GUIDELINES.md, APP_FLOW.md | Remove redundant content duplicating source code or backend docs | Leaner, more maintainable canonical docs |
@@ -120,8 +137,6 @@ _(none currently)_
 ## Notes & Decisions
 - Freemium model: free tier = 3 verdicts/day (enforced server-side). Anonymous users get the full verdict experience via `signInAnonymously`. Account conversion preserves user_id and verdict history.
 - `user_tier` in `trackVerdictRequested` is hardcoded `'free'` until the API response includes real tier data.
-- `verdictsRemainingToday` in Dashboard is not yet populated from API success responses — needs to be wired from `verdicts_remaining` in the response body.
-- PaywallModal component exists but has no CSS yet — functional but unstyled.
 - Highest-risk gap resolved: LLM calls now go through authenticated API proxy, not direct from frontend.
 - `purchase_stats` table exists in schema but app still derives headline stats mostly from `swipes`; aggregation job remains pending.
 - Chrome Extension and premium analytics are Phase 2/3 — not started until free tier web app shows returning user growth.

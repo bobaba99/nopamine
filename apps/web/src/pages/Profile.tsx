@@ -226,6 +226,7 @@ export default function Profile({ session }: ProfileProps) {
   const [purchaseFilters, setPurchaseFilters] = useState<FilterState>(INITIAL_FILTERS)
   const [verdictFiltersOpen, setVerdictFiltersOpen] = useState(false)
   const [purchaseFiltersOpen, setPurchaseFiltersOpen] = useState(false)
+  const [verdictsRemainingToday, setVerdictsRemainingToday] = useState<number | null>(null)
   const regenerateLockMessage =
     'Another verdict is currently being regenerated. Please wait for it to finish.'
 
@@ -361,12 +362,21 @@ export default function Profile({ session }: ProfileProps) {
     }
   }, [session, setGlobalPreferences])
 
+  const DAILY_LIMIT = 3
+
   const loadVerdicts = useCallback(async () => {
     if (!session) return
 
     try {
       const data = await getVerdictHistory(session.user.id, 10)
       setVerdicts(data)
+
+      const todayUtc = new Date()
+      todayUtc.setUTCHours(0, 0, 0, 0)
+      const usedToday = data.filter(
+        (v) => v.created_at !== null && new Date(v.created_at).getTime() >= todayUtc.getTime()
+      ).length
+      setVerdictsRemainingToday(Math.max(0, DAILY_LIMIT - usedToday))
     } catch {
       setStatus('Unable to load verdicts from Supabase. Check RLS policies.')
     }
@@ -701,7 +711,7 @@ export default function Profile({ session }: ProfileProps) {
 
     try {
       const input = inputFromVerdict(verdict)
-      const evaluation = await evaluatePurchase(session.user.id, input)
+      const evaluation = await evaluatePurchase(session.user.id, input, verdict.id)
       const { data, error } = await submitVerdict(
         session.user.id,
         input,
@@ -717,6 +727,10 @@ export default function Profile({ session }: ProfileProps) {
       analytics.trackVerdictRegenDuration(Date.now() - regenStartRef.current)
       analytics.trackVerdictRegenerated()
 
+      if (evaluation.verdictsRemaining !== undefined) {
+        setVerdictsRemainingToday(evaluation.verdictsRemaining)
+      }
+
       setVerdicts((previousVerdicts) =>
         previousVerdicts.map((previousVerdict) =>
           previousVerdict.id === data.id ? data : previousVerdict
@@ -725,7 +739,16 @@ export default function Profile({ session }: ProfileProps) {
       if (selectedVerdict?.id === data.id) {
         setSelectedVerdict(data)
       }
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === 'daily_limit_reached' &&
+        'paywallData' in error
+      ) {
+        const pd = (error as Error & { paywallData: Record<string, unknown> }).paywallData
+        setVerdictsRemainingToday(0)
+        void pd
+      }
       setStatus('Failed to regenerate verdict.')
     } finally {
       setVerdictRegeneratingId((currentVerdictId) =>
@@ -846,7 +869,16 @@ export default function Profile({ session }: ProfileProps) {
   const renderVerdictsTab = () => (
     <div className="verdict-result" style={{ marginTop: 0 }}>
       <div className="section-header">
-        <h2>Verdict history</h2>
+        <div className="section-header-title-row">
+          <h2>Verdict history</h2>
+          {verdictsRemainingToday !== null && (
+            <span className={`verdicts-remaining-pill${verdictsRemainingToday === 0 ? ' exhausted' : ''}`}>
+              {verdictsRemainingToday === 0
+                ? 'Daily limit reached'
+                : `${verdictsRemainingToday} verdict${verdictsRemainingToday === 1 ? '' : 's'} left today`}
+            </span>
+          )}
+        </div>
         <LiquidButton
           type="button"
           className="ghost"
@@ -1211,6 +1243,13 @@ export default function Profile({ session }: ProfileProps) {
 
       <div className="profile-header-card">
         <span className="value">{session?.user.email}</span>
+        {verdictsRemainingToday !== null && (
+          <span className={`verdicts-remaining-pill${verdictsRemainingToday === 0 ? ' exhausted' : ''}`}>
+            {verdictsRemainingToday === 0
+              ? 'Daily limit reached'
+              : `${verdictsRemainingToday} free verdict${verdictsRemainingToday === 1 ? '' : 's'} remaining today`}
+          </span>
+        )}
       </div>
 
       <div className="profile-tabs" role="tablist">

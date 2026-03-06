@@ -73,10 +73,20 @@ export default function Dashboard({ session }: DashboardProps) {
     setStats(data)
   }, [session])
 
+  const DAILY_LIMIT = 3
+
   const loadRecentVerdicts = useCallback(async () => {
     if (!session) return
     const data = await getVerdictHistory(session.user.id, 3)
     setRecentVerdicts(data)
+
+    const todayUtc = new Date()
+    todayUtc.setUTCHours(0, 0, 0, 0)
+    const usedToday = data.filter(
+      (v) => v.created_at !== null && new Date(v.created_at).getTime() >= todayUtc.getTime()
+    ).length
+    setVerdictsUsedToday(usedToday)
+    setVerdictsRemainingToday(Math.max(0, DAILY_LIMIT - usedToday))
   }, [session])
 
   useEffect(() => {
@@ -178,6 +188,11 @@ export default function Dashboard({ session }: DashboardProps) {
       if (evaluation.fallbackReason) {
         setStatus(`AI analysis was unavailable — verdict based on pattern matching.`)
         setStatusType('info')
+      }
+
+      if (evaluation.verdictsRemaining !== undefined) {
+        setVerdictsRemainingToday(evaluation.verdictsRemaining)
+        setVerdictsUsedToday(3 - evaluation.verdictsRemaining)
       }
 
       const { data: submittedVerdict, error } = await submitVerdict(session.user.id, input, evaluation)
@@ -294,7 +309,7 @@ export default function Dashboard({ session }: DashboardProps) {
 
     try {
       const input = inputFromVerdict(verdict)
-      const evaluation = await evaluatePurchase(session.user.id, input)
+      const evaluation = await evaluatePurchase(session.user.id, input, verdict.id)
 
       if (evaluation.fallbackReason) {
         setStatus('AI analysis was unavailable — verdict based on pattern matching.')
@@ -581,7 +596,16 @@ export default function Dashboard({ session }: DashboardProps) {
         </div>
 
         <div className="decision-section">
-          <h2>New evaluation</h2>
+          <div className="decision-section-header">
+            <h2>New evaluation</h2>
+            {verdictsRemainingToday !== null && (
+              <span className={`verdicts-remaining-pill${verdictsRemainingToday === 0 ? ' exhausted' : ''}`}>
+                {verdictsRemainingToday === 0
+                  ? 'Daily limit reached'
+                  : `${verdictsRemainingToday} free verdict${verdictsRemainingToday === 1 ? '' : 's'} remaining today`}
+              </span>
+            )}
+          </div>
           <form className="decision-form" onSubmit={(e) => void handleEvaluate(e)}>
             <label>
               Product

@@ -5,7 +5,6 @@
 - I could add something like '85% of the users chose skip and was satisfied with their skip.'
 - Include community support from others right after receiving the verdicts.
 - Include placeholders for social media accounts
-- 
 
 `fix/[]`
 
@@ -52,8 +51,8 @@
 
 `feat/daily-limit`
 
-- [ ] PaywallModal has no CSS — add `.paywall-modal`, `.paywall-modal-close`, `.paywall-cta-btn`, `.paywall-signup-link`, `.paywall-email-input` styles to App.css
+- [x] PaywallModal has no CSS — add `.paywall-modal`, `.paywall-modal-close`, `.paywall-cta-btn`, `.paywall-signup-link`, `.paywall-email-input` styles to App.css
 - [ ] `user_tier` in `trackVerdictRequested` is hardcoded to `'free'` — wire real tier from API response once available
-- [ ] `verdictsRemainingToday` is never populated from successful API responses (verdicts_remaining in response body not yet read back into state)
+- [x] `verdictsRemainingToday` is never populated from successful API responses (verdicts_remaining in response body not yet read back into state)
 - [ ] Anonymous auth requires enabling in Supabase dashboard: Authentication > Providers > Anonymous
 - [ ] Stripe webhook stub for `paywall_conversion_completed` not yet implemented

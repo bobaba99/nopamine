@@ -114,6 +114,7 @@ export type EvaluationResult = {
   confidence: number
   reasoning: LLMEvaluationReasoning
   fallbackReason?: string
+  verdictsRemaining?: number
 }
 
 /**
