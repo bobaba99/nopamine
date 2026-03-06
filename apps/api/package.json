@@ -14,7 +14,8 @@
     "file-type": "^21.3.0",
     "multer": "^2.0.2",
     "openai": "^6.25.0",
-    "posthog-node": "^5.27.1"
+    "posthog-node": "^5.27.1",
+    "resend": "^6.9.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
