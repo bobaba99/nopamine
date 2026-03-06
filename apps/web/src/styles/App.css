@@ -4614,6 +4614,15 @@
   .shared-verdict-page { padding: 2rem 1rem; }
 }
 
+/* ── Verdicts remaining hint ── */
+.verdicts-remaining-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ink-500);
+  text-align: center;
+  transition: color 0.2s ease;
+}
+
 /* ── Paywall Modal ── */
 .paywall-modal {
   position: relative;

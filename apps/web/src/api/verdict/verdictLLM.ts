@@ -61,6 +61,7 @@ interface OpenAIResponse {
     message?: { content?: string }
     finish_reason?: string
   }>
+  verdicts_remaining?: number
 }
 
 type LlmAttemptResult =
@@ -170,7 +171,7 @@ const executeLlmWithRetry = async (
   vendorPriceTier: VendorPriceTier,
   weeklyBudget: number | null,
   maxAttempts = 2
-): Promise<LLMEvaluationResponse> => {
+): Promise<{ response: LLMEvaluationResponse; verdictsRemaining: number | undefined }> => {
   const attempts: string[] = []
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -196,7 +197,7 @@ const executeLlmWithRetry = async (
     const result = parseLlmResponse(data, input, vendorPriceTier, weeklyBudget)
 
     if (result.success) {
-      return result.response
+      return { response: result.response, verdictsRemaining: data.verdicts_remaining }
     }
 
     attempts.push(result.retryReason)
@@ -327,7 +328,7 @@ export const evaluateWithLlm = async (
   )
 
   try {
-    const llmResponse = await executeLlmWithRetry(
+    const { response: llmResponse, verdictsRemaining } = await executeLlmWithRetry(
       systemPrompt,
       userPrompt,
       input,
@@ -335,7 +336,7 @@ export const evaluateWithLlm = async (
       context.weeklyBudget
     )
 
-    return processLlmResponse(llmResponse, input, context)
+    return { ...processLlmResponse(llmResponse, input, context), verdictsRemaining }
   } catch (error) {
     if (error instanceof Error && error.message === 'daily_limit_reached') {
       throw error

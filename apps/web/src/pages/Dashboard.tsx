@@ -180,6 +180,11 @@ export default function Dashboard({ session }: DashboardProps) {
         setStatusType('info')
       }
 
+      if (evaluation.verdictsRemaining !== undefined) {
+        setVerdictsRemainingToday(evaluation.verdictsRemaining)
+        setVerdictsUsedToday(3 - evaluation.verdictsRemaining)
+      }
+
       const { data: submittedVerdict, error } = await submitVerdict(session.user.id, input, evaluation)
 
       if (error) {
@@ -667,6 +672,13 @@ export default function Dashboard({ session }: DashboardProps) {
               <LiquidButton className="primary" type="submit" disabled={submitting}>
                 {submitting ? 'Evaluating...' : 'Evaluate'}
               </LiquidButton>
+              {verdictsRemainingToday !== null && (
+                <p className="verdicts-remaining-hint">
+                  {verdictsRemainingToday === 0
+                    ? 'Daily limit reached'
+                    : `${verdictsRemainingToday} free verdict${verdictsRemainingToday === 1 ? '' : 's'} remaining today`}
+                </p>
+              )}
             </div>
           </form>
         </div>
