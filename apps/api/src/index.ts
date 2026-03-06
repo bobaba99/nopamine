@@ -4,6 +4,7 @@ import multer from 'multer'
 import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
 import { PostHog } from 'posthog-node'
+import { Resend } from 'resend'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -19,6 +20,7 @@ const adminEmails = (process.env.ADMIN_EMAILS ?? '')
   .filter(Boolean)
 
 const openaiApiKey = process.env.OPENAI_API_KEY ?? ''
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 const posthog = new PostHog(process.env.POSTHOG_API_KEY ?? '', {
   host: process.env.POSTHOG_HOST ?? 'https://us.i.posthog.com',
@@ -613,14 +615,30 @@ app.post('/api/waitlist', async (req, res) => {
     .from('waitlist')
     .insert({ email: email.trim().toLowerCase(), verdicts_at_signup: verdicts_at_signup ?? null })
 
-  if (error) {
-    if (error.code === '23505') {
-      // Already on waitlist — treat as success to avoid enumeration
-      res.json({ success: true })
-      return
-    }
+  const isDuplicate = error?.code === '23505'
+
+  if (error && !isDuplicate) {
     res.status(500).json({ error: error.message })
     return
+  }
+
+  if (resend && !isDuplicate) {
+    resend.emails.send({
+      from: 'TruePick <noreply@resila.ai>',
+      to: email.trim(),
+      subject: "You're on the TruePick waitlist 🎉",
+      html: `
+        <div style="font-family: 'Outfit', sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #0f172a;">
+          <h1 style="font-size: 24px; font-weight: 700; margin: 0 0 12px;">You're on the list.</h1>
+          <p style="font-size: 16px; line-height: 1.6; color: #475569; margin: 0 0 24px;">
+            Thanks for joining the TruePick waitlist. Founding members get <strong>3 months free</strong> — we'll reach out as soon as a spot opens.
+          </p>
+          <p style="font-size: 14px; color: #94a3b8; margin: 0;">
+            — The TruePick team
+          </p>
+        </div>
+      `,
+    }).catch((err: unknown) => { console.error('[Resend] Failed to send waitlist email:', err) })
   }
 
   res.json({ success: true })
