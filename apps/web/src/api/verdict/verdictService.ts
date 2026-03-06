@@ -117,6 +117,7 @@ export async function getRecentVerdict(userId: string): Promise<VerdictRow | nul
       'id, candidate_title, candidate_price, candidate_category, candidate_vendor, scoring_model, justification, predicted_outcome, confidence_score, reasoning, hold_release_at, created_at'
     )
     .eq('user_id', userId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -136,6 +137,7 @@ export async function getVerdictHistory(userId: string, limit = 10): Promise<Ver
       'id, candidate_title, candidate_price, candidate_category, candidate_vendor, scoring_model, justification, predicted_outcome, confidence_score, reasoning, created_at, hold_release_at, user_proceeded, actual_outcome, user_decision, user_hold_until'
     )
     .eq('user_id', userId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -261,7 +263,7 @@ export async function deleteVerdict(
 ): Promise<{ error: string | null }> {
   const { error } = await supabase
     .from('verdicts')
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .eq('id', verdictId)
     .eq('user_id', userId)
 
@@ -451,7 +453,8 @@ const gatherEvaluationContext = async (
 
 export async function evaluatePurchase(
   userId: string,
-  input: PurchaseInput
+  input: PurchaseInput,
+  existingVerdictId?: string
 ): Promise<EvaluationResult> {
   const { weeklyBudget, onboardingAnswers, preferences } = await fetchUserProfile(userId)
 
@@ -463,7 +466,7 @@ export async function evaluatePurchase(
     preferences
   )
 
-  return evaluateWithLlm(input, context)
+  return evaluateWithLlm(input, context, existingVerdictId)
 }
 
 export type { VerdictOutcome }

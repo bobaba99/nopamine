@@ -71,7 +71,8 @@ type LlmAttemptResult =
 const attemptLlmCall = async (
   systemPrompt: string,
   userPrompt: string,
-  retryContext: string
+  retryContext: string,
+  existingVerdictId?: string
 ): Promise<{ data: OpenAIResponse | null; error: string | null }> => {
   try {
     const token = await getAuthToken()
@@ -87,6 +88,7 @@ const attemptLlmCall = async (
         userPrompt: `${userPrompt}${retryContext}`,
         model: 'gpt-5-nano',
         maxTokens: 4000,
+        existingVerdictId,
       }),
       signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
     })
@@ -170,6 +172,7 @@ const executeLlmWithRetry = async (
   input: PurchaseInput,
   vendorPriceTier: VendorPriceTier,
   weeklyBudget: number | null,
+  existingVerdictId?: string,
   maxAttempts = 2
 ): Promise<{ response: LLMEvaluationResponse; verdictsRemaining: number | undefined }> => {
   const attempts: string[] = []
@@ -183,7 +186,8 @@ const executeLlmWithRetry = async (
     const { data, error } = await attemptLlmCall(
       systemPrompt,
       userPrompt,
-      retryContext
+      retryContext,
+      existingVerdictId
     )
 
     if (error) {
@@ -313,7 +317,8 @@ const processLlmResponse = (
 
 export const evaluateWithLlm = async (
   input: PurchaseInput,
-  context: EvaluationContext
+  context: EvaluationContext,
+  existingVerdictId?: string
 ): Promise<EvaluationResult> => {
   const systemPrompt = buildSystemPrompt()
   const userPrompt = buildUserPrompt(
@@ -333,7 +338,8 @@ export const evaluateWithLlm = async (
       userPrompt,
       input,
       context.vendorMatch?.vendor_price_tier ?? null,
-      context.weeklyBudget
+      context.weeklyBudget,
+      existingVerdictId
     )
 
     return { ...processLlmResponse(llmResponse, input, context), verdictsRemaining }
