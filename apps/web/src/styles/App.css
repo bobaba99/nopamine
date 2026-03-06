@@ -4678,6 +4678,11 @@
   overflow: hidden;
 }
 
+/* ── Swipe active-queue: remove top padding since h1 is now at the bottom ── */
+.route-surface:has(.swipe-content) {
+  padding-top: 0;
+}
+
 /* ── Swipe filter: pills (desktop) / select (mobile) ── */
 .swipe-filter--select {
   display: none;

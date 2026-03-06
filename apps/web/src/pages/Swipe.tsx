@@ -673,7 +673,7 @@ export default function Swipe({ session }: SwipeProps) {
   }
 
   return (
-    <section className="route-content">
+    <section className="route-content swipe-content">
       {totalDue > 0 && (
         <div className="swipe-progress-container">
           <div
