@@ -9,9 +9,9 @@
 ---
 
 ## Current Sprint
-**Sprint:** Freemium Launch Readiness
-**Dates:** 2026-03-04 — ongoing
-**Goal:** Enforce daily verdict cap for free users, add PaywallModal with waitlist CTA, anonymous auth for guest verdict flow, wire Tier 1 PostHog behavioural telemetry.
+**Sprint:** Final Polish & Launch
+**Dates:** 2026-03-07 — ongoing
+**Goal:** Complete legal pages, enable anonymous auth, finish Profile UX polish, and ship soft launch.
 
 ---
 
@@ -20,11 +20,108 @@
 | Phase | Status | Progress | Notes |
 |-------|--------|----------|-------|
 | Project Setup | 🟢 | 95% | Monorepo, Supabase schema/RLS, auth routing, seed flow in place |
-| Core Backend | 🟡 | 75% | API hardened; daily limit middleware + waitlist endpoint added |
-| Core Frontend | 🟡 | 85% | Anonymous auth, paywall modal, account conversion done |
-| Feature Completion | 🟡 | 70% | Core loop done; sharing done; freemium gate done |
-| Polish & QA | 🟡 | 35% | PaywallModal CSS stub missing; no full NFR validation yet |
+| Core Backend | 🟢 | 90% | API proxy, waitlist email, hold reminder runner, daily limit — all in place |
+| Core Frontend | 🟢 | 90% | Anonymous auth, paywall modal, account conversion, dashboard guidance, fluid typography done |
+| Feature Completion | 🟡 | 85% | Core loop, sharing, hold reminders, freemium gate done; remaining items are nice-to-haves |
+| Polish & QA | 🟡 | 50% | Legal pages need real content; Profile UX polish in progress |
 | Deployment & Launch | ⚪ | 15% | No launch pipeline or launch readiness checklist yet |
+
+---
+
+## In Progress
+
+- [ ] Refine Profile and history UX polish after recent structural updates — **Branch:** `fix/profile-history-ux-polish`
+
+---
+
+## MVP Launch Board
+
+### 1. Go / No-Go (must complete before launch)
+
+- [ ] Enable anonymous auth in Supabase dashboard: Authentication > Providers > Anonymous
+  Why: The guest verdict flow depends on `signInAnonymously`; without this toggle, first-visit onboarding is broken. (5 min, zero code)
+- [ ] Replace Privacy Policy boilerplate with real content — `Privacy.tsx` lines 37, 48, 51
+  Why: Legal requirement per PRD 5.2; needed for OAuth verification and user trust.
+- [ ] Replace Terms of Service boilerplate with real content — `Terms.tsx` line 43
+  Why: Legal requirement per PRD 5.2; liability coverage.
+- [ ] Complete Profile and history UX polish — **Branch:** `fix/profile-history-ux-polish`
+  Why: Core user-facing screen; rough UX harms first impressions and retention. Already in progress.
+
+### 2. Nice-to-Have (ship without; add in weeks 1-2 post-launch)
+
+- [ ] Add warning modal for short/long justification — **Priority:** Medium
+  Why: Inline word-count guidance already nudges users; LLM handles short input. Not a blocker.
+- [ ] Add confidence indicator in verdict cards/modal from stored `confidence_score` — **Priority:** Medium
+  Why: Data is stored and tracked in PostHog. Purely a UI display enhancement.
+- [ ] Implement SEO optimization for resources page (OG tags, metadata) — **Priority:** Medium
+  Why: No organic search traffic on day 1; growth lever to activate in weeks 2-4.
+- [ ] Write About page content — **Priority:** Low
+  Why: Page exists with boilerplate. Users rarely visit About on first session.
+- [ ] Write Support page content — **Priority:** Low
+  Why: Page exists with FAQ link and Contact Us. Functional enough for soft launch.
+- [ ] Wire real `user_tier` into `trackVerdictRequested` instead of hardcoded `'free'` — **Priority:** Low
+  Why: Technically correct at launch since all users ARE free tier. Only matters when premium exists.
+
+### 3. Deferred Post-Launch
+
+- [ ] Implement user data deletion and data export (GDPR Art. 17, 20)
+  Why deferred: GDPR requires honoring requests within 30 days, not a self-service UI. FAQ documents the manual email process. Standard for early-stage solo dev.
+- [ ] Implement `purchase_stats` aggregation and surface segmented regret insights
+  Why deferred: Requires critical mass of swipe data. Zero users = empty charts.
+- [ ] Add community/social-proof verdict stats
+  Why deferred: Requires hundreds of verdicts to be statistically meaningful.
+- [ ] Google OAuth sign-in
+  Why deferred: Email/password + anonymous auth covers launch. OAuth reduces friction at scale.
+- [ ] CI/CD pipeline and error monitoring/alerting
+  Why deferred: Deploy manually for soft launch. Set up when deployment cadence justifies it.
+- [ ] Account management (email change, password change)
+  Why deferred: Supabase forgot-password flow exists. Email change is rare at launch.
+- [ ] Offline detection, session expiry handling, fallback verdict message
+  Why deferred: LLM errors already handled with status banners. Resilience polish.
+- [ ] Refine prompt engineering — **Branch:** `feat/refine-prompt`
+
+### Premium Tier (Phase 2 — after web app traction)
+
+- [ ] Premium tier billing/upgrade flow (Stripe or equivalent)
+- [ ] Stripe webhook for `paywall_conversion_completed` PostHog event
+- [ ] Unlimited verdicts with full rationale for premium users
+- [ ] Chrome Extension: session awareness on e-commerce domains
+- [ ] Chrome Extension: checkout interstitial friction with verdict routing
+- [ ] Chrome Extension: opt-in website blocking (soft/hard modes)
+
+### Premium Analytics (Phase 3 — requires purchase history data)
+
+- [ ] Weekly/monthly spending pattern reports with charts and trend lines
+- [ ] Personalized LLM-generated spending insights (override rates, timing patterns)
+- [ ] Ongoing email syncing with post-purchase satisfaction tracking (7/14/30-day check-ins)
+- [ ] Conversational agent for querying purchase history (gated behind 10+ verdicts)
+
+---
+
+## Change Log
+
+| Date | Change | Reason | Impact |
+|------|--------|--------|--------|
+| 2026-03-05 | Mobile layout polish — Profile, Purchases, Resources, Swipe | Cards showed raw label:value text; buttons overflowed on mobile; swipe queue and filter were above the interaction | Meta-chip cards, clean button rows, and swipe UI reordered for natural mobile scroll flow |
+| 2026-03-05 | Fluid typography — clamp()-based font sizes across all major text elements | Text felt too small on desktop and cramped on mobile; fluid scaling eliminates single-breakpoint jumps | Smooth text scaling 375px→1440px with no manual mobile overrides needed |
+| 2026-03-05 | Soft-delete verdicts, regeneration limit bypass, verdicts remaining counter, Resend waitlist email | Prevent daily limit bypass via deletion; exempt regeneration; surface remaining count to user | Daily limit integrity enforced end-to-end; UX counter visible after first verdict |
+| 2026-03-04 | Daily limit enforcement, PaywallModal, anonymous auth, Tier 1 PostHog telemetry | Freemium launch readiness — enforce 3/day cap, capture conversion funnel | Verdict gate live; 6 new PostHog events; guest users tracked |
+| 2026-02-25 | Integrated freemium tier model into APP_FLOW.md, README.md, progress.md | Align docs with `freemium_features.md` product strategy | State transitions, verdict flow, and roadmap now reflect free/premium split |
+| 2026-02-25 | Trimmed ~880 lines from PRD.md, FRONTEND_GUIDELINES.md, APP_FLOW.md | Remove redundant content duplicating source code or backend docs | Leaner, more maintainable canonical docs |
+| 2026-02-25 | Populated CLAUDE.md with project intelligence | Give AI assistants concrete project context | Faster onboarding, fewer repeated questions |
+| 2026-02-09 | Added `llm_only` verdict algorithm mode | Support LLM-direct recommendation mode without score computation | New product option in Dashboard and persisted scoring model |
+| 2026-02-09 | Consolidated scoring model constraint into initial schema migration | Keep one source of truth for local reset flow | Simplifies migration chain for new environments |
+| 2026-02-09 | Updated seed strategy to require auth-backed user | Prevent signup conflict and manual DB cleanup | Smoother local auth/signup testing |
+
+---
+
+## Notes & Decisions
+- Freemium model: free tier = 3 verdicts/day (enforced server-side). Anonymous users get the full verdict experience via `signInAnonymously`. Account conversion preserves user_id and verdict history.
+- `user_tier` in `trackVerdictRequested` is hardcoded `'free'` — technically correct at launch since all users are free tier; wire real value when premium exists.
+- Highest-risk gap resolved: LLM calls now go through authenticated API proxy, not direct from frontend.
+- GDPR self-service deletion deferred: FAQ documents the manual email process (contact within 30 days). Build automated UI when user volume justifies it.
+- `purchase_stats` table exists in schema but is not populated — deferred until users generate enough swipe data to make insights meaningful.
+- Chrome Extension and premium analytics are Phase 2/3 — not started until free tier web app shows returning user growth.
 
 ---
 
@@ -67,70 +164,3 @@
 - [x] Mobile layout polish — Profile Verdicts button rows split into utility/decision/danger rows; Purchases and Resources cards use meta-chip pills instead of plain text; Swipe schedule queue moved below interaction; filter moved below heading with native `<select>` on mobile — **Branch:** `fix/mobile-layout-polish`
 - [x] Dashboard justification guidance polish — restored `Brand` input, added `10-30 words` guidance, and animated rotating probing questions under the justification textarea — **Branch:** `feature/justification-length-guidance`
 - [x] Hold reminder emails — added Resend-powered `/api/hold-reminders/run` scheduler endpoint to send due hold reminders and mark `hold_timers.notified` after delivery — **Branch:** `feat/hold-email-reminder`
-
----
-
-## In Progress
-
-- [ ] Refine Profile and history UX polish after recent structural updates — **Branch:** `fix/profile-history-ux-polish`
-- [ ] Implement user data deletion and data export (GDPR Art. 17, 20) — **Branch:** `feat/account-data-request-deletion`
-- [ ] Implement SEO optimization for resources page (OG tags, metadata) — **Branch:** `feat/resources-page-seo-optimization`
-- [ ] Refine prompt engineering `feat/refine-prompt`
-
-
----
-
-## Upcoming
-
-### Free Tier (Phase 1 — current)
-
-- [ ] Add warning modal if justification is too short — **Priority:** Medium
-- [ ] Add confidence indicator in verdict cards/modal from stored `confidence_score` — **Priority:** Medium
-- [ ] Implement `purchase_stats` aggregation population and surface segmented regret insights — **Priority:** High
-- [ ] Enable anonymous auth in Supabase dashboard: Authentication > Providers > Anonymous — **Priority:** High
-- [ ] Wire real `user_tier` into `trackVerdictRequested` (currently hardcoded `'free'`) — **Priority:** Low
-- [ ] Write content for About page — **Priority:** Low
-- [ ] Write content for Support page — **Priority:** Low
-- [ ] Community verdict stats ("85% of users who skipped were satisfied") — **Priority:** Low
-
-### Premium Tier (Phase 2 — after web app traction)
-
-- [ ] Premium tier billing/upgrade flow (Stripe or equivalent) — **Priority:** High
-- [ ] Stripe webhook for `paywall_conversion_completed` PostHog event — **Priority:** High
-- [ ] Unlimited verdicts with full rationale for premium users — **Priority:** High
-- [ ] Chrome Extension: session awareness on e-commerce domains — **Priority:** Medium
-- [ ] Chrome Extension: checkout interstitial friction with verdict routing — **Priority:** Medium
-- [ ] Chrome Extension: opt-in website blocking (soft/hard modes) — **Priority:** Low
-
-### Premium Analytics (Phase 3 — requires purchase history data)
-
-- [ ] Weekly/monthly spending pattern reports with charts and trend lines — **Priority:** Medium
-- [ ] Personalized LLM-generated spending insights (override rates, timing patterns) — **Priority:** Medium
-- [ ] Ongoing email syncing with post-purchase satisfaction tracking (7/14/30-day check-ins) — **Priority:** Medium
-- [ ] Conversational agent for querying purchase history (gated behind 10+ verdicts) — **Priority:** Low
-
----
-
-## Change Log
-
-| Date | Change | Reason | Impact |
-|------|--------|--------|--------|
-| 2026-03-05 | Mobile layout polish — Profile, Purchases, Resources, Swipe | Cards showed raw label:value text; buttons overflowed on mobile; swipe queue and filter were above the interaction | Meta-chip cards, clean button rows, and swipe UI reordered for natural mobile scroll flow |
-| 2026-03-05 | Fluid typography — clamp()-based font sizes across all major text elements | Text felt too small on desktop and cramped on mobile; fluid scaling eliminates single-breakpoint jumps | Smooth text scaling 375px→1440px with no manual mobile overrides needed |
-| 2026-03-05 | Soft-delete verdicts, regeneration limit bypass, verdicts remaining counter, Resend waitlist email | Prevent daily limit bypass via deletion; exempt regeneration; surface remaining count to user | Daily limit integrity enforced end-to-end; UX counter visible after first verdict |
-| 2026-03-04 | Daily limit enforcement, PaywallModal, anonymous auth, Tier 1 PostHog telemetry | Freemium launch readiness — enforce 3/day cap, capture conversion funnel | Verdict gate live; 6 new PostHog events; guest users tracked |
-| 2026-02-25 | Integrated freemium tier model into APP_FLOW.md, README.md, progress.md | Align docs with `freemium_features.md` product strategy | State transitions, verdict flow, and roadmap now reflect free/premium split |
-| 2026-02-25 | Trimmed ~880 lines from PRD.md, FRONTEND_GUIDELINES.md, APP_FLOW.md | Remove redundant content duplicating source code or backend docs | Leaner, more maintainable canonical docs |
-| 2026-02-25 | Populated CLAUDE.md with project intelligence | Give AI assistants concrete project context | Faster onboarding, fewer repeated questions |
-| 2026-02-09 | Added `llm_only` verdict algorithm mode | Support LLM-direct recommendation mode without score computation | New product option in Dashboard and persisted scoring model |
-| 2026-02-09 | Consolidated scoring model constraint into initial schema migration | Keep one source of truth for local reset flow | Simplifies migration chain for new environments |
-| 2026-02-09 | Updated seed strategy to require auth-backed user | Prevent signup conflict and manual DB cleanup | Smoother local auth/signup testing |
-
----
-
-## Notes & Decisions
-- Freemium model: free tier = 3 verdicts/day (enforced server-side). Anonymous users get the full verdict experience via `signInAnonymously`. Account conversion preserves user_id and verdict history.
-- `user_tier` in `trackVerdictRequested` is hardcoded `'free'` until the API response includes real tier data.
-- Highest-risk gap resolved: LLM calls now go through authenticated API proxy, not direct from frontend.
-- `purchase_stats` table exists in schema but app still derives headline stats mostly from `swipes`; aggregation job remains pending.
-- Chrome Extension and premium analytics are Phase 2/3 — not started until free tier web app shows returning user growth.

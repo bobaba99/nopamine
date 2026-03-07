@@ -98,8 +98,8 @@ The details include the product name, price, category, vendor, justification, an
 
 #### 4.1.1 Edge Cases
 
-- The user enters minimal justification for the purchase. If the length is less than 10 words, the app will show a modal dialog suggesting the user to write down more details with some probing questions to get a more accurate verdict. The dialog has a button to 'go back' and another button to 'continue' if the user wants to continue with missing details.
-- The justification also cannot be too long. If the length is greater than 100 words, the app will show a modal dialog suggesting the user to shorten the justification. The dialog has a button to 'go back' and another button to 'continue' if the user wants to continue with the long justification. This way to keep the token count in check.
+- The justification field now shows rotating probing questions and static `10-30 words` guidance while empty.
+- If the user writes a very short or long justification, the UI shows inline word-count guidance instead of blocking the flow with a modal dialog.
 
 ### 4.2 Flow: Regenerate Verdict
 
@@ -184,6 +184,8 @@ This is your key differentiator over Cleo (non-judgmental). Let users choose bet
 Account management essentials — Email change, password change, delete account (GDPR requirement you already noted), and data export. These aren't exciting but they're non-negotiable for a product that stores personal profile data. Confidence: 9/10. Source: expert consensus (GDPR Art. 17, 20).
 
 #### 4.5.5 Hold duration and email reminder
+
+Users can set a default hold duration and enable/disable hold reminder emails in Profile preferences. When a verdict or user decision enters `hold`, the app stores an expiry in `hold_timers`. Reminder emails are sent by the backend scheduler endpoint `POST /api/hold-reminders/run`, which checks due timers and delivers branded Resend emails to users whose hold window has ended.
 
 
 ### 4.6 Flow: Resource articles
@@ -316,9 +318,10 @@ API calls are mapped in `BACKEND_GUIDELINES.md` Section 2.3. Key patterns:
 - **LLM:** All LLM calls go through the authenticated API proxy (`POST /api/verdict`). The proxy applies `checkDailyVerdictLimit` middleware (returns 429 `daily_limit_reached` when cap hit) and `rateLimitLLM` before forwarding to OpenAI. Frontend never calls OpenAI directly.
 - **Daily limit:** `checkDailyVerdictLimit` middleware queries `verdicts` table; 429 body carries `{ error, verdicts_remaining, verdicts_used_today, daily_limit }`. Success response carries `verdicts_remaining` for client-side counter.
 - **Waitlist:** `POST /api/waitlist` — no auth required; accepts `{ email, verdicts_at_signup }`, writes to `waitlist` table.
+- **Hold reminder scheduler:** `POST /api/hold-reminders/run` — protected by `Authorization: Bearer <HOLD_REMINDER_CRON_SECRET>`; finds due `hold_timers`, sends Resend reminder emails, and marks them notified.
 - **Email import:** Gmail REST API / Microsoft Graph API + GPT-5-nano receipt parsing
 
-**Not yet implemented:** educational content API, premium tier billing/upgrade flow, Chrome Extension APIs, spending analytics endpoints, `verdicts_remaining` counter wired to Dashboard state, Stripe webhook for `paywall_conversion_completed`.
+**Not yet implemented:** educational content API, premium tier billing/upgrade flow, Chrome Extension APIs, spending analytics endpoints, Stripe webhook for `paywall_conversion_completed`.
 
 **Recently implemented:** Daily verdict cap enforcement + PaywallModal + anonymous auth (`signInAnonymously`, `updateUser` conversion); Tier 1 PostHog telemetry (6 events); share verdict (`shared_verdicts` table, `VerdictShareModal`, `/shared/:token` public page); `waitlist` table + `/api/waitlist` endpoint.
 

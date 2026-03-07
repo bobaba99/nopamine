@@ -95,7 +95,7 @@ Secondary users are adjacent groups who may not identify as impulse spenders but
 | ID | User Story | Priority | Acceptance Criteria |
 |----|------------|----------|---------------------|
 | FR-001 | As a visitor, I want to enter a product name, price, and my reason for buying so that I receive a buy/skip verdict without creating an account. | High | **Implemented.** Verdict form accepts product name (text, required), price (numeric, required), and reason (text, optional, max 280 chars). Submitting returns a verdict within 3 seconds. Visitors are silently signed in anonymously (`signInAnonymously`) on first visit — no account creation required. Free tier is capped at 3 verdicts/day; hitting the cap shows the PaywallModal. |
-| FR-002 | As a visitor, I want to see the reasoning behind my verdict so that I understand why the app recommended buy or skip. | High | Verdict response displays: verdict label (Buy / Skip / Hold), a 2-4 sentence explanation referencing purchase quality signals (price-to-value, impulse indicators, necessity), and a confidence indicator (e.g., low/medium/high). |
+| FR-002 | As a visitor, I want to see the reasoning behind my verdict so that I understand why the app recommended buy or skip. | High | Verdict response displays: verdict label (Buy / Skip / Hold) and a 2-4 sentence explanation referencing purchase quality signals (price-to-value, impulse indicators, necessity). `confidence_score` is stored with each verdict and available for future UI surfacing, but is not yet consistently shown in verdict cards/modal. |
 | FR-003 | As a visitor, I want to receive a verdict that evaluates impulse indicators so that I can identify when I am making an emotionally driven purchase. | High | LLM system prompt includes heuristics for: time pressure language, emotional justification patterns, comparison to recent similar purchases (if profile exists), and financial impact ratio (price relative to stated income/budget if available). |
 | FR-004 | As a visitor, I want to submit another verdict immediately after receiving one so that I can evaluate multiple purchases in a session. | Medium | After verdict display, a clear "Evaluate another purchase" CTA resets the form. No session limit on the web app MVP. |
 | FR-005 | As a visitor, I want to see the verdict in a visually distinct format (not just plain text) so that the recommendation is immediately clear. | Medium | Verdict displays with color-coded indicator: green (Buy), red (Skip), amber (Hold/Wait). Typography and layout clearly differentiate the verdict from the reasoning. |
@@ -233,9 +233,13 @@ Secondary users are adjacent groups who may not identify as impulse spenders but
 ### Required Runtime Configuration
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
-- `VITE_OPENAI_API_KEY`
 - `VITE_GOOGLE_CLIENT_ID` (for Gmail OAuth)
 - `VITE_MICROSOFT_CLIENT_ID` (for Outlook OAuth)
+- `SUPABASE_URL` (API server)
+- `SUPABASE_SERVICE_ROLE_KEY` (API server)
+- `OPENAI_API_KEY` (API server)
+- `RESEND_API_KEY` (API server; waitlist + hold reminder emails)
+- `HOLD_REMINDER_CRON_SECRET` (API server; protects scheduled hold reminder runner)
 
 ### Database & Data Dependencies
 - Supabase schema and policies in `supabase/migrations/20260123050136_initial_schema.sql`.
@@ -250,7 +254,7 @@ Secondary users are adjacent groups who may not identify as impulse spenders but
 
 ### Application/Platform Dependencies
 - **Web client:** React + Vite runtime in `apps/web`.
-- **Optional API scaffold:** `apps/api` Express server (`/health`) for future server-side expansion.
+- **Backend API:** Express server in `apps/api` handling verdict proxying, waitlist email, embeddings search, receipt parsing support, and scheduled hold reminder execution.
 - **Local dev tooling:** Supabase CLI and npm workspaces for running migrations, seed data, and app services.
 
 ---
