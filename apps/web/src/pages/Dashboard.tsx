@@ -28,12 +28,14 @@ type DashboardProps = {
 }
 
 const JUSTIFICATION_WORD_MIN = 10
-const JUSTIFICATION_WORD_MAX = 100
+const JUSTIFICATION_WORD_MAX = 30
+const JUSTIFICATION_GUIDANCE_ROTATION_MS = 3200
+const JUSTIFICATION_GUIDANCE_FADE_MS = 220
 const JUSTIFICATION_PLACEHOLDERS = [
-  `Aim for ${JUSTIFICATION_WORD_MIN}-${JUSTIFICATION_WORD_MAX} words. What problem does this solve right now?`,
-  `Aim for ${JUSTIFICATION_WORD_MIN}-${JUSTIFICATION_WORD_MAX} words. Why do you need this now instead of later?`,
-  `Aim for ${JUSTIFICATION_WORD_MIN}-${JUSTIFICATION_WORD_MAX} words. What happens if you do not buy it this week?`,
-  `Aim for ${JUSTIFICATION_WORD_MIN}-${JUSTIFICATION_WORD_MAX} words. Is this replacing something essential or adding something new?`,
+  'What problem does this solve right now?',
+  'Why do you need this now instead of later?',
+  'What happens if you do not buy it this week?',
+  'Is this replacing something essential or adding something new?',
 ]
 
 function countWords(value: string): number {
@@ -68,10 +70,12 @@ export default function Dashboard({ session }: DashboardProps) {
 
   // Form state
   const [title, setTitle] = useState('')
+  const [brand, setBrand] = useState('')
   const [price, setPrice] = useState('')
   const [category, setCategory] = useState('other')
   const [justification, setJustification] = useState('')
   const [justificationPlaceholderIndex, setJustificationPlaceholderIndex] = useState(0)
+  const [isJustificationGuidanceVisible, setIsJustificationGuidanceVisible] = useState(true)
   const [motivation, setMotivation] = useState<PurchaseMotivation | null>(null)
   const [importantPurchase, setImportantPurchase] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -83,9 +87,10 @@ export default function Dashboard({ session }: DashboardProps) {
   const generationLockMessage =
     'Another verdict is currently being generated or regenerated. Please wait for it to finish.'
   const justificationWordCount = countWords(justification)
-  const justificationGuidance =
+  const rotatingJustificationQuestion = JUSTIFICATION_PLACEHOLDERS[justificationPlaceholderIndex]
+  const justificationDetail =
     justificationWordCount === 0
-      ? `Aim for ${JUSTIFICATION_WORD_MIN}-${JUSTIFICATION_WORD_MAX} words. The placeholder rotates with prompts if you need a starting point.`
+      ? rotatingJustificationQuestion
       : justificationWordCount < JUSTIFICATION_WORD_MIN
         ? `${justificationWordCount} words. Add a bit more context for a stronger verdict.`
         : justificationWordCount > JUSTIFICATION_WORD_MAX
@@ -126,14 +131,25 @@ export default function Dashboard({ session }: DashboardProps) {
   useEffect(() => {
     if (justification.trim().length > 0) {
       setJustificationPlaceholderIndex(0)
+      setIsJustificationGuidanceVisible(true)
       return
     }
 
+    let fadeTimeoutId: number | null = null
     const intervalId = window.setInterval(() => {
-      setJustificationPlaceholderIndex((current) => (current + 1) % JUSTIFICATION_PLACEHOLDERS.length)
-    }, 3200)
+      setIsJustificationGuidanceVisible(false)
+      fadeTimeoutId = window.setTimeout(() => {
+        setJustificationPlaceholderIndex((current) => (current + 1) % JUSTIFICATION_PLACEHOLDERS.length)
+        setIsJustificationGuidanceVisible(true)
+      }, JUSTIFICATION_GUIDANCE_FADE_MS)
+    }, JUSTIFICATION_GUIDANCE_ROTATION_MS)
 
-    return () => window.clearInterval(intervalId)
+    return () => {
+      window.clearInterval(intervalId)
+      if (fadeTimeoutId !== null) {
+        window.clearTimeout(fadeTimeoutId)
+      }
+    }
   }, [justification])
 
   const trackFieldFocus = useCallback((fieldName: string) => {
@@ -164,6 +180,7 @@ export default function Dashboard({ session }: DashboardProps) {
 
   const resetForm = () => {
     setTitle('')
+    setBrand('')
     setPrice('')
     setCategory('other')
     setJustification('')
@@ -206,7 +223,7 @@ export default function Dashboard({ session }: DashboardProps) {
       title: title.trim(),
       price: priceValue,
       category: category.trim() || null,
-      vendor: null,
+      vendor: brand.trim() || null,
       justification: justification.trim() || null,
       motivation,
       isImportant: importantPurchase,
@@ -657,6 +674,17 @@ export default function Dashboard({ session }: DashboardProps) {
               />
             </label>
 
+            <label>
+              Brand
+              <VolumetricInput
+                as="input"
+                value={brand}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setBrand(e.target.value)}
+                onFocus={() => trackFieldFocus('brand')}
+                placeholder="e.g. Sony"
+              />
+            </label>
+
             <div className="form-row">
               <label>
                 Price
@@ -711,8 +739,13 @@ export default function Dashboard({ session }: DashboardProps) {
                   rows={3}
                 />
               </GlassCard>
-              <p className="justification-guidance" aria-live="polite">
-                {justificationGuidance}
+              <p
+                className="justification-guidance"
+                aria-live={justificationWordCount === 0 ? 'off' : 'polite'}
+              >
+                <span className="justification-guidance-static">
+                  Recommended length: {JUSTIFICATION_WORD_MIN}-{JUSTIFICATION_WORD_MAX} words.
+                </span>{' '}
               </p>
             </div>
 

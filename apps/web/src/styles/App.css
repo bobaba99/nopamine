@@ -1763,6 +1763,20 @@
   color: var(--ink-600);
 }
 
+.justification-guidance-static {
+  color: var(--ink-700);
+  font-weight: 600;
+}
+
+.justification-guidance-detail {
+  opacity: 1;
+  transition: opacity 220ms ease;
+}
+
+.justification-guidance-detail.is-fading {
+  opacity: 0;
+}
+
 /* Desktop-only helper */
 .desktop-only {
   display: revert;

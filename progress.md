@@ -65,6 +65,7 @@
 - [x] Regeneration bypasses daily limit — `existingVerdictId` threaded from `handleVerdictRegenerate` through `evaluatePurchase` → `evaluateWithLlm` → request body; backend verifies ownership before skipping count — **Branch:** `feat/verdicts-remaining-counter`
 - [x] Fluid typography system — replaced 40+ fixed `rem`/`px` font-size values with `clamp()`-based fluid sizes scaling 375px→1440px; removed redundant `@media(max-width:600px)` font-size overrides; added fluid rem anchor on `:root`; SI card classes left untouched — **Branch:** `ui/fluid-typography`
 - [x] Mobile layout polish — Profile Verdicts button rows split into utility/decision/danger rows; Purchases and Resources cards use meta-chip pills instead of plain text; Swipe schedule queue moved below interaction; filter moved below heading with native `<select>` on mobile — **Branch:** `fix/mobile-layout-polish`
+- [x] Dashboard justification guidance polish — restored `Brand` input, added `10-30 words` guidance, and animated rotating probing questions under the justification textarea — **Branch:** `feature/justification-length-guidance`
 
 ---
 
@@ -82,7 +83,6 @@
 
 ### Free Tier (Phase 1 — current)
 
-- [ ] Add justification-length guidance flow in Dashboard (`<10` and `>100` words) — **Priority:** Medium
 - [ ] Add warning modal if justification is too short — **Priority:** Medium
 - [ ] Add confidence indicator in verdict cards/modal from stored `confidence_score` — **Priority:** Medium
 - [ ] Implement `purchase_stats` aggregation population and surface segmented regret insights — **Priority:** High
