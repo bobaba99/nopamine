@@ -268,15 +268,17 @@ function App() {
     void syncUserRecord(session)
   }, [session])
 
+  const isSignedIn = session && !session.user.is_anonymous
+
   const headline = useMemo(() => {
-    if (session && !session.user.is_anonymous) {
+    if (isSignedIn) {
       return 'Your regret mirror is ready.'
     }
 
     return authMode === 'sign_in'
       ? 'Welcome back. Keep your future self honest.'
       : 'Create your regret mirror. No judgement, just clarity.'
-  }, [authMode, session])
+  }, [authMode, isSignedIn])
   const isAdminUser = useMemo(() => {
     const email = session?.user.email?.toLowerCase()
     if (!email) {
@@ -370,20 +372,27 @@ function App() {
           <header className={`topbar${headerHidden && !mobileMenuOpen ? ' topbar--hidden' : ''}`}>
             <Link to="/" className="brand">TruePick</Link>
             <nav className={`nav topbar-nav${mobileMenuOpen ? ' mobile-open' : ''}`}>
-              {session && (
-                <NavLink to="/dashboard" end className="nav-link" onClick={() => setMobileMenuOpen(false)}>
-                  Dashboard
-                </NavLink>
-              )}
-              {session && (
-                <NavLink to="/swipe" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
-                  Swipe
-                </NavLink>
-              )}
-              {session && (
-                <NavLink to="/profile" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
-                  Profile
-                </NavLink>
+              {isSignedIn ? (
+                <>
+                  <NavLink to="/dashboard" end className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+                    Dashboard
+                  </NavLink>
+                  <NavLink to="/swipe" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+                    Swipe
+                  </NavLink>
+                  <NavLink to="/profile" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+                    Profile
+                  </NavLink>
+                </>
+              ) : (
+                <>
+                  <NavLink to="/" end className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+                    Home
+                  </NavLink>
+                  <NavLink to="/how-it-works" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+                    How It Works
+                  </NavLink>
+                </>
               )}
               <NavLink to="/resources" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
                 Resources
@@ -401,7 +410,7 @@ function App() {
               )}
             </nav>
             <div className="top-actions">
-              {session && !session.user.is_anonymous ? (
+              {isSignedIn ? (
                 <>
                   <div className="session-chip session-chip--desktop">
                     <span className="session-label">Signed in</span>
