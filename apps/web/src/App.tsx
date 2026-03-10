@@ -17,6 +17,7 @@ import HowItWorks from './pages/HowItWorks'
 import EmailSync from './pages/EmailSync'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
+import Premium from './pages/Premium'
 import SharedVerdict from './pages/SharedVerdict'
 import './styles/App.css'
 import { CustomCursor, useGSAPLoader, LiquidButton, VolumetricInput } from './components/Kinematics'
@@ -392,6 +393,9 @@ function App() {
                   <NavLink to="/how-it-works" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
                     How It Works
                   </NavLink>
+                  <NavLink to="/premium" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+                    Premium
+                  </NavLink>
                 </>
               )}
               <NavLink to="/resources" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
@@ -524,6 +528,7 @@ function App() {
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/contact-us" element={<Contact />} />
                 <Route path="/how-it-works" element={<HowItWorks />} />
+                <Route path="/premium" element={<Premium />} />
                 <Route path="/email-sync" element={<EmailSync session={session} />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />

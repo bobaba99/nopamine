@@ -206,6 +206,7 @@ export default function Landing({ session }: LandingProps) {
           <Link to="/about">About</Link>
           <Link to="/resources">Resources</Link>
           <Link to="/how-it-works">How It Works</Link>
+          <Link to="/premium">Premium</Link>
           <Link to="/privacy">Privacy</Link>
           <Link to="/terms">Terms</Link>
           <Link to="/support">Support</Link>

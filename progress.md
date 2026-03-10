@@ -68,6 +68,8 @@
   Why: Technically correct at launch since all users ARE free tier. Only matters when premium exists.
 - [ ] Update landing page stats and product description with real/current data — **Priority:** Low
   Why: Current stats ($3,400/yr, 90%, 44%) are sourced from PRD; update with verified citations or real user data post-launch.
+- [ ] Finalize Premium page content with real feature details, pricing, and launch timeline — **Priority:** Low
+  Why: Current content is sourced from PRD/freemium_features.md; refine copy and visuals once premium features are closer to implementation.
 
 ### 3. Deferred Post-Launch
 
