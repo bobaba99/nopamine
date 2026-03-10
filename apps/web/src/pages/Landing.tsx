@@ -191,14 +191,14 @@ export default function Landing({ session }: LandingProps) {
           No account required. Get your first verdict in under 60 seconds.
         </p>
         {isSignedIn ? (
-          <LiquidButton as={Link} to="/dashboard" className="landing-hero-cta">
+          <LiquidButton as={Link} to="/dashboard" className="landing-footer-button">
             Go to Dashboard
           </LiquidButton>
         ) : (
           <LiquidButton
             as={Link}
             to="/dashboard"
-            className="landing-hero-cta"
+            className="landing-footer-button"
             onClick={() => analytics.trackLandingCtaClicked('footer_try_verdict')}
           >
             Get your free verdict
