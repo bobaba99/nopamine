@@ -58,3 +58,4 @@ canonical-doc-sync/
 /docs
 .agents
 formula/.posthog_session_id
+flow_checklist.md

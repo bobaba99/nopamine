@@ -208,6 +208,22 @@ function AuthRoute({
                 ? 'Need an account? Sign up'
                 : 'Already have an account? Sign in'}
             </LiquidButton>
+            <div className="auth-divider"><span>or</span></div>
+            <LiquidButton
+              className="ghost auth-guest-btn"
+              type="button"
+              onClick={async () => {
+                analytics.trackGuestContinued()
+                // Session is always present by render time (anon sign-in runs on load),
+                // but guard defensively in case it raced.
+                if (!session) {
+                  await supabase.auth.signInAnonymously()
+                }
+                navigate('/dashboard')
+              }}
+            >
+              Continue as guest
+            </LiquidButton>
           </form>
         )}
       </section>
@@ -225,17 +241,19 @@ function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sessionLoading, setSessionLoading] = useState(true)
   const [headerHidden, setHeaderHidden] = useState(false)
+  const [headerScrolled, setHeaderScrolled] = useState(false)
   const lastScrollY = useRef(0)
   const gsapLoaded = useGSAPLoader()
 
   const handleScroll = useCallback(() => {
+    const currentY = window.scrollY
+    setHeaderScrolled(currentY > 20)
     // Keep nav bar always visible on public marketing pages
     if (window.location.pathname === '/' || window.location.pathname === '/premium') {
       setHeaderHidden(false)
-      lastScrollY.current = window.scrollY
+      lastScrollY.current = currentY
       return
     }
-    const currentY = window.scrollY
     const shouldHide = currentY > lastScrollY.current && currentY > 80
     setHeaderHidden((prev) => (prev === shouldHide ? prev : shouldHide))
     lastScrollY.current = currentY
@@ -377,7 +395,7 @@ function App() {
       <UserPreferencesProvider session={session}>
         <div className="page">
           {gsapLoaded && <CustomCursor />}
-          <header className={`topbar${headerHidden && !mobileMenuOpen ? ' topbar--hidden' : ''}`}>
+          <header className={`topbar${headerScrolled ? ' topbar--scrolled' : ''}${headerHidden && !mobileMenuOpen ? ' topbar--hidden' : ''}`}>
             <Link to="/" className="brand">TruePick</Link>
             <nav className={`nav topbar-nav${mobileMenuOpen ? ' mobile-open' : ''}`}>
               {isSignedIn ? (

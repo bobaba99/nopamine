@@ -33,13 +33,14 @@
 }
 
 .page {
+  --page-shell-x: 3.5rem;
   min-height: 100vh;
-  padding: 2.5rem 3.5rem 3.5rem;
+  padding: 2.5rem var(--page-shell-x) 3.5rem;
   display: flex;
   flex-direction: column;
   gap: 3rem;
   position: relative;
-  overflow: hidden;
+  overflow: clip;
   background-color: var(--page-bg);
   color: var(--ink-900);
 }
@@ -69,12 +70,32 @@
 }
 
 .topbar {
-  position: relative;
-  z-index: 1;
+  position: sticky;
+  top: 0;
+  z-index: 100;
   display: flex;
   justify-content: flex-start;
   align-items: center;
   gap: 1rem;
+  padding: 0.5rem var(--page-shell-x);
+  margin: -0.5rem calc(-1 * var(--page-shell-x)) -0.5rem;
+  background: transparent;
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+  transition: background 0.25s ease, backdrop-filter 0.25s ease, -webkit-backdrop-filter 0.25s ease, box-shadow 0.25s ease, transform 0.3s ease, opacity 0.3s ease;
+  will-change: transform;
+}
+
+.topbar.topbar--scrolled {
+  background: rgba(243, 245, 251, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08), 0 4px 16px -4px rgba(15, 23, 42, 0.1);
+}
+
+:root[data-theme='dark'] .topbar.topbar--scrolled {
+  background: rgba(10, 12, 16, 0.82);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06), 0 4px 16px -4px rgba(0, 0, 0, 0.4);
 }
 
 a.brand,
@@ -313,6 +334,29 @@ a.brand,
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ink-500);
+  font-size: 0.8rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--glass-border);
+}
+
+.auth-guest-btn {
+  width: 100%;
+  justify-content: center;
+  color: var(--ink-600);
+  font-size: 0.9rem;
 }
 
 .auth-form label {
@@ -2180,7 +2224,8 @@ a.brand,
 
 @media (max-width: 900px) {
   .page {
-    padding: 2rem 1.6rem 2.5rem;
+    --page-shell-x: 1.6rem;
+    padding: 2rem var(--page-shell-x) 2.5rem;
   }
 
   .auth-layout {
@@ -2720,8 +2765,12 @@ a.brand,
   position: relative;
   overflow: hidden;
   isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   /* Ensure transform works for scale animation */
-  transform: translateZ(0); 
+  transform: translateZ(0);
   will-change: transform;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
@@ -3832,7 +3881,8 @@ a.brand,
 /* --- Phone (≤ 600px) --- */
 @media (max-width: 600px) {
   .page {
-    padding: 1.5rem 0.5rem 2rem;
+    --page-shell-x: 0.5rem;
+    padding: 1.5rem var(--page-shell-x) 2rem;
     gap: 2rem;
   }
 
@@ -4069,7 +4119,8 @@ a.brand,
 /* --- Small phones (≤ 380px) --- */
 @media (max-width: 380px) {
   .page {
-    padding: 1.2rem 0.35rem 1.5rem;
+    --page-shell-x: 0.35rem;
+    padding: 1.2rem var(--page-shell-x) 1.5rem;
   }
 
   .route-surface {
@@ -4364,10 +4415,6 @@ a.brand,
 }
 
 /* Auto-hide header on scroll */
-.topbar {
-  transition: transform 0.3s ease, opacity 0.3s ease;
-}
-
 .topbar.topbar--hidden {
   transform: translateY(-100%);
   opacity: 0;
