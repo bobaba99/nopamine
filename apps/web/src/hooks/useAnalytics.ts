@@ -86,6 +86,8 @@ const trackSignUp = () => trackEvent('sign_up', { method: 'email' })
 
 const trackLogin = () => trackEvent('login', { method: 'email' })
 
+const trackSignOut = () => trackEvent('sign_out')
+
 const trackVerdictSubmitted = (params: {
   verdictValue: string
   category: string
@@ -363,6 +365,7 @@ const analytics = {
   trackPaywallConversionStarted,
   trackShareCardGenerated,
   trackLogin,
+  trackSignOut,
   trackVerdictSubmitted,
   trackVerdictDecision,
   trackVerdictRegenerated,

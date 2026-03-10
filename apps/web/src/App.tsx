@@ -364,6 +364,7 @@ function App() {
     if (error) {
       setStatus({ type: 'error', message: error.message })
     } else {
+      analytics.trackSignOut()
       setStatus({ type: 'info', message: 'Signed out.' })
     }
 

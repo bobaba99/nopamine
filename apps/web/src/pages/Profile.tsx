@@ -408,6 +408,21 @@ export default function Profile({ session }: ProfileProps) {
     return () => window.clearTimeout(timeoutId)
   }, [session, loadProfile, loadVerdicts, loadPurchases])
 
+  // Track empty states once data has loaded
+  const emptyVerdictTrackedRef = useRef(false)
+  const emptyPurchaseTrackedRef = useRef(false)
+  useEffect(() => {
+    if (!session) return
+    if (verdicts.length === 0 && !emptyVerdictTrackedRef.current) {
+      emptyVerdictTrackedRef.current = true
+      analytics.trackEmptyStateShown('profile', 'no_verdicts')
+    }
+    if (purchases.length === 0 && !emptyPurchaseTrackedRef.current) {
+      emptyPurchaseTrackedRef.current = true
+      analytics.trackEmptyStateShown('profile', 'no_purchases')
+    }
+  }, [session, verdicts.length, purchases.length])
+
   const resetPurchaseForm = () => {
     setPurchaseTitle('')
     setPurchasePrice('')
@@ -883,7 +898,12 @@ export default function Profile({ session }: ProfileProps) {
         <LiquidButton
           type="button"
           className="ghost"
-          onClick={() => setVerdictFiltersOpen((o) => !o)}
+          onClick={() => {
+            setVerdictFiltersOpen((o) => {
+              if (!o) analytics.trackFilterApplied('profile_verdicts', 'toggle_open')
+              return !o
+            })
+          }}
         >
           {verdictFiltersOpen ? 'Hide filters' : 'Filter / Search'}
         </LiquidButton>
@@ -911,10 +931,16 @@ export default function Profile({ session }: ProfileProps) {
               <GlassCard key={verdict.id} className="verdict-card">
                 <div
                   className="verdict-card-clickable"
-                  onClick={() => setSelectedVerdict(verdict)}
-                  onKeyDown={(e: KeyboardEvent<HTMLDivElement>) =>
-                    e.key === 'Enter' && setSelectedVerdict(verdict)
-                  }
+                  onClick={() => {
+                    analytics.trackVerdictDetailOpened(verdict.predicted_outcome ?? 'unknown')
+                    setSelectedVerdict(verdict)
+                  }}
+                  onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
+                    if (e.key === 'Enter') {
+                      analytics.trackVerdictDetailOpened(verdict.predicted_outcome ?? 'unknown')
+                      setSelectedVerdict(verdict)
+                    }
+                  }}
                   role="button"
                   tabIndex={0}
                 >
@@ -1004,7 +1030,12 @@ export default function Profile({ session }: ProfileProps) {
           <LiquidButton
             type="button"
             className="ghost"
-            onClick={() => setPurchaseFiltersOpen((o) => !o)}
+            onClick={() => {
+              setPurchaseFiltersOpen((o) => {
+                if (!o) analytics.trackFilterApplied('profile_purchases', 'toggle_open')
+                return !o
+              })
+            }}
           >
             {purchaseFiltersOpen ? 'Hide filters' : 'Filter / Search'}
           </LiquidButton>
@@ -1462,11 +1493,19 @@ export default function Profile({ session }: ProfileProps) {
           className="modal-backdrop"
           onClick={(event: MouseEvent<HTMLDivElement>) => {
             if (event.target === event.currentTarget) {
+              analytics.trackProfileModalAbandoned(
+                (Date.now() - profileModalOpenTimeRef.current) / 1000,
+                0,
+              )
               setProfileModalOpen(false)
             }
           }}
           onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
             if (event.key === 'Escape') {
+              analytics.trackProfileModalAbandoned(
+                (Date.now() - profileModalOpenTimeRef.current) / 1000,
+                0,
+              )
               setProfileModalOpen(false)
             }
           }}
