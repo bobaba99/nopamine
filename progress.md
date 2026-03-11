@@ -52,6 +52,11 @@
 - [ ] Complete Profile and history UX polish — **Branch:** `fix/profile-history-ux-polish`
   Why: Core user-facing screen; rough UX harms first impressions and retention. Already in progress.
 
+### 1b. Immediately After Launch (test on production)
+
+- [ ] Test Apple OAuth on production — cannot be tested locally (requires HTTPS + registered domain). Verify: sign-in works, identity linking toast shows when same email used with Google, provider badges display on auth card.
+- [ ] Test Google + Apple same-email identity linking — sign in with Google, then Apple with same email, confirm both providers show as linked and user data is preserved.
+
 ### 2. Nice-to-Have (ship without; add in weeks 1-2 post-launch)
 
 - [ ] Add warning modal for short/long justification — **Priority:** Medium
@@ -132,6 +137,8 @@
 - GDPR self-service deletion deferred: FAQ documents the manual email process (contact within 30 days). Build automated UI when user volume justifies it.
 - `purchase_stats` table exists in schema but is not populated — deferred until users generate enough swipe data to make insights meaningful.
 - Chrome Extension and premium analytics are Phase 2/3 — not started until free tier web app shows returning user growth.
+- **Apple OAuth client secret JWT expires 2026-09-01** — regenerate from `.p8` key before then. Apple secrets are max 6 months.
+- Apple OAuth does not work on localhost — requires HTTPS + registered domain. Test only on hosted Supabase project after deployment.
 
 ---
 
