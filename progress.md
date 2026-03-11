@@ -31,6 +31,7 @@
 ## In Progress
 
 - [ ] Refine Profile and history UX polish after recent structural updates — **Branch:** `fix/profile-history-ux-polish`
+- [x] Fix OAuth & guest sign-in failures (Google, Apple, anonymous) — **Branch:** `main`
 
 ---
 
@@ -78,8 +79,7 @@
   Why deferred: Requires critical mass of swipe data. Zero users = empty charts.
 - [ ] Add community/social-proof verdict stats
   Why deferred: Requires hundreds of verdicts to be statistically meaningful.
-- [ ] Google OAuth sign-in
-  Why deferred: Email/password + anonymous auth covers launch. OAuth reduces friction at scale.
+- [x] Google OAuth sign-in — completed 2026-03-11
 - [ ] CI/CD pipeline and error monitoring/alerting
   Why deferred: Deploy manually for soft launch. Set up when deployment cadence justifies it.
 - [ ] Account management (email change, password change)
@@ -110,6 +110,7 @@
 
 | Date | Change | Reason | Impact |
 |------|--------|--------|--------|
+| 2026-03-11 | Fix OAuth & guest sign-in failures | `handle_new_user()` trigger failed on NULL email (anon/Apple) and UNIQUE(email) conflict (returning Google users with new auth UUID); captcha blocked anonymous sign-in; nav bar didn't show app links for guests | Google, Apple, and guest sign-in all working; guest Profile shows sign-up CTA; nav shows app links for all sessions |
 | 2026-03-09 | Landing page + routing restructure | No public-facing page explaining the product; `/` went straight to auth-gated Dashboard | `/` is now a public landing with hero, how-it-works, psychology stats, premium waitlist; Dashboard moved to `/dashboard`; brand logo links to landing; onboarding tutorial completed |
 | 2026-03-05 | Mobile layout polish — Profile, Purchases, Resources, Swipe | Cards showed raw label:value text; buttons overflowed on mobile; swipe queue and filter were above the interaction | Meta-chip cards, clean button rows, and swipe UI reordered for natural mobile scroll flow |
 | 2026-03-05 | Fluid typography — clamp()-based font sizes across all major text elements | Text felt too small on desktop and cramped on mobile; fluid scaling eliminates single-breakpoint jumps | Smooth text scaling 375px→1440px with no manual mobile overrides needed |
@@ -179,3 +180,4 @@
 - [x] Premium features page — public `/premium` page with Chrome extension features, unlimited verdicts, analytics/intelligence section, free vs premium comparison table, and waitlist signup — **Branch:** `feat/premium-page`
 - [x] Anonymous nav links — Home, How It Works, Premium links visible for non-logged-in users; `isSignedIn` variable extracted for cleaner session-aware rendering — **Branch:** `feat/posthog-behavioural-telemetry`
 - [x] Fixed nav bar visibility on landing and premium pages — disabled auto-hide scroll behavior on marketing pages — **Branch:** `fix/landing-nav-visible`
+- [x] Fix OAuth & guest sign-in — 2 new migrations (`handle_new_user()` NULL email skip + UNIQUE email conflict handler), `OAuthRedirector` component for programmatic post-OAuth navigation, nav bar shows app links for all sessions (not just signed-in), guest Profile CTA card replaces error message — **Branch:** `main`

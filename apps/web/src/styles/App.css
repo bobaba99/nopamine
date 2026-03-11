@@ -414,6 +414,81 @@ a.brand,
   flex-shrink: 0;
 }
 
+/* Linked-provider badges on the "already signed in" auth card */
+.linked-providers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.linked-providers-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-500);
+}
+
+.provider-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.provider-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink-700);
+}
+
+.provider-badge--google {
+  border-color: rgba(66, 133, 244, 0.3);
+  color: #4285f4;
+}
+
+.provider-badge--apple {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--ink-900);
+}
+
+.provider-badge--email {
+  border-color: rgba(139, 92, 246, 0.3);
+  color: #8b5cf6;
+}
+
+/* Global auth toast — identity-linked notifications */
+.auth-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  padding: 12px 24px;
+  border-radius: 14px;
+  background: var(--glass-bg, rgba(255, 255, 255, 0.62));
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  color: var(--ink-900);
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 1200;
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+  max-width: min(90vw, 420px);
+  text-align: center;
+}
+
+.auth-toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
 .auth-form label {
   display: flex;
   flex-direction: column;

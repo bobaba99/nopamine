@@ -45,6 +45,18 @@ type StatusMessage = {
   message: string
 }
 
+const providerLabels: Record<string, string> = {
+  google: 'Google',
+  apple: 'Apple',
+  email: 'Email',
+}
+
+const formatProviderName = (provider: string) =>
+  providerLabels[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1)
+
+const formatProviderList = (providers: string[]) =>
+  providers.map(formatProviderName).join(', ')
+
 const hasSupabaseConfig = hasSupabaseBrowserConfig(import.meta.env)
 const configuredAdminEmails = (import.meta.env.VITE_ADMIN_EMAILS ?? '')
   .split(',')
@@ -133,6 +145,7 @@ function AuthRoute({
   guestLoading,
   googleLoading,
   appleLoading,
+  linkedProviders,
   onAuth,
   onEmailChange,
   onPasswordChange,
@@ -151,6 +164,7 @@ function AuthRoute({
   guestLoading: boolean
   googleLoading: boolean
   appleLoading: boolean
+  linkedProviders: string[]
   onAuth: (event: React.FormEvent<HTMLFormElement>) => void
   onEmailChange: (value: string) => void
   onPasswordChange: (value: string) => void
@@ -209,6 +223,18 @@ function AuthRoute({
               <span className="label">Signed in as </span>
               <span className="value">{session.user.email}</span>
             </div>
+            {linkedProviders.length > 0 && (
+              <div className="linked-providers">
+                <span className="linked-providers-label">Linked accounts</span>
+                <div className="provider-badges">
+                  {linkedProviders.map((provider) => (
+                    <span key={provider} className={`provider-badge provider-badge--${provider}`}>
+                      {formatProviderName(provider)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             <LiquidButton
               className="primary"
               type="button"
@@ -323,8 +349,17 @@ function App() {
   const handleOAuthRedirected = useCallback(() => setOAuthJustCompleted(false), [])
   const [headerHidden, setHeaderHidden] = useState(false)
   const [headerScrolled, setHeaderScrolled] = useState(false)
+  const [authToast, setAuthToast] = useState<string | null>(null)
+  const authToastTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const previousProviders = useRef<string[]>([])
   const lastScrollY = useRef(0)
   const gsapLoaded = useGSAPLoader()
+
+  const showAuthToast = useCallback((message: string) => {
+    if (authToastTimeout.current) clearTimeout(authToastTimeout.current)
+    setAuthToast(message)
+    authToastTimeout.current = setTimeout(() => setAuthToast(null), 4000)
+  }, [])
 
   const handleScroll = useCallback(() => {
     const currentY = window.scrollY
@@ -401,10 +436,23 @@ function App() {
         setSessionLoading(false)
       }
 
-      if (event === 'SIGNED_IN') {
-        const provider = nextSession?.user.app_metadata.provider
+      if (event === 'SIGNED_IN' && nextSession) {
+        const provider = nextSession.user.app_metadata.provider
         if (provider === 'google') analytics.trackLogin('google')
         if (provider === 'apple') analytics.trackLogin('apple')
+
+        // Detect identity linking: compare current providers with previous snapshot
+        const currentProviders: string[] = nextSession.user.app_metadata.providers ?? []
+        const prev = previousProviders.current
+        if (prev.length > 0 && currentProviders.length > prev.length) {
+          const newlyLinked = currentProviders.filter((p) => !prev.includes(p))
+          if (newlyLinked.length > 0) {
+            const linked = newlyLinked.map(formatProviderName).join(', ')
+            const all = formatProviderList(currentProviders)
+            showAuthToast(`${linked} linked! You can now sign in with ${all}.`)
+          }
+        }
+        previousProviders.current = currentProviders
       }
     })
 
@@ -416,6 +464,7 @@ function App() {
       })
       if (data.session) {
         setSession(data.session)
+        previousProviders.current = data.session.user.app_metadata.providers ?? []
         if (!shouldWaitForAuthSession(
           hasAuthCallback,
           data.session.user.is_anonymous ?? false,
@@ -464,6 +513,7 @@ function App() {
 
   const isSignedIn = session && !session.user.is_anonymous
   const isAppUser = Boolean(session)
+  const linkedProviders: string[] = session?.user.app_metadata.providers ?? []
 
   const headline = useMemo(() => {
     if (isSignedIn) {
@@ -833,6 +883,7 @@ function App() {
                       guestLoading={guestLoading}
                       googleLoading={googleLoading}
                       appleLoading={appleLoading}
+                      linkedProviders={linkedProviders}
                       onAuth={handleAuth}
                       onEmailChange={setEmail}
                       onPasswordChange={setPassword}
@@ -887,6 +938,7 @@ function App() {
         </div>
       </UserPreferencesProvider>
       </AnalyticsProvider>
+      <div className={`auth-toast${authToast ? ' show' : ''}`}>{authToast}</div>
     </BrowserRouter>
   )
 }
