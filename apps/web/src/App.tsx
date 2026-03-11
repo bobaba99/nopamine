@@ -24,6 +24,13 @@ import { CustomCursor, useGSAPLoader, LiquidButton, VolumetricInput } from './co
 import { UserPreferencesProvider } from './preferences/UserPreferencesContext'
 import AnalyticsProvider from './components/AnalyticsProvider'
 import { analytics } from './hooks/useAnalytics'
+import {
+  buildOAuthRedirectUrl,
+  extractAuthCallbackError,
+  hasAuthCallbackParams,
+  shouldWaitForAuthSession,
+} from './utils/authFlow'
+import { hasSupabaseBrowserConfig } from './utils/supabaseEnv'
 
 type AuthMode = 'sign_in' | 'sign_up'
 
@@ -32,9 +39,7 @@ type StatusMessage = {
   message: string
 }
 
-const hasSupabaseConfig =
-  Boolean(import.meta.env.VITE_SUPABASE_URL) &&
-  Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY)
+const hasSupabaseConfig = hasSupabaseBrowserConfig(import.meta.env)
 const configuredAdminEmails = (import.meta.env.VITE_ADMIN_EMAILS ?? '')
   .split(',')
   .map((value: string) => value.trim().toLowerCase())
@@ -94,10 +99,16 @@ function AuthRoute({
   loading,
   email,
   password,
+  guestLoading,
+  googleLoading,
+  appleLoading,
   onAuth,
   onEmailChange,
   onPasswordChange,
   onToggleMode,
+  onGuestContinue,
+  onGoogleSignIn,
+  onAppleSignIn,
 }: {
   session: Session | null
   authMode: AuthMode
@@ -106,10 +117,16 @@ function AuthRoute({
   loading: boolean
   email: string
   password: string
+  guestLoading: boolean
+  googleLoading: boolean
+  appleLoading: boolean
   onAuth: (event: React.FormEvent<HTMLFormElement>) => void
   onEmailChange: (value: string) => void
   onPasswordChange: (value: string) => void
   onToggleMode: () => void
+  onGuestContinue: () => Promise<boolean>
+  onGoogleSignIn: () => void
+  onAppleSignIn: () => void
 }) {
   const navigate = useNavigate()
 
@@ -145,8 +162,9 @@ function AuthRoute({
 
         {!hasSupabaseConfig && (
           <div className="status error">
-            Missing Supabase config. Add VITE_SUPABASE_URL and
-            VITE_SUPABASE_ANON_KEY to your Vite environment.
+            Missing Supabase config. Add `VITE_SUPABASE_URL` and either
+            `VITE_SUPABASE_PUBLISHABLE_KEY` or `VITE_SUPABASE_ANON_KEY` to your
+            Vite environment.
           </div>
         )}
 
@@ -169,62 +187,89 @@ function AuthRoute({
             </LiquidButton>
           </div>
         ) : (
-          <form className="auth-form" onSubmit={onAuth}>
-            <label>
-              Email
-              <VolumetricInput
-                as="input"
-                autoComplete="email"
-                value={email}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) => onEmailChange(event.target.value)}
-                placeholder="you@domain.com"
-                required
-              />
-            </label>
-            <label>
-              Password
-              <VolumetricInput
-                as="input"
-                type="password"
-                autoComplete={
-                  authMode === 'sign_in' ? 'current-password' : 'new-password'
-                }
-                value={password}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) => onPasswordChange(event.target.value)}
-                placeholder="••••••••"
-                minLength={6}
-                required
-              />
-            </label>
-            <LiquidButton className="primary" type="submit" disabled={loading}>
-              {loading
-                ? 'Working...'
-                : authMode === 'sign_in'
-                  ? 'Sign in'
-                  : 'Create account'}
-            </LiquidButton>
-            <LiquidButton className="link" type="button" onClick={onToggleMode}>
-              {authMode === 'sign_in'
-                ? 'Need an account? Sign up'
-                : 'Already have an account? Sign in'}
-            </LiquidButton>
+          <>
+            <div className="auth-oauth-group">
+              <button
+                type="button"
+                className="auth-oauth-btn auth-oauth-btn--google"
+                onClick={onGoogleSignIn}
+                disabled={googleLoading || appleLoading || guestLoading || loading}
+              >
+                <svg className="auth-oauth-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                </svg>
+                {googleLoading ? 'Redirecting...' : 'Continue with Google'}
+              </button>
+              <button
+                type="button"
+                className="auth-oauth-btn auth-oauth-btn--apple"
+                onClick={onAppleSignIn}
+                disabled={appleLoading || googleLoading || guestLoading || loading}
+              >
+                <svg className="auth-oauth-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                  <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.52-3.23 0-1.44.65-2.2.46-3.06-.4C3.79 16.17 4.36 9.53 8.82 9.28c1.24.06 2.1.7 2.83.73.97-.2 1.9-.77 2.93-.7 1.24.1 2.17.58 2.78 1.5-2.55 1.53-1.95 4.89.58 5.82-.47 1.22-.68 1.77-1.28 2.84-.69 1.23-1.67 2.46-2.88 2.48-.99.02-1.56-.65-2.89-.66-1.33 0-1.95.67-3.02.68-1.24.02-2.18-1.33-2.87-2.57-1.94-3.47-2.14-7.53-.84-9.69.92-1.53 2.37-2.43 3.91-2.43 1.46 0 2.38.66 3.58.66 1.17 0 1.88-.66 3.57-.66 1.37 0 2.64.74 3.51 2.02-3.08 1.69-2.58 6.08.72 7.25zM14.73 3.58c.76-.94 1.3-2.26 1.1-3.58-1.18.08-2.56.83-3.37 1.81-.73.88-1.34 2.21-1.1 3.5 1.29.04 2.61-.72 3.37-1.73z" fill="currentColor" />
+                </svg>
+                {appleLoading ? 'Redirecting...' : 'Continue with Apple'}
+              </button>
+            </div>
+            <div className="auth-divider"><span>or</span></div>
+            <form className="auth-form" onSubmit={onAuth}>
+              <label>
+                Email
+                <VolumetricInput
+                  as="input"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => onEmailChange(event.target.value)}
+                  placeholder="you@domain.com"
+                  required
+                />
+              </label>
+              <label>
+                Password
+                <VolumetricInput
+                  as="input"
+                  type="password"
+                  autoComplete={
+                    authMode === 'sign_in' ? 'current-password' : 'new-password'
+                  }
+                  value={password}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => onPasswordChange(event.target.value)}
+                  placeholder="••••••••"
+                  minLength={6}
+                  required
+                />
+              </label>
+              <LiquidButton className="primary" type="submit" disabled={loading || guestLoading}>
+                {loading
+                  ? 'Working...'
+                  : authMode === 'sign_in'
+                    ? 'Sign in'
+                    : 'Create account'}
+              </LiquidButton>
+              <LiquidButton className="link" type="button" onClick={onToggleMode}>
+                {authMode === 'sign_in'
+                  ? 'Need an account? Sign up'
+                  : 'Already have an account? Sign in'}
+              </LiquidButton>
+            </form>
             <div className="auth-divider"><span>or</span></div>
             <LiquidButton
               className="ghost auth-guest-btn"
               type="button"
+              disabled={guestLoading || googleLoading || appleLoading || loading}
               onClick={async () => {
-                analytics.trackGuestContinued()
-                // Session is always present by render time (anon sign-in runs on load),
-                // but guard defensively in case it raced.
-                if (!session) {
-                  await supabase.auth.signInAnonymously()
-                }
+                const canContinue = await onGuestContinue()
+                if (!canContinue) return
                 navigate('/dashboard')
               }}
             >
-              Continue as guest
+              {guestLoading ? 'Continuing...' : 'Continue as guest'}
             </LiquidButton>
-          </form>
+          </>
         )}
       </section>
     </section>
@@ -238,6 +283,9 @@ function App() {
   const [password, setPassword] = useState('')
   const [status, setStatus] = useState<StatusMessage | null>(null)
   const [loading, setLoading] = useState(false)
+  const [guestLoading, setGuestLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const [appleLoading, setAppleLoading] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sessionLoading, setSessionLoading] = useState(true)
   const [headerHidden, setHeaderHidden] = useState(false)
@@ -265,24 +313,82 @@ function App() {
   }, [handleScroll])
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (data.session) {
-        setSession(data.session)
-      } else {
-        // No session — sign in anonymously so guests get a real user_id
-        const { data: anonData } = await supabase.auth.signInAnonymously()
-        setSession(anonData.session)
-      }
-      setSessionLoading(false)
-    })
+    const hasAuthCallback = hasAuthCallbackParams(window.location.hash, window.location.search)
+    const authCallbackError = extractAuthCallbackError(window.location.hash, window.location.search)
+
+    if (authCallbackError) {
+      setStatus({
+        type: 'error',
+        message: `OAuth sign-in failed: ${authCallbackError}`,
+      })
+    }
+
+    // Safety timeout: if OAuth hash is present but SIGNED_IN never fires (e.g.
+    // expired token, network error), stop the loading spinner after 5 seconds.
+    let oauthTimeout: ReturnType<typeof setTimeout> | undefined
+    if (hasAuthCallback && !authCallbackError) {
+      oauthTimeout = setTimeout(() => {
+        setStatus((current) => current ?? {
+          type: 'error',
+          message:
+            'Sign-in finished at the provider, but TruePick did not receive a session. Check your Supabase redirect URLs and try again.',
+        })
+        setSessionLoading(false)
+      }, 5000)
+    }
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession)
+      // After OAuth redirect, the SIGNED_IN event means the hash was consumed.
+      if (hasAuthCallback && event === 'SIGNED_IN') {
+        if (oauthTimeout) clearTimeout(oauthTimeout)
+        setSessionLoading(false)
+      }
+
+      if (event === 'SIGNED_IN') {
+        const provider = nextSession?.user.app_metadata.provider
+        if (provider === 'google') analytics.trackLogin('google')
+        if (provider === 'apple') analytics.trackLogin('apple')
+      }
     })
 
-    return () => subscription.unsubscribe()
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (data.session) {
+        setSession(data.session)
+        if (!shouldWaitForAuthSession(
+          hasAuthCallback,
+          data.session.user.is_anonymous ?? false,
+          Boolean(authCallbackError),
+        )) {
+          if (oauthTimeout) clearTimeout(oauthTimeout)
+          setSessionLoading(false)
+        }
+      } else if (!hasAuthCallback) {
+        // No session and no OAuth callback — attempt anonymous sign-in so guests
+        // get a real user_id. Falls through gracefully when disabled on the project.
+        const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously()
+        if (!anonError && anonData.session) {
+          setSession(anonData.session)
+        } else if (anonError && window.location.pathname === '/auth') {
+          setStatus({
+            type: 'info',
+            message: 'Guest mode is unavailable right now. You can still sign up with email, Google, or Apple.',
+          })
+        }
+        setSessionLoading(false)
+      } else if (authCallbackError) {
+        setSessionLoading(false)
+      }
+      // When an auth callback is present and no resolved session exists,
+      // until onAuthStateChange fires SIGNED_IN above (or the safety timeout).
+    })
+
+    return () => {
+      subscription.unsubscribe()
+      if (oauthTimeout) clearTimeout(oauthTimeout)
+    }
   }, [])
 
   useEffect(() => {
@@ -326,7 +432,7 @@ function App() {
       setStatus({
         type: 'error',
         message:
-          'Supabase environment variables are missing. Add them before trying to sign in.',
+          'Supabase environment variables are missing. Add the project URL and a browser auth key before trying to sign in.',
       })
       return
     }
@@ -373,6 +479,86 @@ function App() {
     }
 
     setLoading(false)
+  }
+
+  const handleGoogleSignIn = async () => {
+    if (!hasSupabaseConfig) {
+      setStatus({
+        type: 'error',
+        message:
+          'Supabase environment variables are missing. Add the project URL and a browser auth key before trying to sign in.',
+      })
+      return
+    }
+
+    setGoogleLoading(true)
+    setStatus(null)
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: buildOAuthRedirectUrl(window.location.origin),
+      },
+    })
+
+    if (error) {
+      setStatus({ type: 'error', message: error.message })
+      setGoogleLoading(false)
+    }
+  }
+
+  const handleAppleSignIn = async () => {
+    if (!hasSupabaseConfig) {
+      setStatus({
+        type: 'error',
+        message:
+          'Supabase environment variables are missing. Add the project URL and a browser auth key before trying to sign in.',
+      })
+      return
+    }
+
+    setAppleLoading(true)
+    setStatus(null)
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'apple',
+      options: {
+        redirectTo: buildOAuthRedirectUrl(window.location.origin),
+      },
+    })
+
+    if (error) {
+      setStatus({ type: 'error', message: error.message })
+      setAppleLoading(false)
+    }
+  }
+
+  const handleGuestContinue = async () => {
+    analytics.trackGuestContinued()
+
+    if (session) {
+      return true
+    }
+
+    setGuestLoading(true)
+    setStatus(null)
+
+    const { data, error } = await supabase.auth.signInAnonymously()
+
+    if (error || !data.session) {
+      setStatus({
+        type: 'error',
+        message:
+          error?.message ??
+          'Guest sign-in is unavailable right now. Check Supabase anonymous auth and try again.',
+      })
+      setGuestLoading(false)
+      return false
+    }
+
+    setSession(data.session)
+    setGuestLoading(false)
+    return true
   }
 
   const handleSignOut = async () => {
@@ -536,12 +722,18 @@ function App() {
                       loading={loading}
                       email={email}
                       password={password}
+                      guestLoading={guestLoading}
+                      googleLoading={googleLoading}
+                      appleLoading={appleLoading}
                       onAuth={handleAuth}
                       onEmailChange={setEmail}
                       onPasswordChange={setPassword}
                       onToggleMode={() =>
                         setAuthMode(authMode === 'sign_in' ? 'sign_up' : 'sign_in')
                       }
+                      onGuestContinue={handleGuestContinue}
+                      onGoogleSignIn={handleGoogleSignIn}
+                      onAppleSignIn={handleAppleSignIn}
                     />
                   </PublicOnly>
                 }

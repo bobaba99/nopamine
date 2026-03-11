@@ -32,7 +32,7 @@ supabase start
 
 # Copy environment config
 cp apps/web/.env.example apps/web/.env.local
-# Fill in VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_OPENAI_API_KEY, etc.
+# Fill in VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY, VITE_OPENAI_API_KEY, etc.
 
 # Start dev servers (API + web)
 npm run dev

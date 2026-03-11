@@ -40,8 +40,8 @@
 
 - [x] Enable anonymous auth in Supabase dashboard: Authentication > Providers > Anonymous
   Why: The guest verdict flow depends on `signInAnonymously`; without this toggle, first-visit onboarding is broken. (5 min, zero code)
-- [ ] Google OAuth
-- [ ] Apple OAuth
+- [x] Google OAuth
+- [x] Apple OAuth [for generation JWT from .p8 file](https://supabase.com/docs/guides/auth/social-login/auth-apple)
 - [x] Onboarding tutorial `feat/onboarding-tutorial`
 - [x] Landing / home page with product explanation, psychology stats, premium waitlist — **Branch:** `feat/posthog-behavioural-telemetry`
 - [ ] Replace Privacy Policy boilerplate with real content — `Privacy.tsx` lines 37, 48, 51

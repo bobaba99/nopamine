@@ -232,11 +232,11 @@ Secondary users are adjacent groups who may not identify as impulse spenders but
 
 ### Required Runtime Configuration
 - `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SUPABASE_PUBLISHABLE_KEY` (preferred) or `VITE_SUPABASE_ANON_KEY` (legacy)
 - `VITE_GOOGLE_CLIENT_ID` (for Gmail OAuth)
 - `VITE_MICROSOFT_CLIENT_ID` (for Outlook OAuth)
 - `SUPABASE_URL` (API server)
-- `SUPABASE_SERVICE_ROLE_KEY` (API server)
+- `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SECRET_KEY` (API server)
 - `OPENAI_API_KEY` (API server)
 - `RESEND_API_KEY` (API server; waitlist + hold reminder emails)
 - `HOLD_REMINDER_CRON_SECRET` (API server; protects scheduled hold reminder runner)

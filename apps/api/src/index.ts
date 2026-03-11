@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
 import { PostHog } from 'posthog-node'
 import { Resend } from 'resend'
+import { getSupabaseServerKey, getSupabaseServerUrl } from './config/supabaseEnv'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -12,8 +13,8 @@ const PORT = process.env.PORT || 3000
 app.use(cors())
 app.use(express.json())
 
-const supabaseUrl = process.env.SUPABASE_URL ?? ''
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
+const supabaseUrl = getSupabaseServerUrl(process.env)
+const supabaseServiceKey = getSupabaseServerKey(process.env)
 const adminEmails = (process.env.ADMIN_EMAILS ?? '')
   .split(',')
   .map((e) => e.trim().toLowerCase())

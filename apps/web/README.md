@@ -12,7 +12,7 @@ Set these in `apps/web/.env`:
 
 ```bash
 VITE_SUPABASE_URL=
-VITE_SUPABASE_ANON_KEY=
+VITE_SUPABASE_PUBLISHABLE_KEY=
 VITE_OPENAI_API_KEY=
 VITE_API_BASE_URL=http://localhost:3000
 VITE_ADMIN_EMAILS=admin1@example.com,admin2@example.com

@@ -67,6 +67,7 @@ const trackEvent = (
   }
 }
 
+type AuthMethod = 'email' | 'google' | 'apple'
 type InputMethod = 'manual' | 'chrome_extension' | 'url_paste'
 type UserTier = 'free' | 'premium'
 
@@ -82,9 +83,9 @@ export const bucketPrice = (price: number | null): string => {
 // Tier 1: Core Actions
 // ---------------------------------------------------------------------------
 
-const trackSignUp = () => trackEvent('sign_up', { method: 'email' })
+const trackSignUp = (method: AuthMethod = 'email') => trackEvent('sign_up', { method })
 
-const trackLogin = () => trackEvent('login', { method: 'email' })
+const trackLogin = (method: AuthMethod = 'email') => trackEvent('login', { method })
 
 const trackSignOut = () => trackEvent('sign_out')
 

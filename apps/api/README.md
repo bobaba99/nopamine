@@ -8,8 +8,9 @@ Create `apps/api/.env`:
 
 ```bash
 PORT=3000
-SUPABASE_URL=          # Same as VITE_SUPABASE_URL in apps/web
-SUPABASE_SERVICE_ROLE_KEY=   # From Supabase project settings (not the anon key)
+SUPABASE_URL=          # Preferred; same project URL as apps/web
+SUPABASE_SERVICE_ROLE_KEY=   # Preferred legacy server key
+# or SUPABASE_SECRET_KEY=    # New Supabase secret key
 ADMIN_EMAILS=admin1@example.com,admin2@example.com   # Comma-separated admin emails
 ```
 
