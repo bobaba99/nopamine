@@ -849,7 +849,7 @@ export default function Dashboard({ session }: DashboardProps) {
         <PaywallModal
           isOpen={paywallOpen}
           onClose={() => setPaywallOpen(false)}
-          onSignUp={() => { setPaywallOpen(false); navigate('/auth') }}
+          onSignUp={() => { setPaywallOpen(false); navigate('/auth?mode=sign_up') }}
           verdictsUsedToday={verdictsUsedToday}
           dailyLimit={DAILY_LIMIT}
           isAnonymous={session?.user.is_anonymous ?? false}

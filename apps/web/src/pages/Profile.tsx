@@ -1310,7 +1310,7 @@ export default function Profile({ session }: ProfileProps) {
           <LiquidButton
             className="primary"
             type="button"
-            onClick={() => navigate('/auth')}
+            onClick={() => navigate('/auth?mode=sign_up')}
           >
             Create an account
           </LiquidButton>

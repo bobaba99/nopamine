@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from './api/core/supabaseClient'
 import Dashboard from './pages/Dashboard'
 import Swipe from './pages/Swipe'
@@ -150,6 +150,7 @@ function AuthRoute({
   onEmailChange,
   onPasswordChange,
   onToggleMode,
+  onSetMode,
   onGuestContinue,
   onGoogleSignIn,
   onAppleSignIn,
@@ -169,11 +170,21 @@ function AuthRoute({
   onEmailChange: (value: string) => void
   onPasswordChange: (value: string) => void
   onToggleMode: () => void
+  onSetMode: (mode: AuthMode) => void
   onGuestContinue: () => Promise<boolean>
   onGoogleSignIn: () => void
   onAppleSignIn: () => void
 }) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+
+  // Sync auth mode from ?mode=sign_up or ?mode=sign_in query param
+  useEffect(() => {
+    const modeParam = searchParams.get('mode')
+    if (modeParam === 'sign_up' || modeParam === 'sign_in') {
+      onSetMode(modeParam)
+    }
+  }, [searchParams, onSetMode])
 
   return (
     <section className="auth-layout">
@@ -313,19 +324,23 @@ function AuthRoute({
                   : 'Already have an account? Sign in'}
               </LiquidButton>
             </form>
-            <div className="auth-divider"><span>or</span></div>
-            <LiquidButton
-              className="ghost auth-guest-btn"
-              type="button"
-              disabled={guestLoading || googleLoading || appleLoading || loading}
-              onClick={async () => {
-                const canContinue = await onGuestContinue()
-                if (!canContinue) return
-                navigate('/dashboard')
-              }}
-            >
-              {guestLoading ? 'Continuing...' : 'Continue as guest'}
-            </LiquidButton>
+            {authMode === 'sign_in' && (
+              <>
+                <div className="auth-divider"><span>or</span></div>
+                <LiquidButton
+                  className="ghost auth-guest-btn"
+                  type="button"
+                  disabled={guestLoading || googleLoading || appleLoading || loading}
+                  onClick={async () => {
+                    const canContinue = await onGuestContinue()
+                    if (!canContinue) return
+                    navigate('/dashboard')
+                  }}
+                >
+                  {guestLoading ? 'Continuing...' : 'Continue as guest'}
+                </LiquidButton>
+              </>
+            )}
           </>
         )}
       </section>
@@ -890,6 +905,7 @@ function App() {
                       onToggleMode={() =>
                         setAuthMode(authMode === 'sign_in' ? 'sign_up' : 'sign_in')
                       }
+                      onSetMode={setAuthMode}
                       onGuestContinue={handleGuestContinue}
                       onGoogleSignIn={handleGoogleSignIn}
                       onAppleSignIn={handleAppleSignIn}
