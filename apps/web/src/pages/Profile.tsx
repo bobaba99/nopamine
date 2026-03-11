@@ -180,6 +180,8 @@ export default function Profile({ session }: ProfileProps) {
   const { formatCurrency, formatDate } = useUserFormatting()
 
   const profileModalOpenTimeRef = useRef<number>(0)
+  const profileLoadedRef = useRef(false)
+  const modalParamHandledRef = useRef(false)
   const regenStartRef = useRef<number>(0)
   const [, setUserRow] = useState<UserRow | null>(null)
   const [verdicts, setVerdicts] = useState<VerdictRow[]>([])
@@ -335,6 +337,7 @@ export default function Profile({ session }: ProfileProps) {
           normalizeOnboardingAnswers(refreshedProfile.onboarding_answers ?? null),
         )
         setStatus('')
+        profileLoadedRef.current = true
         return
       }
 
@@ -357,6 +360,7 @@ export default function Profile({ session }: ProfileProps) {
       setGlobalPreferences(normalizedPreferences)
       setOnboardingAnswers(normalizeOnboardingAnswers(data.onboarding_answers ?? null))
       setStatus('')
+      profileLoadedRef.current = true
     } catch (err) {
       console.error('Profile load error', err)
       setStatus(`Profile load error: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -400,13 +404,24 @@ export default function Profile({ session }: ProfileProps) {
     }
 
     const timeoutId = window.setTimeout(() => {
-      void loadProfile()
+      void loadProfile().then(() => {
+        if (
+          profileLoadedRef.current &&
+          !modalParamHandledRef.current &&
+          searchParams.get('modal') === 'quiz'
+        ) {
+          modalParamHandledRef.current = true
+          analytics.trackProfileModalOpened()
+          profileModalOpenTimeRef.current = Date.now()
+          setProfileModalOpen(true)
+        }
+      })
       void loadVerdicts()
       void loadPurchases()
     }, 0)
 
     return () => window.clearTimeout(timeoutId)
-  }, [session, loadProfile, loadVerdicts, loadPurchases])
+  }, [session, loadProfile, loadVerdicts, loadPurchases, searchParams])
 
   // Track empty states once data has loaded
   const emptyVerdictTrackedRef = useRef(false)

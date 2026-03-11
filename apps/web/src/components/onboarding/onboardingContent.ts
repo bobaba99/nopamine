@@ -29,7 +29,7 @@ export const ONBOARDING_STEPS: readonly OnboardingStepData[] = [
     title: 'Sharpen Your Verdicts',
     body: 'Complete a short profile questionnaire to improve verdict accuracy. Your values, regret patterns, and decision style all help the AI.',
     ctaLabel: 'Take the quiz',
-    ctaRoute: '/profile',
+    ctaRoute: '/profile?modal=quiz',
   },
   {
     id: 'email',
