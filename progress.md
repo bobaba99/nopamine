@@ -23,7 +23,7 @@
 | Core Backend | 🟢 | 90% | API proxy, waitlist email, hold reminder runner, daily limit — all in place |
 | Core Frontend | 🟢 | 90% | Anonymous auth, paywall modal, account conversion, dashboard guidance, fluid typography done |
 | Feature Completion | 🟡 | 85% | Core loop, sharing, hold reminders, freemium gate done; remaining items are nice-to-haves |
-| Polish & QA | 🟡 | 50% | Legal pages need real content; Profile UX polish in progress |
+| Polish & QA | 🟡 | 60% | Privacy + Terms populated with real legal content; Profile UX polish in progress |
 | Deployment & Launch | ⚪ | 15% | No launch pipeline or launch readiness checklist yet |
 
 ---
@@ -46,9 +46,9 @@
 - [x] Apple OAuth [for generation JWT from .p8 file](https://supabase.com/docs/guides/auth/social-login/auth-apple)
 - [x] Onboarding tutorial `feat/onboarding-tutorial`
 - [x] Landing / home page with product explanation, psychology stats, premium waitlist — **Branch:** `feat/posthog-behavioural-telemetry`
-- [ ] Replace Privacy Policy boilerplate with real content — `Privacy.tsx` lines 37, 48, 51
+- [x] Replace Privacy Policy boilerplate with real content — `Privacy.tsx` lines 37, 48, 51
   Why: Legal requirement per PRD 5.2; needed for OAuth verification and user trust.
-- [ ] Replace Terms of Service boilerplate with real content — `Terms.tsx` line 43
+- [x] Replace Terms of Service boilerplate with real content — `Terms.tsx` line 43
   Why: Legal requirement per PRD 5.2; liability coverage.
 - [ ] Complete Profile and history UX polish — **Branch:** `fix/profile-history-ux-polish`
   Why: Core user-facing screen; rough UX harms first impressions and retention. Already in progress.
@@ -120,6 +120,7 @@
 
 | Date | Change | Reason | Impact |
 |------|--------|--------|--------|
+| 2026-03-13 | Replace legal page boilerplate with real content from legal docs | Privacy and Terms pages had placeholder (Boilerplate) text; legal requirement per PRD 5.2 | Privacy.tsx: data retention, cookie policy (3 categories), CCPA disclosures, enriched data types/processors/legal basis, children's privacy. Terms.tsx: Quebec/Canada governing law, service description, subscription/payment, AI limitations, liability caps, entire agreement, physical address. Sourced from legal_docs/*.docx |
 | 2026-03-11 | Codebase modularization — split monolithic files into focused modules | App.css (5,833 lines), Profile.tsx (2,084 lines), API index.ts (1,185 lines) exceeded maintainability limits | CSS split into 6 domain files; Profile split into 4 tab components + constants; API split into 12 files (routes/middleware/emails) with factory DI; auth middleware deduplicated; Dashboard constants extracted. All builds pass, zero behavior changes |
 | 2026-03-11 | Fix OAuth & guest sign-in failures | `handle_new_user()` trigger failed on NULL email (anon/Apple) and UNIQUE(email) conflict (returning Google users with new auth UUID); captcha blocked anonymous sign-in; nav bar didn't show app links for guests | Google, Apple, and guest sign-in all working; guest Profile shows sign-up CTA; nav shows app links for all sessions |
 | 2026-03-09 | Landing page + routing restructure | No public-facing page explaining the product; `/` went straight to auth-gated Dashboard | `/` is now a public landing with hero, how-it-works, psychology stats, premium waitlist; Dashboard moved to `/dashboard`; brand logo links to landing; onboarding tutorial completed |
@@ -200,4 +201,5 @@
   - API: index.ts 1,185 → 106 lines: 5 route modules (admin, verdict, waitlist, holdReminders, openai), 3 middleware (auth, rateLimit, dailyLimit), 2 email templates, shared types
   - API: auth middleware deduplicated — extractBearerToken + validateSupabaseConfig shared helpers
   - Remaining low-priority items tracked in DEBT.md
+- [x] Replace Privacy + Terms boilerplate with real legal content — Privacy.tsx: data retention periods, cookie policy (3 categories with specific cookie names), CCPA disclosures, enriched data types/legal basis/processors, children's privacy. Terms.tsx: Quebec/Canada governing law, service description, subscription/payment, AI limitations, liability caps (12-month or CAD $100), entire agreement clause, Resila physical address. All content sourced from `legal_docs/*.docx` — **Branch:** `feat/legal-content-replace`
 - [x] Fix OAuth & guest sign-in — 2 new migrations (`handle_new_user()` NULL email skip + UNIQUE email conflict handler), `OAuthRedirector` component for programmatic post-OAuth navigation, nav bar shows app links for all sessions (not just signed-in), guest Profile CTA card replaces error message — **Branch:** `main`
