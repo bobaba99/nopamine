@@ -22,7 +22,7 @@
 | Project Setup | 🟢 | 95% | Monorepo, Supabase schema/RLS, auth routing, seed flow in place |
 | Core Backend | 🟢 | 90% | API proxy, waitlist email, hold reminder runner, daily limit — all in place |
 | Core Frontend | 🟢 | 90% | Anonymous auth, paywall modal, account conversion, dashboard guidance, fluid typography done |
-| Feature Completion | 🟡 | 85% | Core loop, sharing, hold reminders, freemium gate done; remaining items are nice-to-haves |
+| Feature Completion | 🟡 | 90% | Core loop, sharing, hold reminders, freemium gate, verdict feedback done; remaining items are nice-to-haves |
 | Polish & QA | 🟡 | 75% | Legal content, UI animation polish (6 phases) complete; Profile UX polish in progress |
 | Deployment & Launch | ⚪ | 15% | No launch pipeline or launch readiness checklist yet |
 
@@ -55,7 +55,7 @@
 - [ ] 10 articles in Resources for TruePick, putting the SEO and web search indexes as early as possible
 - [ ] Premium demo on Premium page
 - [ ] Polish verdict quality, to make it more acceptable and people are willing to sign up
-- [ ] Add verdict feedback (i.e., thumbs up and down) in the verdict cards
+- [x] Add verdict feedback (i.e., thumbs up and down) in the verdict cards
 - [ ] Fix Profile verdict and purchase UI layout
   Why: Card layouts, spacing, and responsiveness need polish to match the quality bar set by Landing/Premium pages. Visual inconsistencies hurt perceived product quality.
 
@@ -123,6 +123,7 @@
 | Date | Change | Reason | Impact |
 |------|--------|--------|--------|
 | 2026-03-13 | UI Animation Polish — 6-phase scroll/entrance animations across all pages | Static content felt flat; no progressive reveals, no premium feel | Landing/Premium hero cascades, scroll-triggered card staggers, $3.4K/90%/44% counter animations, SplitText word reveals, modal exit animations (5 modals), Dashboard verdict stagger, Profile tab fade, HowItWorks ScrollReveal. All respect `prefers-reduced-motion`. Tuning guide at `docs/ui-animation-tuning-guide.md` |
+| 2026-03-13 | Verdict feedback (thumbs up/down) + daily limit fix + GuestPromptModal | Users had no way to signal verdict quality; heuristic fallback verdicts incorrectly counted toward daily limit; anonymous users could navigate to profile without prompt | Feedback buttons on Dashboard/VerdictsTab/VerdictDetailModal with `verdict_feedback` column and analytics event; `heuristic_fallback` excluded from daily count (server + client); GuestPromptModal intercepts guest navigation to gated views |
 | 2026-03-13 | Replace legal page boilerplate with real content from legal docs | Privacy and Terms pages had placeholder (Boilerplate) text; legal requirement per PRD 5.2 | Privacy.tsx: data retention, cookie policy (3 categories), CCPA disclosures, enriched data types/processors/legal basis, children's privacy. Terms.tsx: Quebec/Canada governing law, service description, subscription/payment, AI limitations, liability caps, entire agreement, physical address. Sourced from legal_docs/*.docx |
 | 2026-03-11 | Codebase modularization — split monolithic files into focused modules | App.css (5,833 lines), Profile.tsx (2,084 lines), API index.ts (1,185 lines) exceeded maintainability limits | CSS split into 6 domain files; Profile split into 4 tab components + constants; API split into 12 files (routes/middleware/emails) with factory DI; auth middleware deduplicated; Dashboard constants extracted. All builds pass, zero behavior changes |
 | 2026-03-11 | Fix OAuth & guest sign-in failures | `handle_new_user()` trigger failed on NULL email (anon/Apple) and UNIQUE(email) conflict (returning Google users with new auth UUID); captcha blocked anonymous sign-in; nav bar didn't show app links for guests | Google, Apple, and guest sign-in all working; guest Profile shows sign-up CTA; nav shows app links for all sessions |
@@ -216,3 +217,6 @@
   - Phase 6: HowItWorks — ScrollReveal + SplitText wrappers
   - All animations respect `prefers-reduced-motion` (JS early returns + CSS overrides)
   - Tuning guide: `docs/ui-animation-tuning-guide.md`
+- [x] **Verdict feedback (thumbs up/down)** — `verdict_feedback` column (smallint, 1/-1) on `verdicts` table, `updateVerdictFeedback` service with optimistic UI, `trackVerdictFeedback` analytics event. Circular feedback buttons (inline SVG) added to Dashboard, VerdictsTab, VerdictDetailModal. Glass-token styling with green/red active states. Responsive sizing at all breakpoints — **Commit:** `2a29134`
+- [x] **Daily limit fix** — exclude `heuristic_fallback` verdicts from daily count in API middleware (`dailyLimit.ts`) and align client-side count in Dashboard/Profile to match server filter — **Commit:** `2a29134`
+- [x] **GuestPromptModal** — intercepts "More"/"View all verdicts" clicks for anonymous users with "Create account" / "Stay as guest" actions. Glassmorphism styling with slideUp animation. Separate component extracted in `9a09889`; API middleware also excludes fallback from daily limit — **Commits:** `2a29134`, `9a09889`
