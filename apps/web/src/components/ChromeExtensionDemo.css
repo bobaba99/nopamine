@@ -8,6 +8,7 @@
   max-width: 960px;
   margin: 0 auto;
   gap: 1.5rem;
+  min-height: 200vh;
 }
 
 .ext-demo-container {
@@ -16,6 +17,8 @@
   flex-direction: column;
   align-items: center;
   padding-top: 1rem;
+  position: sticky;
+  top: 1rem;
 }
 
 /* ── Browser Mockup Frame ── */
@@ -105,7 +108,16 @@
   display: flex;
   flex-direction: column;
   padding: 1rem;
-  will-change: opacity, transform;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
+/* Show the active scene based on data-active-scene attribute */
+[data-active-scene="0"] [data-scene="session"],
+[data-active-scene="1"] [data-scene="checkout"],
+[data-active-scene="2"] [data-scene="blocking"] {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* ── Scene 1: Session Awareness ── */
@@ -151,8 +163,16 @@
   justify-content: flex-end;
   padding: 0.5rem;
   opacity: 0;
-  will-change: opacity, transform;
+  transform: translateY(8px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
 }
+
+/* Stagger product card entrance when scene is active */
+[data-active-scene="0"] .ext-scene-product-card { opacity: 1; transform: translateY(0); }
+[data-active-scene="0"] .ext-scene-product-card:nth-child(1) { transition-delay: 0.1s; }
+[data-active-scene="0"] .ext-scene-product-card:nth-child(2) { transition-delay: 0.2s; }
+[data-active-scene="0"] .ext-scene-product-card:nth-child(3) { transition-delay: 0.3s; }
+[data-active-scene="0"] .ext-scene-product-card:nth-child(4) { transition-delay: 0.4s; }
 
 .ext-scene-product-card:nth-child(1) { background: rgba(99, 102, 241, 0.12); }
 .ext-scene-product-card:nth-child(2) { background: rgba(236, 72, 153, 0.12); }
@@ -194,7 +214,13 @@
   max-width: 220px;
   transform: scale(0);
   transform-origin: bottom right;
-  will-change: transform;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: 0.5s;
+}
+
+/* Show notification when scene 1 is active */
+[data-active-scene="0"] .ext-scene-notification {
+  transform: scale(1);
 }
 
 .ext-scene-notification-icon {
@@ -319,7 +345,13 @@
   align-items: center;
   gap: 0.5rem;
   transform: translateY(100%);
-  will-change: transform;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: 0.3s;
+}
+
+/* Slide overlay up when scene 2 is active */
+[data-active-scene="1"] .ext-scene-overlay {
+  transform: translateY(0);
 }
 
 .ext-scene-overlay-heading {
@@ -340,7 +372,13 @@
   color: #b8860b;
   border: 1px solid rgba(245, 197, 99, 0.4);
   transform: scale(0);
-  will-change: transform;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: 0.6s;
+}
+
+/* Show badge when scene 2 is active */
+[data-active-scene="1"] .ext-scene-overlay-badge {
+  transform: scale(1);
 }
 
 :root[data-theme='dark'] .ext-scene-overlay-badge {
@@ -386,10 +424,12 @@
   flex-direction: column;
   padding: 1rem;
   filter: blur(0px);
-  transition: filter 0.3s ease;
+  opacity: 1;
+  transition: filter 0.5s ease 0.2s, opacity 0.5s ease 0.2s;
 }
 
-.ext-scene-blocked-bg--blurred {
+/* Blur blocked bg when scene 3 is active */
+[data-active-scene="2"] .ext-scene-blocked-bg {
   filter: blur(4px);
   opacity: 0.4;
 }
@@ -430,7 +470,13 @@
   gap: 0.4rem;
   width: 70%;
   max-width: 280px;
-  will-change: transform;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: 0.4s;
+}
+
+/* Show prompt when scene 3 is active */
+[data-active-scene="2"] .ext-scene-prompt {
+  transform: translate(-50%, -50%) scale(1);
 }
 
 .ext-scene-shield {
@@ -532,6 +578,7 @@
 /* Make animated elements visible in stacked (non-animated) mobile layout */
 .ext-demo-stacked .ext-scene-product-card {
   opacity: 1;
+  transform: translateY(0);
 }
 
 .ext-demo-stacked .ext-scene-notification {
@@ -563,6 +610,14 @@
 
 :root[data-theme='dark'] .ext-scene-place-order {
   background: rgba(99, 102, 241, 0.2);
+}
+
+/* ── Responsive: Small Tablet / Mobile (≤ 900px) ── */
+
+@media (max-width: 900px) {
+  .ext-demo-section {
+    min-height: auto;
+  }
 }
 
 /* ── Responsive: Tablet (≤ 1024px) ── */

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { useGSAPLoader, type GsapTimeline } from './Kinematics'
+import { useEffect, useRef, useState } from 'react'
+import { useGSAPLoader } from './Kinematics'
 import './ChromeExtensionDemo.css'
 
 const SCENE_LABELS = ['Session Awareness', 'Checkout Interstitial', 'Website Blocking']
@@ -149,99 +149,42 @@ function ProgressDots({ activeScene }: { activeScene: number }) {
   )
 }
 
-/* ── Desktop Pinned Animation ── */
+/* ── Pure CSS scroll-based scene switching (no GSAP timeline/pin) ── */
 
-function useDesktopAnimation(
-  gsapReady: boolean,
-  containerRef: React.RefObject<HTMLDivElement | null>,
+function useScrollScenes(
+  sectionRef: React.RefObject<HTMLDivElement | null>,
   setActiveScene: (scene: number) => void,
   isMobile: boolean,
 ) {
   useEffect(() => {
-    if (!gsapReady || !containerRef.current || isMobile) return
-    const gsap = window.gsap
-    if (!gsap) return
+    if (isMobile || !sectionRef.current) return
 
-    const container = containerRef.current
-    const scenes = container.querySelectorAll<HTMLElement>('[data-scene]')
-    const notification = container.querySelector<HTMLElement>('[data-el="notification"]')
-    const productCards = container.querySelectorAll<HTMLElement>('.ext-scene-product-card')
-    const overlay = container.querySelector<HTMLElement>('[data-el="overlay"]')
-    const badge = container.querySelector<HTMLElement>('[data-el="badge"]')
-    const blockedBg = container.querySelector<HTMLElement>('[data-el="blocked-bg"]')
-    const prompt = container.querySelector<HTMLElement>('[data-el="prompt"]')
+    const section = sectionRef.current
+    let ticking = false
 
-    if (!scenes.length) return
+    const handleScroll = () => {
+      if (ticking) return
+      ticking = true
+      requestAnimationFrame(() => {
+        const rect = section.getBoundingClientRect()
+        const sectionHeight = section.offsetHeight
+        // How far the section has scrolled past the viewport top
+        // 0 = section top at viewport top, 1 = section bottom at viewport top
+        const scrolled = -rect.top / sectionHeight
+        const progress = Math.max(0, Math.min(1, scrolled))
 
-    const ctx = gsap.context(() => {
-      const tl: GsapTimeline = gsap.timeline({
-        scrollTrigger: {
-          trigger: container,
-          start: 'top 15%',
-          end: '+=250%',
-          pin: true,
-          scrub: 0.5,
-          onUpdate: (self: { progress: number }) => {
-            const p = self.progress
-            if (p < 0.33) setActiveScene(0)
-            else if (p < 0.67) setActiveScene(1)
-            else setActiveScene(2)
-          },
-        },
+        if (progress < 0.33) setActiveScene(0)
+        else if (progress < 0.67) setActiveScene(1)
+        else setActiveScene(2)
+
+        ticking = false
       })
+    }
 
-      /* ── Scene 1: Session Awareness ── */
-      tl.addLabel('scene1', 0)
-      tl.to(scenes[0], { opacity: 1, duration: 0.05 }, 'scene1')
-
-      productCards.forEach((card, i) => {
-        tl.fromTo(
-          card,
-          { opacity: 0, y: 15 },
-          { opacity: 1, y: 0, duration: 0.04, ease: 'power2.out' },
-          `scene1+=${0.05 + i * 0.025}`,
-        )
-      })
-
-      if (notification) {
-        tl.to(notification, { scale: 1, duration: 0.06, ease: 'back.out(1.7)' }, 'scene1+=0.16')
-      }
-
-      tl.addLabel('scene1End', 0.28)
-      tl.to(scenes[0], { opacity: 0, duration: 0.05 }, 'scene1End')
-
-      /* ── Scene 2: Checkout Interstitial ── */
-      tl.addLabel('scene2', 0.33)
-      tl.to(scenes[1], { opacity: 1, duration: 0.05 }, 'scene2')
-
-      if (overlay) {
-        tl.to(overlay, { y: '0%', duration: 0.08, ease: 'power3.out' }, 'scene2+=0.07')
-      }
-
-      if (badge) {
-        tl.to(badge, { scale: 1, duration: 0.05, ease: 'back.out(1.7)' }, 'scene2+=0.16')
-      }
-
-      tl.addLabel('scene2End', 0.62)
-      tl.to(scenes[1], { opacity: 0, duration: 0.05 }, 'scene2End')
-
-      /* ── Scene 3: Website Blocking ── */
-      tl.addLabel('scene3', 0.67)
-      tl.to(scenes[2], { opacity: 1, duration: 0.05 }, 'scene3')
-
-      if (blockedBg) {
-        tl.to(blockedBg, { filter: 'blur(4px)', opacity: 0.4, duration: 0.06 }, 'scene3+=0.05')
-      }
-
-      if (prompt) {
-        tl.to(prompt, { scale: 1, duration: 0.06, ease: 'back.out(1.7)' }, 'scene3+=0.10')
-      }
-
-      tl.addLabel('scene3End', 0.95)
-    }, container)
-
-    return () => ctx.revert()
-  }, [gsapReady, containerRef, setActiveScene, isMobile])
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll() // initial check
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [sectionRef, setActiveScene, isMobile])
 }
 
 /* ── Mobile Stacked Animation ── */
@@ -291,7 +234,7 @@ export default function ChromeExtensionDemo() {
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)').matches : false,
   )
-  const containerRef = useRef<HTMLDivElement>(null)
+  const sectionRef = useRef<HTMLDivElement>(null)
   const stackedRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -301,23 +244,19 @@ export default function ChromeExtensionDemo() {
     return () => mql.removeEventListener('change', handler)
   }, [])
 
-  const stableSetActiveScene = useCallback((scene: number) => {
-    setActiveScene(scene)
-  }, [])
-
-  useDesktopAnimation(gsapReady, containerRef, stableSetActiveScene, isMobile)
+  useScrollScenes(sectionRef, setActiveScene, isMobile)
   useMobileAnimation(gsapReady, stackedRef, isMobile)
 
   return (
-    <div className="ext-demo-section">
+    <div className="ext-demo-section" ref={sectionRef}>
       <h2 className="premium-section-title">See it in action</h2>
       <p className="premium-section-subtitle">
         A quick look at how TruePick Premium works in your daily browsing.
       </p>
 
-      {/* Desktop: pinned scroll animation */}
+      {/* Desktop: CSS-driven scene switching based on scroll position */}
       {!isMobile && (
-        <div className="ext-demo-container" ref={containerRef}>
+        <div className="ext-demo-container" data-active-scene={activeScene}>
           <div className="ext-demo-browser">
             <BrowserToolbar activeScene={activeScene} />
             <div className="ext-demo-viewport">
