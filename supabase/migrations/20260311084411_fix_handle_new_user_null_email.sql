@@ -1,7 +1,6 @@
--- Fix handle_new_user() to skip insert when email is NULL.
--- Anonymous users and Apple "Hide My Email" users have NULL email in auth.users,
--- which violates the NOT NULL constraint on public.users.email and rolls back
--- the entire auth transaction ("Database error saving new user").
+-- Allow anonymous users (NULL email) to have a public.users row.
+-- The base migration now defines email as nullable, so the NOT NULL drop
+-- is a no-op safety net for incremental push.
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -10,12 +9,6 @@ security definer
 set search_path = public
 as $$
 begin
-  -- Skip public.users row for anonymous users (no email).
-  -- They will get a row when they convert to a permanent account.
-  if new.email is null then
-    return new;
-  end if;
-
   insert into public.users (id, email, created_at, last_active)
   values (
     new.id,
@@ -24,13 +17,12 @@ begin
     now()
   )
   on conflict (id) do update set
-    email = excluded.email,
+    email = coalesce(excluded.email, public.users.email),
     last_active = now();
 
   return new;
 end;
 $$;
 
--- Relax NOT NULL on email so future upserts with initially-null email don't fail.
--- The UNIQUE constraint still prevents duplicate emails (NULLs are treated as distinct).
+-- Safety net: ensure email is nullable (base migration already handles this).
 alter table public.users alter column email drop not null;

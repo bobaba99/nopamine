@@ -5,8 +5,8 @@
 -- The ON CONFLICT (id) clause doesn't match (new UUID), so the UNIQUE(email)
 -- constraint fails with "Database error saving new user".
 --
--- Fix: use ON CONFLICT on the email column to update the existing row's id
--- to match the new auth.users UUID.
+-- Also handles anonymous users (null email) — they get a public.users row with
+-- null email so FK references from verdicts/purchases work.
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -15,12 +15,6 @@ security definer
 set search_path = public
 as $$
 begin
-  -- Skip public.users row for anonymous users (no email).
-  -- They will get a row when they convert to a permanent account.
-  if new.email is null then
-    return new;
-  end if;
-
   -- First try: upsert by id (same auth user returning).
   -- If that would violate the email UNIQUE constraint (different auth UUID,
   -- same email), catch the error and update by email instead.
@@ -33,7 +27,7 @@ begin
       now()
     )
     on conflict (id) do update set
-      email = excluded.email,
+      email = coalesce(excluded.email, public.users.email),
       last_active = now();
   exception
     when unique_violation then

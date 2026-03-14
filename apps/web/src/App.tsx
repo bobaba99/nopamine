@@ -64,13 +64,7 @@ const configuredAdminEmails = (import.meta.env.VITE_ADMIN_EMAILS ?? '')
   .filter((value: string) => value.length > 0)
 
 const syncUserRecord = async (activeSession: Session) => {
-  const email = activeSession.user.email
-  if (!email) {
-    logAuthDebug('syncUserRecord skipped: missing email', {
-      session: summarizeSessionDebug(activeSession),
-    })
-    return
-  }
+  const email = activeSession.user.email ?? null
 
   const { error } = await supabase.from('users').upsert(
     {
