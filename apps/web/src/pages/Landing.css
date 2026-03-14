@@ -131,6 +131,41 @@
   max-width: 480px;
 }
 
+/* ── Section Dividers ── */
+
+.landing-section::after {
+  content: '';
+  display: block;
+  width: 120px;
+  height: 24px;
+  margin: 2rem auto 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='24' fill='none' stroke='rgba(100,116,139,0.35)' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M10 16 C30 4,60 4,60 12 S90 20,110 8'/%3E%3Ccircle cx='60' cy='12' r='2' fill='rgba(100,116,139,0.25)' stroke='none'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+
+.landing-waitlist-section::after,
+.landing-footer-cta::after {
+  display: none;
+}
+
+:root[data-theme='dark'] .landing-section::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='24' fill='none' stroke='rgba(240,238,230,0.15)' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M10 16 C30 4,60 4,60 12 S90 20,110 8'/%3E%3Ccircle cx='60' cy='12' r='2' fill='rgba(240,238,230,0.1)' stroke='none'/%3E%3C/svg%3E");
+}
+
+/* ── Heading Accents ── */
+
+.landing-section-subtitle::before {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 6px;
+  margin: -0.5rem auto 0.75rem;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='6' fill='none' stroke='rgba(99,102,141,0.3)' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M4 5 Q24 1 44 5'/%3E%3Ccircle cx='2' cy='3' r='1.5' fill='rgba(99,102,141,0.2)' stroke='none'/%3E%3Ccircle cx='46' cy='3' r='1.5' fill='rgba(99,102,141,0.2)' stroke='none'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+
+:root[data-theme='dark'] .landing-section-subtitle::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='6' fill='none' stroke='rgba(240,238,230,0.12)' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M4 5 Q24 1 44 5'/%3E%3Ccircle cx='2' cy='3' r='1.5' fill='rgba(240,238,230,0.08)' stroke='none'/%3E%3Ccircle cx='46' cy='3' r='1.5' fill='rgba(240,238,230,0.08)' stroke='none'/%3E%3C/svg%3E");
+}
+
 /* ── How It Works ── */
 
 .landing-steps {
@@ -548,6 +583,12 @@
     font-size: 0.9rem;
   }
 
+  .landing-section::after {
+    width: 80px;
+    height: 16px;
+    margin-top: 1.5rem;
+  }
+
   .landing-step-card {
     padding: 1.25rem;
   }
@@ -594,6 +635,11 @@
 @media (max-width: 380px) {
   .landing {
     gap: 2.5rem;
+  }
+
+  .landing-section::after,
+  .landing-section-subtitle::before {
+    display: none;
   }
 
   .landing-hero-action {

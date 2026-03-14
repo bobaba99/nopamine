@@ -53,7 +53,7 @@
 - [ ] Complete Profile and history UX polish — **Branch:** `fix/profile-history-ux-polish`
   Why: Core user-facing screen; rough UX harms first impressions and retention. Already in progress.
 - [ ] 10 articles in Resources for TruePick, putting the SEO and web search indexes as early as possible
-- [ ] Premium demo on Premium page
+- [x] Premium demo on Premium page
 - [ ] Polish verdict quality, to make it more acceptable and people are willing to sign up
 - [x] Add verdict feedback (i.e., thumbs up and down) in the verdict cards
 - [ ] Fix Profile verdict and purchase UI layout
@@ -66,6 +66,7 @@
 
 ### 2. Nice-to-Have (ship without; add in weeks 1-2 post-launch)
 
+- [ ] Cute mascot to keep user engaged
 - [ ] Add warning modal for short/long justification — **Priority:** Medium
   Why: Inline word-count guidance already nudges users; LLM handles short input. Not a blocker.
 - [ ] Add confidence indicator in verdict cards/modal from stored `confidence_score` — **Priority:** Medium

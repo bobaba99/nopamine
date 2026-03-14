@@ -11,8 +11,10 @@
   --field-bg: rgba(255, 255, 255, 0.88);
   --modal-backdrop: rgba(15, 23, 42, 0.35);
   --page-bg: #f3f5fb;
-  --page-orb-warm: #f97316;
-  --page-orb-cool: #3b82f6;
+  --page-orb-warm: #e8956a;
+  --page-orb-cool: #7a9ec4;
+  --lineart-color: rgba(15, 23, 42, 0.06);
+  --lineart-accent: rgba(99, 102, 141, 0.08);
 }
 
 :root[data-theme='dark'] {
@@ -28,6 +30,8 @@
   --field-bg: rgba(0, 0, 0, 0.3);
   --modal-backdrop: rgba(0, 0, 0, 0.7);
   --page-bg: #0a0c10;
-  --page-orb-warm: #ea580c;
-  --page-orb-cool: #0047ab;
+  --page-orb-warm: #c06a3a;
+  --page-orb-cool: #3a6a9e;
+  --lineart-color: rgba(240, 238, 230, 0.035);
+  --lineart-accent: rgba(240, 238, 230, 0.05);
 }

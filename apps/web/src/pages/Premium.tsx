@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
+import AnalyticsDemoSection from '../components/AnalyticsDemoSection'
 import ChromeExtensionDemo from '../components/ChromeExtensionDemo'
 import {
   GlassCard,
@@ -96,6 +97,34 @@ export default function Premium() {
           </p>
         </div>
 
+        {/* ── Unlimited Verdicts ── */}
+        <div className="premium-section">
+          <SplitText className="premium-section-title">Unlimited &amp; Refined Verdicts</SplitText>
+          <p className="premium-section-subtitle">
+            No daily cap. Deeper reasoning that references your values and history.
+          </p>
+
+          <div className="premium-features premium-features--two" ref={verdictsRef}>
+            <GlassCard className="premium-feature-card">
+              <div className="premium-feature-icon">♾️</div>
+              <h3>Unlimited Verdicts</h3>
+              <p>
+                Remove the 3/day free-tier cap. Evaluate as many purchases as you need,
+                whenever you need — no waiting for tomorrow.
+              </p>
+            </GlassCard>
+
+            <GlassCard className="premium-feature-card">
+              <div className="premium-feature-icon">🎯</div>
+              <h3>Personalized Rationale</h3>
+              <p>
+                Every verdict references your profile, values, and spending history.
+                Hold verdicts include email reminders and customizable hold durations.
+              </p>
+            </GlassCard>
+          </div>
+        </div>
+
         {/* ── Chrome Extension ── */}
         <div className="premium-section">
           <SplitText className="premium-section-title">Chrome Extension</SplitText>
@@ -143,34 +172,6 @@ export default function Premium() {
 
       {/* ── Bottom Section (inside constrained container) ── */}
       <section className="premium-page premium-page--bottom">
-        {/* ── Unlimited Verdicts ── */}
-        <div className="premium-section">
-          <SplitText className="premium-section-title">Unlimited &amp; Refined Verdicts</SplitText>
-          <p className="premium-section-subtitle">
-            No daily cap. Deeper reasoning that references your values and history.
-          </p>
-
-          <div className="premium-features premium-features--two" ref={verdictsRef}>
-            <GlassCard className="premium-feature-card">
-              <div className="premium-feature-icon">♾️</div>
-              <h3>Unlimited Verdicts</h3>
-              <p>
-                Remove the 3/day free-tier cap. Evaluate as many purchases as you need,
-                whenever you need — no waiting for tomorrow.
-              </p>
-            </GlassCard>
-
-            <GlassCard className="premium-feature-card">
-              <div className="premium-feature-icon">🎯</div>
-              <h3>Personalized Rationale</h3>
-              <p>
-                Every verdict references your profile, values, and spending history.
-                Hold verdicts include email reminders and customizable hold durations.
-              </p>
-            </GlassCard>
-          </div>
-        </div>
-
         {/* ── Analytics & Intelligence ── */}
         <div className="premium-section">
           <SplitText className="premium-section-title">Analytics &amp; Intelligence</SplitText>
@@ -210,7 +211,13 @@ export default function Premium() {
             </GlassCard>
           </div>
         </div>
+      </section>
 
+      {/* ── Analytics Demo (full-width, outside flex container for ScrollTrigger pin) ── */}
+      <AnalyticsDemoSection />
+
+      {/* ── Final Section (inside constrained container) ── */}
+      <section className="premium-page premium-page--final">
         {/* ── Tier Comparison ── */}
         <ScrollReveal className="premium-section">
           <SplitText className="premium-section-title">Free vs. Premium</SplitText>
