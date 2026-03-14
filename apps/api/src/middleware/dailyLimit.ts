@@ -45,7 +45,9 @@ export const createCheckDailyVerdictLimit = (
       return
     }
 
-    // Count today's verdicts (UTC day boundary)
+    // Count today's verdicts (UTC day boundary).
+    // Exclude fallback verdicts (heuristic_fallback) — these were created when
+    // the LLM call failed and should not consume a daily slot.
     const todayUtc = new Date()
     todayUtc.setUTCHours(0, 0, 0, 0)
     const { count } = await sb
@@ -54,6 +56,7 @@ export const createCheckDailyVerdictLimit = (
       .eq('user_id', user.id)
       .gte('created_at', todayUtc.toISOString())
       .is('deleted_at', null)
+      .neq('scoring_model', 'heuristic_fallback')
 
     const usedToday = count ?? 0
     if (usedToday >= DAILY_VERDICT_LIMIT_FREE) {
