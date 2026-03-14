@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useGSAPLoader } from './Kinematics'
+import gsap from 'gsap'
 import './ChromeExtensionDemo.css'
 
 const SCENE_LABELS = ['Session Awareness', 'Checkout Interstitial', 'Website Blocking']
@@ -173,8 +173,8 @@ function useScrollScenes(
         const scrolled = -rect.top / sectionHeight
         const progress = Math.max(0, Math.min(1, scrolled))
 
-        if (progress < 0.33) setActiveScene(0)
-        else if (progress < 0.67) setActiveScene(1)
+        if (progress < 0.28) setActiveScene(0)
+        else if (progress < 0.55) setActiveScene(1)
         else setActiveScene(2)
 
         ticking = false
@@ -190,14 +190,11 @@ function useScrollScenes(
 /* ── Mobile Stacked Animation ── */
 
 function useMobileAnimation(
-  gsapReady: boolean,
   stackedRef: React.RefObject<HTMLDivElement | null>,
   isMobile: boolean,
 ) {
   useEffect(() => {
-    if (!gsapReady || !stackedRef.current || !isMobile) return
-    const gsap = window.gsap
-    if (!gsap) return
+    if (!stackedRef.current || !isMobile) return
 
     const items = stackedRef.current.querySelectorAll<HTMLElement>('.ext-demo-stacked-scene')
     if (!items.length) return
@@ -223,13 +220,12 @@ function useMobileAnimation(
     }, stackedRef.current)
 
     return () => ctx.revert()
-  }, [gsapReady, stackedRef, isMobile])
+  }, [stackedRef, isMobile])
 }
 
 /* ── Main Component ── */
 
 export default function ChromeExtensionDemo() {
-  const gsapReady = useGSAPLoader()
   const [activeScene, setActiveScene] = useState(0)
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)').matches : false,
@@ -245,7 +241,7 @@ export default function ChromeExtensionDemo() {
   }, [])
 
   useScrollScenes(sectionRef, setActiveScene, isMobile)
-  useMobileAnimation(gsapReady, stackedRef, isMobile)
+  useMobileAnimation(stackedRef, isMobile)
 
   return (
     <div className="ext-demo-section" ref={sectionRef}>
