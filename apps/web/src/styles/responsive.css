@@ -522,6 +522,23 @@
     padding: 0.35rem 0.75rem;
     font-size: 0.78rem;
   }
+
+  /* Purchase cards: stack vertically on phone */
+  .purchase-card-main {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .purchase-card-title {
+    max-width: none;
+  }
+
+  .purchase-card-actions {
+    justify-content: flex-end;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--glass-border);
+  }
 }
 
 /* --- Small phones (≤ 380px) --- */
@@ -573,6 +590,19 @@
   .auth-action-btn {
     padding: 0.3rem 0.6rem;
     font-size: 0.75rem;
+  }
+
+  /* Purchase cards: tighter on small phone */
+  .purchase-card {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .purchase-card-title {
+    font-size: 0.9rem;
+  }
+
+  .purchase-card-price {
+    font-size: 0.9rem;
   }
 }
 

@@ -95,35 +95,25 @@ export default function PurchasesTab({
         <>
           <div className="verdict-list">
             {visiblePurchases.map((purchase) => (
-              <GlassCard key={purchase.id} className="verdict-card">
-                <div className="verdict-card-content">
-                  <div>
-                    <span className="stat-label">Item </span>
-                    <span className="stat-value">{purchase.title}</span>
+              <GlassCard key={purchase.id} className="verdict-card purchase-card">
+                <div className="purchase-card-main">
+                  <div className="purchase-card-info">
+                    <span className="purchase-card-title">{purchase.title}</span>
+                    <span className="purchase-card-price">{formatCurrency(Number(purchase.price))}</span>
+                    <div className="meta-chips">
+                      {purchase.category && <span className="meta-chip">{purchase.category}</span>}
+                      <span className="meta-chip">{formatDate(purchase.purchase_date)}</span>
+                      {purchase.vendor && <span className="meta-chip meta-chip--secondary">{purchase.vendor}</span>}
+                    </div>
                   </div>
-                  <div className="meta-chips">
-                    <span className="meta-chip meta-chip--price">{formatCurrency(Number(purchase.price))}</span>
-                    {purchase.category && <span className="meta-chip">{purchase.category}</span>}
-                    <span className="meta-chip">{formatDate(purchase.purchase_date)}</span>
-                    {purchase.vendor && <span className="meta-chip meta-chip--secondary">{purchase.vendor}</span>}
+                  <div className="purchase-card-actions">
+                    <LiquidButton className="link" type="button" onClick={() => onEditPurchase(purchase)}>
+                      Edit
+                    </LiquidButton>
+                    <LiquidButton className="link danger" type="button" onClick={() => onDeletePurchase(purchase.id)} disabled={purchaseSaving}>
+                      Delete
+                    </LiquidButton>
                   </div>
-                </div>
-                <div className="verdict-actions">
-                  <LiquidButton
-                    className="link"
-                    type="button"
-                    onClick={() => onEditPurchase(purchase)}
-                  >
-                    Edit
-                  </LiquidButton>
-                  <LiquidButton
-                    className="link danger"
-                    type="button"
-                    onClick={() => onDeletePurchase(purchase.id)}
-                    disabled={purchaseSaving}
-                  >
-                    Delete
-                  </LiquidButton>
                 </div>
               </GlassCard>
             ))}

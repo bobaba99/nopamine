@@ -522,6 +522,14 @@
   line-height: 1;
 }
 
+/* Verdict utility row — links on left, feedback thumbs on right */
+.verdict-utility-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .verdict-actions .decision-btn {
   line-height: 1;
 }
@@ -3577,6 +3585,55 @@
 
 .meta-chip--secondary {
   opacity: 0.75;
+}
+
+/* ── Purchase Cards ── */
+
+.purchase-card {
+  padding: 0.75rem 1rem;
+}
+
+.purchase-card-main {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.purchase-card-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.purchase-card-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+.purchase-card-price {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink-800);
+  white-space: nowrap;
+}
+
+.purchase-card-info > .meta-chips {
+  margin-top: 0;
+}
+
+.purchase-card-actions {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 /* ── Resource cards ── */
