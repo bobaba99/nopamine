@@ -6,6 +6,11 @@
 - Add placeholders for social media accounts where brand presence will live.
 - Add simplified social-proof copy like "85% of users who skipped felt satisfied later" or curated testimonials on landing/about pages.
 
+## Resource Article Ideas
+
+- Resource article about setting up precommitted rules for subscriptions, an expense calculator of sort to determine if annual subscription is worth it, go to rule is just one month or other forms of minimal duration
+
+
 ## MVP Launch Blockers
 
 - Implement user data deletion and data export.
@@ -29,6 +34,16 @@
   Why: Shared links and indexed resources need basic metadata and OG previews to avoid looking broken.
 - Generate a simple SEO optimization rule/document for future content publishing.
 - Add a confidence indicator to verdict cards/modal from stored `confidence_score`.
+- Auto language and currency selection
+- Promotion focused sentiment in marketing content
+- Anxiety reduction features to attract users
+  - Reminder for return regretted purchases
+  - Reviews on the verdict product
+    - Spot fake and AI generated reviews
+    - Rationale should include a product review and personas of someone who would and/or wouldn't regret this purchase (i.e., if you are a single mom short on food preparation time, it's a reasonable purchase and you are very unlikely to regret this purchase.)
+  - Aggregated reviews, summarize based on platforms, retain different UIs for different platforms, to reduce new user anxiety and feel genuine (i.e., Reddit layout card of summarization of Reddit reviews)
+- Consider a retention strategy to fight the push/pull dynamics in attracting and converting users
+  - Right after user clicked skip, show feedback you’ve saved this much with TruePick (instant gratification)
 
 ## Deferred / Post-Launch
 
