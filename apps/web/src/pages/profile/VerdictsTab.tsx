@@ -126,7 +126,7 @@ export default function VerdictsTab({
                 </div>
                 <div className="verdict-actions">
                   <div className="verdict-utility-row">
-                    <div className="verdict-actions-links">
+                    <div className="verdict-action-links">
                       <LiquidButton
                         type="button"
                         className="link"

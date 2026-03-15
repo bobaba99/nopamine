@@ -8,6 +8,7 @@ tags:
 cover_image_url: null
 cta_url: null
 is_published: false
+# published_at: "2026-01-15"  # uncomment and set date when first publishing
 ---
 
 ## Introduction

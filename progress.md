@@ -60,6 +60,7 @@
 - [x] Fix Profile verdict and purchase UI layout
   Why: Card layouts, spacing, and responsiveness need polish to match the quality bar set by Landing/Premium pages. Visual inconsistencies hurt perceived product quality.
 - [x] Mass uploading workflow for resource articles — implemented as `npm run seed:resources` (markdown-to-Supabase pipeline)
+- [ ] Read `TruePick Guiding Plan.md` and generate feature ideas
 
 ### 1b. Immediately After Launch (test on production)
 

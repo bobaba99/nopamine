@@ -10,6 +10,7 @@ tags:
 cover_image_url: null
 cta_url: null
 is_published: true
+published_at: "2026-03-15"
 ---
 
 ## The Dopamine Trap

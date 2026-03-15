@@ -505,12 +505,6 @@
 
 .verdict-action-links {
   display: flex;
-  gap: 0.5rem;
-}
-
-/* Verdict card — utility links row (Share / Regenerate) */
-.verdict-actions-links {
-  display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
