@@ -52,7 +52,7 @@
   Why: Legal requirement per PRD 5.2; liability coverage.
 - [ ] Complete Profile and history UX polish — **Branch:** `fix/profile-history-ux-polish`
   Why: Core user-facing screen; rough UX harms first impressions and retention. Already in progress.
-- [ ] 10 articles in Resources for TruePick, putting the SEO and web search indexes as early as possible
+- [x] 10 articles in Resources for TruePick, putting the SEO and web search indexes as early as possible
   - [x] Markdown seed pipeline: `content/resources/*.md` + `temp/seed-resources.ts` + `npm run seed:resources` — parses frontmatter, converts MD→HTML via `marked`, upserts to Supabase `resources` table on slug conflict. Dry-run mode available. 1 sample article included.
 - [x] Premium demo on Premium page
 - [ ] Polish verdict quality, to make it more acceptable and people are willing to sign up
