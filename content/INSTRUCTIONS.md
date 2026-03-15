@@ -42,6 +42,7 @@ tags:                          # At least one tag (required)
 cover_image_url: null          # Optional cover image URL (or null)
 cta_url: null                  # Optional call-to-action link (or null)
 is_published: false            # true = live on /resources, false = draft (admin-only)
+published_at: "2026-03-15"    # Optional: set once on first publish (preserved on re-seed)
 ---
 ```
 
@@ -61,6 +62,7 @@ is_published: false            # true = live on /resources, false = draft (admin
 | `cover_image_url` | `null`  | Public URL to a cover image                |
 | `cta_url`         | `null`  | Link for the article's call-to-action      |
 | `is_published`    | `false` | Set `true` to publish immediately          |
+| `published_at`    | omitted | ISO date (e.g. `"2026-03-15"`). Set once on first publish — omitting preserves the existing DB value on re-seed |
 
 ### Available Tags
 

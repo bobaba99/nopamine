@@ -60,6 +60,7 @@ type ArticleFrontmatter = {
   cover_image_url?: string | null
   cta_url?: string | null
   is_published?: boolean
+  published_at?: string | null
 }
 
 type ArticleRow = {
@@ -72,7 +73,8 @@ type ArticleRow = {
   cover_image_url: string | null
   cta_url: string | null
   is_published: boolean
-  published_at: string | null
+  updated_at: string
+  published_at?: string | null
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -103,7 +105,7 @@ function parseArticle(filePath: string): ArticleRow {
   const isPublished = fm.is_published ?? false
   const readingTime = calculateReadingTime(fm.title, fm.summary, bodyHtml)
 
-  return {
+  const row: ArticleRow = {
     slug: fm.slug.trim(),
     title: fm.title.trim(),
     summary: fm.summary.trim(),
@@ -113,8 +115,16 @@ function parseArticle(filePath: string): ArticleRow {
     cover_image_url: fm.cover_image_url?.trim() || null,
     cta_url: fm.cta_url?.trim() || null,
     is_published: isPublished,
-    published_at: isPublished ? new Date().toISOString() : null,
+    updated_at: new Date().toISOString(),
   }
+
+  // Only include published_at when explicitly set in frontmatter.
+  // Omitting it from the payload preserves the existing DB value on re-seed.
+  if (fm.published_at) {
+    row.published_at = new Date(fm.published_at).toISOString()
+  }
+
+  return row
 }
 
 // ── Main ────────────────────────────────────────────────────────────────────
